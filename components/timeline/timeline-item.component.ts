@@ -4,9 +4,9 @@
  */
 
 import {
-  ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  inject,
   Input,
   OnChanges,
   SimpleChanges,
@@ -14,6 +14,8 @@ import {
   ViewChild,
   ViewEncapsulation
 } from '@angular/core';
+
+import { NzOutletModule } from 'ng-zorro-antd/core/outlet';
 
 import { TimelineService } from './timeline.service';
 import { NzTimelineItemColor, NzTimelinePosition, TimelineTimeDefaultColors } from './typings';
@@ -23,9 +25,6 @@ function isDefaultColor(color?: string): boolean {
 }
 
 @Component({
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  encapsulation: ViewEncapsulation.None,
-  preserveWhitespaces: false,
   selector: 'nz-timeline-item, [nz-timeline-item]',
   exportAs: 'nzTimelineItem',
   template: `
@@ -36,9 +35,11 @@ function isDefaultColor(color?: string): boolean {
         [class.ant-timeline-item-left]="(nzPosition || position) === 'left'"
         [class.ant-timeline-item-last]="isLast"
       >
-        <div *ngIf="nzLabel" class="ant-timeline-item-label">
-          <ng-container *nzStringTemplateOutlet="nzLabel">{{ nzLabel }}</ng-container>
-        </div>
+        @if (nzLabel) {
+          <div class="ant-timeline-item-label">
+            <ng-container *nzStringTemplateOutlet="nzLabel">{{ nzLabel }}</ng-container>
+          </div>
+        }
         <div class="ant-timeline-item-tail"></div>
         <div
           class="ant-timeline-item-head"
@@ -52,13 +53,18 @@ function isDefaultColor(color?: string): boolean {
           <ng-container *nzStringTemplateOutlet="nzDot">{{ nzDot }}</ng-container>
         </div>
         <div class="ant-timeline-item-content">
-          <ng-content></ng-content>
+          <ng-content />
         </div>
       </li>
     </ng-template>
-  `
+  `,
+  imports: [NzOutletModule],
+  encapsulation: ViewEncapsulation.None
 })
 export class NzTimelineItemComponent implements OnChanges {
+  private cdr = inject(ChangeDetectorRef);
+  private timelineService = inject(TimelineService);
+
   @ViewChild('template', { static: false }) template!: TemplateRef<void>;
 
   @Input() nzPosition?: NzTimelinePosition;
@@ -70,11 +76,10 @@ export class NzTimelineItemComponent implements OnChanges {
   borderColor: string | null = null;
   position?: NzTimelinePosition;
 
-  constructor(private cdr: ChangeDetectorRef, private timelineService: TimelineService) {}
-
   ngOnChanges(changes: SimpleChanges): void {
     this.timelineService.markForCheck();
-    if (changes.nzColor) {
+    const { nzColor } = changes;
+    if (nzColor) {
       this.updateCustomColor();
     }
   }

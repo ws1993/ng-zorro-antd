@@ -3,23 +3,24 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { ChangeDetectionStrategy, Component, ElementRef, Input, TemplateRef, ViewEncapsulation } from '@angular/core';
+import { Component, Input, TemplateRef, ViewEncapsulation, booleanAttribute } from '@angular/core';
 
-import { BooleanInput } from 'ng-zorro-antd/core/types';
-import { InputBoolean } from 'ng-zorro-antd/core/util';
+import { NzOutletModule } from 'ng-zorro-antd/core/outlet';
+import type { NzSizeLMSType } from 'ng-zorro-antd/core/types';
 
 @Component({
   selector: 'nz-divider',
   exportAs: 'nzDivider',
-  preserveWhitespaces: false,
   encapsulation: ViewEncapsulation.None,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <span *ngIf="nzText" class="ant-divider-inner-text">
-      <ng-container *nzStringTemplateOutlet="nzText">{{ nzText }}</ng-container>
-    </span>
+    @if (nzText) {
+      <span class="ant-divider-inner-text">
+        <ng-container *nzStringTemplateOutlet="nzText">{{ nzText }}</ng-container>
+      </span>
+    }
   `,
   host: {
+    class: 'ant-divider',
     '[class.ant-divider-horizontal]': `nzType === 'horizontal'`,
     '[class.ant-divider-vertical]': `nzType === 'vertical'`,
     '[class.ant-divider-with-text]': `nzText`,
@@ -27,21 +28,19 @@ import { InputBoolean } from 'ng-zorro-antd/core/util';
     '[class.ant-divider-with-text-left]': `nzText && nzOrientation === 'left'`,
     '[class.ant-divider-with-text-right]': `nzText && nzOrientation === 'right'`,
     '[class.ant-divider-with-text-center]': `nzText && nzOrientation === 'center'`,
-    '[class.ant-divider-dashed]': `nzDashed`
-  }
+    '[class.ant-divider-dashed]': `nzDashed || nzVariant === 'dashed'`,
+    '[class.ant-divider-dotted]': `nzVariant === 'dotted'`,
+    '[class.ant-divider-sm]': `nzSize === 'small'`,
+    '[class.ant-divider-md]': `nzSize === 'middle'`
+  },
+  imports: [NzOutletModule]
 })
 export class NzDividerComponent {
-  static ngAcceptInputType_nzDashed: BooleanInput;
-  static ngAcceptInputType_nzPlain: BooleanInput;
-
   @Input() nzText?: string | TemplateRef<void>;
   @Input() nzType: 'horizontal' | 'vertical' = 'horizontal';
   @Input() nzOrientation: 'left' | 'right' | 'center' = 'center';
-  @Input() @InputBoolean() nzDashed = false;
-  @Input() @InputBoolean() nzPlain = false;
-
-  constructor(private elementRef: ElementRef) {
-    // TODO: move to host after View Engine deprecation
-    this.elementRef.nativeElement.classList.add('ant-divider');
-  }
+  @Input() nzVariant: 'dashed' | 'dotted' | 'solid' = 'solid';
+  @Input() nzSize: NzSizeLMSType | undefined;
+  @Input({ transform: booleanAttribute }) nzDashed = false;
+  @Input({ transform: booleanAttribute }) nzPlain = false;
 }

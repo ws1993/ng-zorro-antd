@@ -1,11 +1,11 @@
-/* declarations: NzModalCustomFooterComponent */
+import { Component, inject, signal } from '@angular/core';
 
-import { Component } from '@angular/core';
-
-import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzModalModule, NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
 
 @Component({
   selector: 'nz-demo-modal-footer2',
+  imports: [NzButtonModule, NzModalModule],
   template: `
     <button nz-button nzType="primary" (click)="showModal1()">
       <span>In Template</span>
@@ -26,20 +26,19 @@ import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
       <div *nzModalFooter>
         <span>Modal Footer:</span>
         <button nz-button nzType="default" (click)="handleCancel()">Custom Callback</button>
-        <button nz-button nzType="primary" (click)="handleOk()" [nzLoading]="isConfirmLoading">Custom Submit</button>
+        <button nz-button nzType="primary" (click)="handleOk()" [nzLoading]="isConfirmLoading()">Custom Submit</button>
       </div>
     </nz-modal>
-  `,
-  styles: []
+  `
 })
 export class NzDemoModalFooter2Component {
-  isVisible = false;
-  isConfirmLoading = false;
+  private readonly modalService = inject(NzModalService);
 
-  constructor(private modalService: NzModalService) {}
+  readonly isVisible = signal(false);
+  readonly isConfirmLoading = signal(false);
 
   showModal1(): void {
-    this.isVisible = true;
+    this.isVisible.set(true);
   }
 
   showModal2(): void {
@@ -50,20 +49,21 @@ export class NzDemoModalFooter2Component {
   }
 
   handleOk(): void {
-    this.isConfirmLoading = true;
+    this.isConfirmLoading.set(true);
     setTimeout(() => {
-      this.isVisible = false;
-      this.isConfirmLoading = false;
+      this.isVisible.set(false);
+      this.isConfirmLoading.set(false);
     }, 3000);
   }
 
   handleCancel(): void {
-    this.isVisible = false;
+    this.isVisible.set(false);
   }
 }
 
 @Component({
   selector: 'nz-modal-custom-footer-component',
+  imports: [NzButtonModule, NzModalModule],
   template: `
     <div>
       <p>Modal Content</p>
@@ -79,9 +79,9 @@ export class NzDemoModalFooter2Component {
   `
 })
 export class NzModalCustomFooterComponent {
-  constructor(private modal: NzModalRef) {}
+  private readonly modalRef = inject(NzModalRef);
 
   destroyModal(): void {
-    this.modal.destroy();
+    this.modalRef.destroy();
   }
 }

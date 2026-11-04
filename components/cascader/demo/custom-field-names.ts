@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
-import { NzCascaderOption } from 'ng-zorro-antd/cascader';
+import { NzCascaderModule, NzCascaderOption } from 'ng-zorro-antd/cascader';
 
 const options = [
   {
@@ -52,20 +53,21 @@ const options = [
 
 @Component({
   selector: 'nz-demo-cascader-custom-field-names',
+  imports: [FormsModule, NzCascaderModule],
   template: `
     <nz-cascader
       [nzChangeOn]="validate"
       [nzOptions]="nzOptions"
-      [nzLabelProperty]="'name'"
-      [nzValueProperty]="'code'"
+      nzLabelProperty="name"
+      nzValueProperty="code"
       [nzShowSearch]="true"
       [(ngModel)]="values"
       (ngModelChange)="onChanges($event)"
-    ></nz-cascader>
+    />
   `
 })
 export class NzDemoCascaderCustomFieldNamesComponent {
-  nzOptions: NzCascaderOption[] = options;
+  readonly nzOptions: NzCascaderOption[] = options;
   values: string[] | null = null;
 
   onChanges(values: string[]): void {

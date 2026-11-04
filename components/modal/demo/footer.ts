@@ -1,7 +1,11 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 
 @Component({
   selector: 'nz-demo-modal-footer',
+  imports: [NzButtonModule, NzModalModule],
   template: `
     <button nz-button nzType="primary" (click)="showModal()">
       <span>Show Modal</span>
@@ -26,30 +30,28 @@ import { Component } from '@angular/core';
       <ng-template #modalFooter>
         <span>Modal Footer:</span>
         <button nz-button nzType="default" (click)="handleCancel()">Custom Callback</button>
-        <button nz-button nzType="primary" (click)="handleOk()" [nzLoading]="isConfirmLoading">Custom Submit</button>
+        <button nz-button nzType="primary" (click)="handleOk()" [nzLoading]="isConfirmLoading()">Custom Submit</button>
       </ng-template>
     </nz-modal>
   `
 })
 export class NzDemoModalFooterComponent {
-  isVisible = false;
-  isConfirmLoading = false;
-
-  constructor() {}
+  readonly isVisible = signal(false);
+  readonly isConfirmLoading = signal(false);
 
   showModal(): void {
-    this.isVisible = true;
+    this.isVisible.set(true);
   }
 
   handleOk(): void {
-    this.isConfirmLoading = true;
+    this.isConfirmLoading.set(true);
     setTimeout(() => {
-      this.isVisible = false;
-      this.isConfirmLoading = false;
+      this.isVisible.set(false);
+      this.isConfirmLoading.set(false);
     }, 1000);
   }
 
   handleCancel(): void {
-    this.isVisible = false;
+    this.isVisible.set(false);
   }
 }

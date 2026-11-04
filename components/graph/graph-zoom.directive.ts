@@ -4,38 +4,42 @@
  */
 
 import {
-  AfterViewInit,
+  afterNextRender,
   ChangeDetectorRef,
+  DestroyRef,
   Directive,
   ElementRef,
   EventEmitter,
+  inject,
   Input,
-  OnDestroy,
   Output
 } from '@angular/core';
-import { Subject } from 'rxjs';
 
-import { select, Selection } from 'd3-selection';
-import { transition as d3Transition } from 'd3-transition';
+import { Selection } from 'd3-selection';
+import { transition } from 'd3-transition';
 import { zoom, ZoomBehavior, zoomIdentity, zoomTransform } from 'd3-zoom';
 
 import { NzSafeAny } from 'ng-zorro-antd/core/types';
+import { numberAttributeWithOneFallback } from 'ng-zorro-antd/core/util';
 
 import { calculateTransform } from './core/utils';
 import { NzZoomTransform, RelativePositionInfo } from './interface';
-Selection.bind('transition', d3Transition);
 
 @Directive({
   selector: '[nz-graph-zoom]',
   exportAs: 'nzGraphZoom'
 })
-export class NzGraphZoomDirective implements OnDestroy, AfterViewInit {
-  @Input() nzZoom?: number;
+export class NzGraphZoomDirective {
+  private destroyRef = inject(DestroyRef);
+  private cdr = inject(ChangeDetectorRef);
+  private element = inject(ElementRef);
+
+  @Input({ transform: numberAttributeWithOneFallback }) nzZoom?: number;
   @Input() nzMinZoom = 0.1;
   @Input() nzMaxZoom = 10;
 
-  @Output() readonly nzTransformEvent: EventEmitter<NzZoomTransform> = new EventEmitter();
-  @Output() readonly nzZoomChange: EventEmitter<number> = new EventEmitter();
+  @Output() readonly nzTransformEvent = new EventEmitter<NzZoomTransform>();
+  @Output() readonly nzZoomChange = new EventEmitter<number>();
 
   svgSelection!: Selection<NzSafeAny, NzSafeAny, NzSafeAny, NzSafeAny>;
   zoomBehavior!: ZoomBehavior<NzSafeAny, NzSafeAny>;
@@ -45,25 +49,23 @@ export class NzGraphZoomDirective implements OnDestroy, AfterViewInit {
   svgElement!: SVGSVGElement;
   gZoomElement!: SVGGElement;
 
-  private destroy$ = new Subject<void>();
+  constructor() {
+    this.destroyRef.onDestroy(() => {
+      this.unbind();
+    });
 
-  constructor(private element: ElementRef, private cdr: ChangeDetectorRef) {}
-
-  ngAfterViewInit(): void {
-    this.bind();
-  }
-
-  ngOnDestroy(): void {
-    this.unbind();
-    this.destroy$.next();
-    this.destroy$.complete();
+    afterNextRender(() => {
+      this.bind();
+    });
   }
 
   bind(): void {
     this.svgElement = this.element.nativeElement.querySelector('svg') as SVGSVGElement;
     this.gZoomElement = this.element.nativeElement.querySelector('svg > g') as SVGGElement;
     const { width, height } = this.element.nativeElement.getBoundingClientRect();
-    this.svgSelection = select(this.svgElement);
+    this.svgSelection = transition()
+      .selection()
+      .select(() => this.svgElement);
     this.zoomBehavior = zoom()
       .extent([
         [0, 0],

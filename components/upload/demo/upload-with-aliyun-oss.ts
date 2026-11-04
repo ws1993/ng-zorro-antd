@@ -1,29 +1,32 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 
-import { NzUploadChangeParam, NzUploadFile } from 'ng-zorro-antd/upload';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzUploadChangeParam, NzUploadFile, NzUploadModule } from 'ng-zorro-antd/upload';
 
 @Component({
   selector: 'nz-demo-upload-upload-with-aliyun-oss',
+  imports: [NzButtonModule, NzIconModule, NzUploadModule],
   template: `
     <nz-upload
       nzName="file"
       [(nzFileList)]="files"
-      [nzTransformFile]="transformFile"
+      [nzBeforeUpload]="beforeUpload"
       [nzData]="getExtraData"
       [nzAction]="mockOSSData.host"
       (nzChange)="onChange($event)"
     >
       Photos:
       <button nz-button>
-        <i nz-icon nzType="upload"></i>
+        <nz-icon nzType="upload" />
         Click to Upload
       </button>
     </nz-upload>
   `
 })
 export class NzDemoUploadUploadWithAliyunOssComponent {
-  files: NzUploadFile[] = [];
-  mockOSSData = {
+  readonly files = signal<NzUploadFile[]>([]);
+  readonly mockOSSData = {
     dir: 'user-dir/',
     expire: '1577811661',
     host: '//www.mocky.io/v2/5cc8019d300000980a055e76',
@@ -32,12 +35,11 @@ export class NzDemoUploadUploadWithAliyunOssComponent {
     signature: 'ZGFob25nc2hhbw=='
   };
 
-  transformFile = (file: NzUploadFile): NzUploadFile => {
+  beforeUpload = (file: NzUploadFile): boolean => {
     const suffix = file.name.slice(file.name.lastIndexOf('.'));
     const filename = Date.now() + suffix;
     file.url = this.mockOSSData.dir + filename;
-
-    return file;
+    return true;
   };
 
   getExtraData = (file: NzUploadFile): {} => {

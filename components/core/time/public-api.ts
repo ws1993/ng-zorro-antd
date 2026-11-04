@@ -5,4 +5,11 @@
 
 export * from './candy-date';
 export * from './time';
-export { NgTimeParser as ɵNgTimeParser, TimeResult as ɵTimeResult } from './time-parser';
+export * from './date-adapter';
+export * from './date-config';
+export { DateFnsDateAdapter, provideNzDateFnsAdapter } from './date-fns-adapter';
+export type { NzDateFnsAdapterConfig, NzDateFnsAdapterConfigFactory } from './date-fns-adapter';
+export { NativeDateAdapter, provideNzNativeDateAdapter } from './native-adapter';
+export type { NzNativeDateAdapterConfig, NzNativeDateAdapterConfigFactory } from './native-adapter';
+export { NgTimeParser as ɵNgTimeParser } from './time-parser';
+export type { TimeResult as ɵTimeResult } from './time-parser';

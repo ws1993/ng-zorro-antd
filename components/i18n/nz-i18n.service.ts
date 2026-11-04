@@ -3,7 +3,7 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Inject, Injectable, Optional } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 
 import { warn } from 'ng-zorro-antd/core/logger';
@@ -26,12 +26,9 @@ export class NzI18nService {
     return this._change.asObservable();
   }
 
-  constructor(
-    @Optional() @Inject(NZ_I18N) locale: NzI18nInterface,
-    @Optional() @Inject(NZ_DATE_LOCALE) dateLocale: DateLocale
-  ) {
-    this.setLocale(locale || zh_CN);
-    this.setDateLocale(dateLocale || null);
+  constructor() {
+    this.setLocale(inject(NZ_I18N, { optional: true }) || zh_CN);
+    this.setDateLocale(inject<DateLocale>(NZ_DATE_LOCALE, { optional: true }));
   }
 
   // [NOTE] Performance issue: this method may called by every change detections
@@ -71,10 +68,16 @@ export class NzI18nService {
     return this._locale ? this._locale.locale : '';
   }
 
-  setDateLocale(dateLocale: DateLocale): void {
-    this.dateLocale = dateLocale;
+  /**
+   * @deprecated Intended for internal use only. Provide {@link NZ_DATE_LOCALE} instead.
+   */
+  setDateLocale(dateLocale: DateLocale | null): void {
+    this.dateLocale = dateLocale!;
   }
 
+  /**
+   * @deprecated Intended for internal use only. Use `inject(NZ_DATE_LOCALE)` instead.
+   */
   getDateLocale(): DateLocale {
     return this.dateLocale;
   }

@@ -1,13 +1,18 @@
 import { Component } from '@angular/core';
 
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+
 @Component({
   selector: 'nz-demo-button-multiple',
+  imports: [NzButtonModule, NzDropdownModule, NzIconModule],
   template: `
     <button nz-button nzType="primary">primary</button>
     <button nz-button nzType="default">secondary</button>
     <button nz-button nz-dropdown [nzDropdownMenu]="menu">
       Actions
-      <i nz-icon nzType="down"></i>
+      <nz-icon nzType="down" />
     </button>
     <nz-dropdown-menu #menu="nzDropdownMenu">
       <ul nz-menu>
@@ -23,13 +28,11 @@ import { Component } from '@angular/core';
       </ul>
     </nz-dropdown-menu>
   `,
-  styles: [
-    `
-      [nz-button] {
-        margin-right: 8px;
-        margin-bottom: 12px;
-      }
-    `
-  ]
+  styles: `
+    [nz-button] {
+      margin-inline-end: 8px;
+      margin-bottom: 12px;
+    }
+  `
 })
 export class NzDemoButtonMultipleComponent {}

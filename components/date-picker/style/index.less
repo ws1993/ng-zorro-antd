@@ -1,6 +1,7 @@
 @import '../../style/themes/index';
 @import '../../style/mixins/index';
 @import '../../input/style/mixin';
+@import './status';
 
 @picker-prefix-cls: ~'@{ant-prefix}-picker';
 
@@ -13,7 +14,7 @@
 }
 
 .@{picker-prefix-cls} {
-  @arrow-size: 10px;
+  @arrow-size: @popover-arrow-width;
 
   .reset-component();
   .picker-padding(@input-height-base, @font-size-base, @input-padding-horizontal-base);
@@ -22,8 +23,14 @@
   align-items: center;
   background: @picker-bg;
   border: @border-width-base @border-style-base @select-border-color;
-  border-radius: @border-radius-base;
-  transition: border @animation-duration-slow, box-shadow @animation-duration-slow;
+  border-radius: @control-border-radius;
+  transition:
+    border @animation-duration-slow,
+    box-shadow @animation-duration-slow;
+
+  &-rtl {
+    direction: rtl;
+  }
 
   &:hover,
   &-focused {
@@ -45,9 +52,51 @@
   }
 
   &&-borderless {
-    background-color: transparent !important;
-    border-color: transparent !important;
-    box-shadow: none !important;
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  // filled style
+  &&-filled {
+    background-color: @input-variant-filled-bg;
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  &&-filled:hover {
+    background-color: @input-variant-filled-hover-bg;
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  &&-filled:focus,
+  &&-filled&-focused {
+    .active();
+    background-color: transparent;
+    box-shadow: none;
+  }
+
+  &&-filled&-disabled,
+  &&-filled&[disabled] {
+    .disabled();
+  }
+
+  // underlined style
+  &&-underlined,
+  &&-underlined:hover,
+  &&-underlined:focus,
+  &&-underlined&-focused,
+  &&-underlined&-disabled,
+  &&-underlined&[disabled] {
+    background-color: transparent;
+    border-width: 0 0 @border-width-base;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  &&-underlined:hover:not(&-focused):not(:focus) {
+    border-color: @input-border-color;
   }
 
   // ======================== Input =========================
@@ -105,29 +154,42 @@
     .picker-padding(@input-height-sm, @font-size-base, @input-padding-horizontal-sm);
   }
 
+  &-prefix {
+    flex: 0 0 auto;
+    margin-inline-end: (@padding-xs / 2);
+  }
+
   &-suffix {
+    display: flex;
+    flex: none;
     align-self: center;
-    margin-left: (@padding-xs / 2);
+    margin-inline-start: (@padding-xs / 2);
     color: @disabled-color;
     line-height: 1;
     pointer-events: none;
 
     > * {
       vertical-align: top;
+
+      &:not(:last-child) {
+        margin-inline-end: 8px;
+      }
     }
   }
 
   &-clear {
     position: absolute;
     top: 50%;
-    right: 0;
+    inset-inline-end: 0;
     color: @disabled-color;
     line-height: 1;
     background: @component-background;
     transform: translateY(-50%);
     cursor: pointer;
     opacity: 0;
-    transition: opacity @animation-duration-slow, color @animation-duration-slow;
+    transition:
+      opacity @animation-duration-slow,
+      color @animation-duration-slow;
 
     > * {
       vertical-align: top;
@@ -166,7 +228,7 @@
 
     // Clear
     .@{picker-prefix-cls}-clear {
-      right: @input-padding-horizontal-base;
+      inset-inline-end: @input-padding-horizontal-base;
     }
 
     &:hover {
@@ -179,7 +241,7 @@
     .@{picker-prefix-cls}-active-bar {
       bottom: -@border-width-base;
       height: 2px;
-      margin-left: @input-padding-horizontal-base;
+      margin-inline-start: @input-padding-horizontal-base;
       background: @primary-color;
       opacity: 0;
       transition: all @animation-duration-slow ease-out;
@@ -200,11 +262,11 @@
 
     &.@{picker-prefix-cls}-small {
       .@{picker-prefix-cls}-clear {
-        right: @input-padding-horizontal-sm;
+        inset-inline-end: @input-padding-horizontal-sm;
       }
 
       .@{picker-prefix-cls}-active-bar {
-        margin-left: @input-padding-horizontal-sm;
+        margin-inline-start: @input-padding-horizontal-sm;
       }
     }
   }
@@ -212,26 +274,35 @@
   // ======================= Dropdown =======================
   &-dropdown {
     .reset-component();
+
+    --antd-arrow-background-color: @calendar-bg;
+
     position: absolute;
+    // Fix incorrect position of picker popup
+    // https://github.com/ant-design/ant-design/issues/35590
+    top: -9999px;
+    left: -9999px;
     z-index: @zindex-picker;
 
     &-hidden {
       display: none;
     }
 
-    &-placement-bottomLeft {
+    &-placement-bottomLeft,
+    &-placement-bottomRight {
       .@{picker-prefix-cls}-range-arrow {
-        top: (@arrow-size / 2) - (@arrow-size / 3);
+        top: 0;
         display: block;
-        transform: rotate(-45deg);
+        transform: translateY(-100%);
       }
     }
 
-    &-placement-topLeft {
+    &-placement-topLeft,
+    &-placement-topRight {
       .@{picker-prefix-cls}-range-arrow {
-        bottom: (@arrow-size / 2) - (@arrow-size / 3);
+        bottom: 0;
         display: block;
-        transform: rotate(135deg);
+        transform: translateY(100%) rotate(180deg);
       }
     }
 
@@ -261,7 +332,7 @@
   }
 
   &-dropdown-range {
-    padding: (@arrow-size * 2 / 3) 0;
+    margin-block: (@arrow-size * 2 / 3);
 
     &-hidden {
       display: none;
@@ -307,23 +378,10 @@
   &-range-arrow {
     position: absolute;
     z-index: 1;
-    display: none;
-    width: @arrow-size;
-    height: @arrow-size;
+    box-sizing: content-box;
     margin-left: @input-padding-horizontal-base * 1.5;
-    box-shadow: 2px -2px 6px fade(@black, 6%);
     transition: left @animation-duration-slow ease-out;
-
-    &::after {
-      position: absolute;
-      top: @border-width-base;
-      right: @border-width-base;
-      width: @arrow-size;
-      height: @arrow-size;
-      border: (@arrow-size / 2) solid @border-color-split;
-      border-color: @calendar-bg @calendar-bg transparent transparent;
-      content: '';
-    }
+    .roundedArrow(@arrow-size, 4px, @arrow-border-radius, var(--antd-arrow-background-color), @popover-arrow-box-shadow);
   }
 
   &-panel-container {
@@ -343,20 +401,18 @@
     .@{picker-prefix-cls}-panel {
       vertical-align: top;
       background: transparent;
-      border-width: 0 0 @border-width-base 0;
+      border: none;
       border-radius: 0;
 
       .@{picker-prefix-cls}-content,
       table {
         text-align: center;
       }
-
-      &-focused {
-        border-color: @border-color-split;
-      }
     }
   }
+
+  // ===================== Compact Item Styles =====================
+  .compact-item(@picker-prefix-cls, null, ~'@{picker-prefix-cls}-focused');
 }
 
 @import './panel';
-@import './rtl';

@@ -1,0 +1,62 @@
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+import { NzCascaderModule, NzCascaderOption } from 'ng-zorro-antd/cascader';
+import { NzSafeAny } from 'ng-zorro-antd/core/types';
+
+const getOptions = (): NzCascaderOption[] => [
+  {
+    label: 'Light',
+    value: 'light',
+    children: new Array(20).fill(null).map((_, index) => ({ label: `Number ${index}`, value: index, isLeaf: true }))
+  },
+  {
+    label: 'Bamboo',
+    value: 'bamboo',
+    children: [
+      {
+        label: 'Little',
+        value: 'little',
+        children: [
+          {
+            label: 'Toy Fish',
+            value: 'fish',
+            isLeaf: true,
+            disableCheckbox: true
+          },
+          {
+            label: 'Toy Cards',
+            value: 'cards',
+            isLeaf: true
+          },
+          {
+            label: 'Toy Bird',
+            value: 'bird',
+            isLeaf: true
+          }
+        ]
+      }
+    ]
+  }
+];
+
+@Component({
+  selector: 'nz-demo-cascader-multiple',
+  imports: [FormsModule, NzCascaderModule],
+  template: `
+    <nz-cascader
+      style="width: 100%;"
+      [nzOptions]="nzOptions"
+      [(ngModel)]="values"
+      (ngModelChange)="onChanges($event)"
+      nzMultiple
+      [nzMaxTagCount]="3"
+    />
+  `
+})
+export class NzDemoCascaderMultipleComponent {
+  readonly nzOptions: NzCascaderOption[] = getOptions();
+  readonly values = signal<NzSafeAny[][]>([]);
+
+  onChanges(_values: NzSafeAny[][]): void {}
+}

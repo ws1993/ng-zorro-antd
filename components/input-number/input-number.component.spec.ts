@@ -1,0 +1,972 @@
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
+import { DOWN_ARROW, ENTER, UP_ARROW } from '@angular/cdk/keycodes';
+import { ApplicationRef, Component, ElementRef, signal, viewChild, type WritableSignal } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FormsModule } from '@angular/forms';
+import { By } from '@angular/platform-browser';
+
+import { vi } from 'vitest';
+
+import { NZ_FORM_SIZE, NZ_FORM_VARIANT } from 'ng-zorro-antd/core/form';
+import { dispatchEvent, dispatchKeyboardEvent, updateNonSignalsInput } from 'ng-zorro-antd/core/testing';
+import { NzSizeLDSType, NzStatus, NzVariant } from 'ng-zorro-antd/core/types';
+import { provideNzIconsTesting } from 'ng-zorro-antd/icon/testing';
+import { NZ_SPACE_COMPACT_SIZE } from 'ng-zorro-antd/space';
+
+import { NzInputNumberComponent, NzInputNumberStepEvent } from './input-number.component';
+import { NzInputNumberModule } from './input-number.module';
+
+describe('input-number', () => {
+  let component: InputNumberTestComponent;
+  let fixture: ComponentFixture<InputNumberTestComponent>;
+  let hostElement: HTMLElement;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideNzIconsTesting()]
+    });
+    fixture = TestBed.createComponent(InputNumberTestComponent);
+    component = fixture.componentInstance;
+    hostElement = fixture.nativeElement.querySelector('nz-input-number');
+    fixture.autoDetectChanges();
+  });
+
+  it('should set id', () => {
+    component.id.set('test-id');
+    fixture.detectChanges();
+    expect(hostElement.querySelector('input')!.id).toBe('test-id');
+  });
+
+  it('should be apply size class', () => {
+    component.size.set('large');
+    fixture.detectChanges();
+    expect(hostElement.classList).toContain('ant-input-number-lg');
+    component.size.set('small');
+    fixture.detectChanges();
+    expect(hostElement.classList).toContain('ant-input-number-sm');
+  });
+
+  it('should be set placeholder', () => {
+    component.placeholder.set('Enter a number');
+    fixture.detectChanges();
+    expect(hostElement.querySelector('input')!.placeholder).toBe('Enter a number');
+  });
+
+  it('should be set status', () => {
+    component.status.set('error');
+    fixture.detectChanges();
+    expect(hostElement.classList).toContain('ant-input-number-status-error');
+    component.status.set('warning');
+    fixture.detectChanges();
+    expect(hostElement.classList).toContain('ant-input-number-status-warning');
+  });
+
+  it('should be set step', () => {
+    component.step.set(5);
+    fixture.detectChanges();
+    expect(hostElement.querySelector('input')!.step).toBe('5');
+    upStepByKeyboard();
+    expect(component.value).toBe(5);
+    upStepByKeyboard();
+    expect(component.value).toBe(10);
+    downStepByKeyboard();
+    expect(component.value).toBe(5);
+  });
+
+  it('should be update value through the handler', () => {
+    component.min.set(1);
+    component.max.set(2);
+    fixture.detectChanges();
+    upStepByHandler();
+    expect(component.value).toBe(1);
+    upStepByHandler();
+    expect(component.value).toBe(2);
+    upStepByHandler();
+    expect(component.value).toBe(2);
+    downStepByHandler();
+    expect(component.value).toBe(1);
+    downStepByHandler();
+    expect(component.value).toBe(1);
+  });
+
+  it('should be update value through the handler with floating numbers', () => {
+    component.step.set(0.1);
+    fixture.detectChanges();
+    upStepByHandler();
+    expect(component.value).toBe(0.1);
+    upStepByHandler();
+    expect(component.value).toBe(0.2);
+    upStepByHandler();
+    expect(component.value).toBe(0.3);
+    downStepByHandler();
+    expect(component.value).toBe(0.2);
+    downStepByHandler();
+    expect(component.value).toBe(0.1);
+    downStepByHandler();
+    expect(component.value).toBe(0);
+  });
+
+  describe('should be update value through the handler with hold shift key', () => {
+    it('normal', () => {
+      upStepByHandler({ shiftKey: true });
+      expect(component.value).toBe(10);
+      upStepByHandler({ shiftKey: true });
+      expect(component.value).toBe(20);
+
+      downStepByHandler({ shiftKey: true });
+      expect(component.value).toBe(10);
+      downStepByHandler({ shiftKey: true });
+      expect(component.value).toBe(0);
+    });
+
+    it('with min & max', () => {
+      component.min.set(-5);
+      component.max.set(5);
+      fixture.detectChanges();
+
+      for (let index = 0; index < 10; index++) {
+        upStepByHandler({ shiftKey: true });
+      }
+      expect(component.value).toBe(component.max());
+
+      for (let index = 0; index < 10; index++) {
+        downStepByHandler({ shiftKey: true });
+      }
+      expect(component.value).toBe(component.min());
+    });
+  });
+
+  describe('should be update value through user typing', () => {
+    it('normal', () => {
+      input('123');
+      expect(component.value).toBe(123);
+      enter();
+      expect(component.value).toBe(123);
+      blur();
+      expect(component.value).toBe(123);
+
+      input('NonNumber');
+      expect(component.value).toBe(123);
+      enter();
+      expect(component.value).toBe(123);
+      blur();
+      expect(component.value).toBe(123);
+
+      input('321NonNumber');
+      expect(component.value).toBe(123);
+      enter();
+      expect(component.value).toBe(123);
+      blur();
+      expect(component.value).toBe(123);
+
+      input('');
+      expect(component.value).toBe(null);
+      enter();
+      expect(component.value).toBe(null);
+      blur();
+      expect(component.value).toBe(null);
+    });
+
+    it('with range', () => {
+      component.min.set(1);
+      component.max.set(10);
+
+      // Running change detection (first time)
+      TestBed.inject(ApplicationRef).tick();
+
+      input('1');
+      expect(component.value).toBe(1);
+
+      input('99');
+      expect(component.value).toBe(1);
+      blur();
+      expect(component.value).toBe(10);
+
+      input('-99');
+      expect(component.value).toBe(10);
+      blur();
+      expect(component.value).toBe(1);
+
+      input('10');
+      expect(component.value).toBe(10);
+      blur();
+      expect(component.value).toBe(10);
+
+      input('');
+      expect(component.value).toBe(null);
+      blur();
+      expect(component.value).toBe(null);
+    });
+
+    it('should restore a deleted formatter suffix on blur', async () => {
+      component.formatter.set((value: number): string => `${value}%`);
+      component.parser.set((value: string): number => parseFloat(value.replace('%', '')));
+      await fixture.whenStable();
+
+      input('1');
+      await fixture.whenStable();
+      expect(getInputElement().value).toBe('1%');
+
+      input('1');
+      await fixture.whenStable();
+      expect(component.value).toBe(1);
+
+      blur();
+      await fixture.whenStable();
+      expect(getInputElement().value).toBe('1%');
+      expect(component.value).toBe(1);
+    });
+
+    it('with formatter', () => {
+      component.formatter.set((value: number): string => `${value}%`);
+      component.parser.set((value: string): number => parseFloat(value?.replace('%', '')));
+
+      // Running change detection (first time)
+      TestBed.inject(ApplicationRef).tick();
+
+      const inputElement = getInputElement();
+
+      input('123');
+      fixture.detectChanges();
+      expect(component.value).toBe(123);
+      expect(inputElement.value).toBe('123%');
+      blur();
+      fixture.detectChanges();
+      expect(component.value).toBe(123);
+      expect(inputElement.value).toBe('123%');
+
+      input('NonNumber');
+      fixture.detectChanges();
+      expect(component.value).toBe(123);
+      expect(inputElement.value).toBe('NonNumber');
+      blur();
+      fixture.detectChanges();
+      expect(component.value).toBe(123);
+      expect(inputElement.value).toBe('123%');
+
+      input('');
+      fixture.detectChanges();
+      expect(component.value).toBe(null);
+      expect(inputElement.value).toBe('');
+      blur();
+      fixture.detectChanges();
+      expect(component.value).toBe(null);
+      expect(inputElement.value).toBe('');
+    });
+  });
+
+  it('should be apply out-of-range class', async () => {
+    component.min.set(1);
+    component.max.set(2);
+    component.value = 3;
+    fixture.detectChanges();
+    await updateNonSignalsInput(fixture);
+    expect(hostElement.classList).toContain('ant-input-number-out-of-range');
+
+    component.value = 0;
+    fixture.detectChanges();
+    await updateNonSignalsInput(fixture);
+    expect(hostElement.classList).toContain('ant-input-number-out-of-range');
+  });
+
+  describe('should be set min and max with precision', () => {
+    beforeEach(() => {
+      component.precision.set(0);
+      component.value = null;
+    });
+
+    it('max > 0', () => {
+      component.min.set(Number.MIN_SAFE_INTEGER);
+      component.max.set(1.5);
+
+      // Running change detection (first time)
+      TestBed.inject(ApplicationRef).tick();
+
+      input('1.1');
+      expect(component.value).toBe(1.1);
+      blur();
+      expect(component.value).toBe(1);
+      input('1.5');
+      expect(component.value).toBe(1.5);
+      blur();
+      expect(component.value).toBe(1);
+    });
+
+    it('max < 0', () => {
+      component.min.set(Number.MIN_SAFE_INTEGER);
+      component.max.set(-1.5);
+
+      // Running change detection (first time)
+      TestBed.inject(ApplicationRef).tick();
+
+      input('-1.1');
+      expect(component.value).toBe(null);
+      blur();
+      expect(component.value).toBe(-2);
+      input('-1.5');
+      expect(component.value).toBe(-1.5);
+      blur();
+      expect(component.value).toBe(-2);
+    });
+
+    it('min > 0', () => {
+      component.min.set(1.5);
+      component.max.set(Number.MAX_SAFE_INTEGER);
+
+      // Running change detection (first time)
+      TestBed.inject(ApplicationRef).tick();
+
+      input('1.1');
+      expect(component.value).toBe(null);
+      blur();
+      expect(component.value).toBe(2);
+      input('1.5');
+      expect(component.value).toBe(1.5);
+      blur();
+      expect(component.value).toBe(2);
+    });
+
+    it('min < 0', () => {
+      component.min.set(-1.5);
+      component.max.set(Number.MAX_SAFE_INTEGER);
+
+      // Running change detection (first time)
+      TestBed.inject(ApplicationRef).tick();
+
+      input('-1.1');
+      expect(component.value).toBe(-1.1);
+      blur();
+      expect(component.value).toBe(-1);
+      input('-1.5');
+      expect(component.value).toBe(-1.5);
+      blur();
+      expect(component.value).toBe(-1);
+    });
+  });
+
+  it('should set value with precision', () => {
+    component.precision.set(1);
+
+    // Running change detection (first time)
+    TestBed.inject(ApplicationRef).tick();
+
+    input('1.23');
+    expect(component.value).toBe(1.23);
+    blur();
+    expect(component.value).toBe(1.2);
+
+    input('1.25');
+    expect(component.value).toBe(1.25);
+    blur();
+    expect(component.value).toBe(1.3);
+  });
+
+  it('should be set disabled', () => {
+    component.disabled.set(true);
+    fixture.detectChanges();
+    expect(hostElement.querySelector('input')!.disabled).toBeTruthy();
+    expect(hostElement.classList).toContain('ant-input-number-disabled');
+  });
+
+  it('should be set disabled by ng control', async () => {
+    component.controlDisabled.set(true);
+    fixture.detectChanges();
+    await updateNonSignalsInput(fixture);
+    expect(hostElement.querySelector('input')!.disabled).toBeTruthy();
+    expect(hostElement.classList).toContain('ant-input-number-disabled');
+  });
+
+  it('should be set readonly', () => {
+    component.readonly.set(true);
+    fixture.detectChanges();
+    expect(hostElement.querySelector('input')!.readOnly).toBeTruthy();
+    expect(hostElement.classList).toContain('ant-input-number-readonly');
+  });
+
+  it('should be focus / blur work', async () => {
+    await fixture.whenStable();
+    const input = hostElement.querySelector('input')!;
+    component.inputNumber().focus();
+    expect(document.activeElement).toBe(input);
+    component.inputNumber().blur();
+    expect(document.activeElement).not.toBe(input);
+
+    component.value = 555;
+    fixture.detectChanges();
+    await updateNonSignalsInput(fixture);
+    fixture.detectChanges();
+
+    component.inputNumber().focus({ cursor: 'start' });
+    expect(input.selectionStart).toBe(0);
+    expect(input.selectionEnd).toBe(0);
+    component.inputNumber().focus({ cursor: 'end' });
+    expect(input.selectionStart).toBe(String(component.value).length);
+    expect(input.selectionEnd).toBe(String(component.value).length);
+    component.inputNumber().focus({ cursor: 'all' });
+    expect(input.selectionStart).toBe(0);
+    expect(input.selectionEnd).toBe(String(component.value).length);
+  });
+
+  describe('should variant work', () => {
+    it('outlined', () => {
+      component.variant.set('outlined');
+      fixture.detectChanges();
+      expect(hostElement.classList).toContain('ant-input-number-outlined');
+    });
+
+    it('filled', () => {
+      fixture.detectChanges();
+      expect(hostElement.classList).not.toContain('ant-input-number-filled');
+      component.variant.set('filled');
+      fixture.detectChanges();
+      expect(hostElement.classList).toContain('ant-input-number-filled');
+    });
+
+    it('borderless', () => {
+      fixture.detectChanges();
+      expect(hostElement.classList).not.toContain('ant-input-number-borderless');
+      component.variant.set('borderless');
+      fixture.detectChanges();
+      expect(hostElement.classList).toContain('ant-input-number-borderless');
+    });
+
+    it('underlined', () => {
+      fixture.detectChanges();
+      expect(hostElement.classList).not.toContain('ant-input-number-underlined');
+      component.variant.set('underlined');
+      fixture.detectChanges();
+      expect(hostElement.classList).toContain('ant-input-number-underlined');
+    });
+  });
+
+  it('should be set keyboard', () => {
+    upStepByKeyboard();
+    expect(component.value).toBe(1);
+    downStepByKeyboard();
+    expect(component.value).toBe(0);
+
+    component.keyboard.set(false);
+    fixture.detectChanges();
+    upStepByKeyboard();
+    expect(component.value).toBe(0);
+  });
+
+  it('should not step by keyboard when readonly', () => {
+    component.value = 5;
+    component.readonly.set(true);
+    fixture.detectChanges();
+
+    upStepByKeyboard();
+    expect(component.value).toBe(5);
+
+    downStepByKeyboard();
+    expect(component.value).toBe(5);
+  });
+
+  describe('mouse wheel', () => {
+    it('should step and prevent scrolling when focused', async () => {
+      await fixture.whenStable();
+      const input = getInputElement();
+      input.focus();
+      await fixture.whenStable();
+
+      const wheelUp = new WheelEvent('wheel', { deltaY: -100, cancelable: true });
+      dispatchEvent(input, wheelUp);
+      expect(component.value).toBe(1);
+      expect(wheelUp.defaultPrevented).toBe(true);
+
+      const wheelDown = new WheelEvent('wheel', { deltaY: 100, cancelable: true });
+      dispatchEvent(input, wheelDown);
+      expect(component.value).toBe(0);
+      expect(wheelDown.defaultPrevented).toBe(true);
+    });
+
+    it.each(['before focus', 'after blur'])('should ignore wheel events %s', async state => {
+      await fixture.whenStable();
+      const input = getInputElement();
+      const onStep = vi.spyOn(component, 'onStep');
+
+      if (state === 'after blur') {
+        input.focus();
+        await fixture.whenStable();
+        expect(hostElement.classList).toContain('ant-input-number-focused');
+        input.blur();
+        await vi.waitFor(() => expect(hostElement.classList).not.toContain('ant-input-number-focused'));
+      }
+
+      for (const deltaY of [-100, 100]) {
+        const event = new WheelEvent('wheel', { deltaY, cancelable: true });
+        dispatchEvent(input, event);
+        expect(component.value).toBeNull();
+        expect(event.defaultPrevented).toBe(false);
+      }
+      expect(onStep).not.toHaveBeenCalled();
+      expect(document.activeElement).not.toBe(input);
+    });
+
+    it.each(['disabled', 'readonly', 'changeOnWheel'] as const)('should ignore wheel events with %s', async option => {
+      await fixture.whenStable();
+      const input = getInputElement();
+      input.focus();
+      await fixture.whenStable();
+
+      component[option].set(option !== 'changeOnWheel');
+      await fixture.whenStable();
+      const onStep = vi.spyOn(component, 'onStep');
+
+      for (const deltaY of [-100, 100]) {
+        const event = new WheelEvent('wheel', { deltaY, cancelable: true });
+        dispatchEvent(input, event);
+        expect(component.value).toBeNull();
+        expect(event.defaultPrevented).toBe(false);
+      }
+      expect(onStep).not.toHaveBeenCalled();
+    });
+  });
+
+  it('should be work onStep', async () => {
+    await fixture.whenStable();
+    const onStep = vi.spyOn(component, 'onStep');
+    const input = hostElement.querySelector('input')!;
+
+    upStepByKeyboard();
+    expect(onStep).toHaveBeenCalledWith({ value: 1, offset: component.step(), type: 'up', emitter: 'keyboard' });
+
+    downStepByKeyboard();
+    expect(onStep).toHaveBeenCalledWith({ value: 0, offset: component.step(), type: 'down', emitter: 'keyboard' });
+
+    input.focus();
+    await fixture.whenStable();
+    dispatchEvent(input, new WheelEvent('wheel', { deltaY: -100 }));
+    expect(onStep).toHaveBeenCalledWith({ value: 1, offset: component.step(), type: 'up', emitter: 'wheel' });
+
+    dispatchEvent(input, new WheelEvent('wheel', { deltaY: 100 }));
+    expect(onStep).toHaveBeenCalledWith({ value: 0, offset: component.step(), type: 'down', emitter: 'wheel' });
+
+    upStepByHandler();
+    expect(onStep).toHaveBeenCalledWith({ value: 1, offset: component.step(), type: 'up', emitter: 'handler' });
+
+    downStepByHandler();
+    expect(onStep).toHaveBeenCalledWith({ value: 0, offset: component.step(), type: 'down', emitter: 'handler' });
+  });
+
+  it('should be hide controls', () => {
+    component.controls.set(false);
+    fixture.detectChanges();
+    expect(hostElement.querySelector('.ant-input-number-handler-wrap')).toBeNull();
+  });
+
+  it('should not format input value if incomplete', () => {
+    fixture.detectChanges();
+
+    input('1.0');
+    expect(component.displayValue).toBe('1.0');
+
+    input('1.00'); // 2 consecutive zeros
+    expect(component.displayValue).toBe('1.00');
+
+    input('1.10'); // zero is not preceded by a `.`
+    expect(component.displayValue).toBe('1.10');
+  });
+
+  it('should be accepted numbers with commas', () => {
+    input('1,234');
+    expect(component.value).toBe(1234);
+    blur();
+    expect(component.value).toBe(1234);
+
+    input('1,,2');
+    expect(component.value).toBe(12);
+    blur();
+    expect(component.value).toBe(12);
+
+    input(',1,2,3,');
+    expect(component.value).toBe(123);
+    blur();
+    expect(component.value).toBe(123);
+
+    // Illegal value will fall back to the last legal value
+    input(',');
+    expect(component.value).toBe(123);
+    blur();
+    expect(component.value).toBe(123);
+    // Illegal value will fall back to the last legal value
+    input(',,,');
+    expect(component.value).toBe(123);
+    blur();
+    expect(component.value).toBe(123);
+
+    input('1,234,567');
+    expect(component.value).toBe(1234567);
+    blur();
+    expect(component.value).toBe(1234567);
+
+    input('1,234,567.01');
+    expect(component.value).toBe(1234567.01);
+    blur();
+    expect(component.value).toBe(1234567.01);
+  });
+
+  function upStepByHandler(eventInit?: MouseEventInit): void {
+    const handler = hostElement.querySelector('.ant-input-number-handler-up')!;
+    handler.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, ...eventInit }));
+    handler.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  }
+  function downStepByHandler(eventInit?: MouseEventInit): void {
+    const handler = hostElement.querySelector('.ant-input-number-handler-down')!;
+    handler.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, ...eventInit }));
+    handler.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  }
+
+  function upStepByKeyboard(): void {
+    dispatchKeyboardEvent(hostElement, 'keydown', UP_ARROW);
+  }
+  function downStepByKeyboard(): void {
+    dispatchKeyboardEvent(hostElement, 'keydown', DOWN_ARROW);
+  }
+  function enter(): void {
+    dispatchKeyboardEvent(hostElement, 'keydown', ENTER);
+  }
+
+  function getInputElement(): HTMLInputElement {
+    return fixture.nativeElement.querySelector('input')!;
+  }
+  function input(text: string): void {
+    const element = getInputElement();
+    element.value = text;
+    element.dispatchEvent(new Event('input'));
+  }
+  function blur(): void {
+    getInputElement().dispatchEvent(new Event('blur'));
+  }
+});
+
+describe('input-number with affixes or addons', () => {
+  let component: InputNumberWithAffixesAndAddonsTestComponent;
+  let fixture: ComponentFixture<InputNumberWithAffixesAndAddonsTestComponent>;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideNzIconsTesting()]
+    });
+    fixture = TestBed.createComponent(InputNumberWithAffixesAndAddonsTestComponent);
+    component = fixture.componentInstance;
+    fixture.autoDetectChanges();
+  });
+
+  it('should be apply affix classes', () => {
+    expect(component.withPropAffixes().nativeElement.classList).toContain('ant-input-number-affix-wrapper');
+    expect(component.withContentAffixes().nativeElement.classList).toContain('ant-input-number-affix-wrapper');
+  });
+
+  it('should be apply addon classes', () => {
+    expect(component.withPropAddons().nativeElement.classList).toContain('ant-input-number-group-wrapper');
+    expect(component.withContentAddons().nativeElement.classList).toContain('ant-input-number-group-wrapper');
+  });
+
+  it('should be apply mix classes', () => {
+    expect(component.withPropMix().nativeElement.classList).toContain('ant-input-number-group-wrapper');
+    expect(component.withContentMix().nativeElement.classList).toContain('ant-input-number-group-wrapper');
+    expect(component.withPropMix().nativeElement.querySelector('.ant-input-number-affix-wrapper')).toBeTruthy();
+    expect(component.withContentMix().nativeElement.querySelector('.ant-input-number-affix-wrapper')).toBeTruthy();
+  });
+
+  it('should be apply disabled class', () => {
+    component.disabled.set(true);
+    fixture.detectChanges();
+    expect(component.withContentAffixes().nativeElement.classList).toContain('ant-input-number-affix-wrapper-disabled');
+  });
+
+  it('should be apply readonly class', () => {
+    component.readonly.set(true);
+    fixture.detectChanges();
+    expect(component.withContentAffixes().nativeElement.classList).toContain('ant-input-number-affix-wrapper-readonly');
+  });
+
+  it('should be apply borderless class', () => {
+    component.variant.set('borderless');
+    fixture.detectChanges();
+    expect(component.withContentAffixes().nativeElement.classList).toContain(
+      'ant-input-number-affix-wrapper-borderless'
+    );
+  });
+
+  describe('should be apply variant class', () => {
+    it('outlined', () => {
+      component.variant.set('outlined');
+      fixture.detectChanges();
+      expect(component.withContentAffixes().nativeElement.classList).toContain(
+        'ant-input-number-affix-wrapper-outlined'
+      );
+    });
+
+    it('filled', () => {
+      fixture.detectChanges();
+      expect(component.withContentAffixes().nativeElement.classList).not.toContain(
+        'ant-input-number-affix-wrapper-filled'
+      );
+      component.variant.set('filled');
+      fixture.detectChanges();
+      expect(component.withContentAffixes().nativeElement.classList).toContain('ant-input-number-affix-wrapper-filled');
+    });
+
+    it('borderless', () => {
+      fixture.detectChanges();
+      expect(component.withContentAffixes().nativeElement.classList).not.toContain(
+        'ant-input-number-affix-wrapper-borderless'
+      );
+      component.variant.set('borderless');
+      fixture.detectChanges();
+      expect(component.withContentAffixes().nativeElement.classList).toContain(
+        'ant-input-number-affix-wrapper-borderless'
+      );
+    });
+
+    it('underlined', () => {
+      fixture.detectChanges();
+      expect(component.withContentAffixes().nativeElement.classList).not.toContain(
+        'ant-input-number-affix-wrapper-borderless'
+      );
+      component.variant.set('underlined');
+      fixture.detectChanges();
+      expect(component.withContentAffixes().nativeElement.classList).toContain(
+        'ant-input-number-affix-wrapper-underlined'
+      );
+    });
+  });
+});
+
+describe('finalSize', () => {
+  let fixture: ComponentFixture<TestInputNumberFinalSizeComponent>;
+  let inputNumberElement: HTMLElement;
+  let compactSizeSignal: WritableSignal<NzSizeLDSType>;
+  let formSizeSignal: WritableSignal<NzSizeLDSType>;
+
+  beforeEach(() => {
+    compactSizeSignal = signal<NzSizeLDSType>('large');
+    formSizeSignal = signal<NzSizeLDSType>('default');
+  });
+
+  afterEach(() => {
+    TestBed.resetTestingModule();
+  });
+
+  it('should set correctly the size from the formSize signal', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: NZ_FORM_SIZE, useValue: formSizeSignal },
+        { provide: NZ_SPACE_COMPACT_SIZE, useValue: compactSizeSignal }
+      ]
+    });
+    fixture = TestBed.createComponent(TestInputNumberFinalSizeComponent);
+    inputNumberElement = fixture.debugElement.query(By.directive(NzInputNumberComponent)).nativeElement;
+    fixture.detectChanges();
+    formSizeSignal.set('large');
+    fixture.detectChanges();
+    expect(inputNumberElement.classList).toContain('ant-input-number-lg');
+  });
+
+  it('should set correctly the size from the compactSize signal', () => {
+    TestBed.configureTestingModule({
+      providers: [{ provide: NZ_SPACE_COMPACT_SIZE, useValue: compactSizeSignal }]
+    });
+    fixture = TestBed.createComponent(TestInputNumberFinalSizeComponent);
+    inputNumberElement = fixture.debugElement.query(By.directive(NzInputNumberComponent)).nativeElement;
+    fixture.detectChanges();
+    expect(inputNumberElement.classList).toContain('ant-input-number-lg');
+  });
+
+  it('should set correctly the size from the size input ', () => {
+    fixture = TestBed.createComponent(TestInputNumberFinalSizeComponent);
+    inputNumberElement = fixture.debugElement.query(By.directive(NzInputNumberComponent)).nativeElement;
+    fixture.componentInstance.size.set('large');
+    fixture.detectChanges();
+    expect(inputNumberElement.classList).toContain('ant-input-number-lg');
+  });
+});
+
+describe('finalVariant', () => {
+  let fixture: ComponentFixture<TestInputNumberFinalVariantComponent>;
+  let inputNumberElement: HTMLElement;
+  let formVariantSignal: WritableSignal<NzVariant>;
+
+  beforeEach(() => {
+    formVariantSignal = signal<NzVariant>('outlined');
+  });
+
+  afterEach(() => {
+    TestBed.resetTestingModule();
+  });
+
+  it('should use the formVariant when nzVariant is not set', () => {
+    TestBed.configureTestingModule({
+      providers: [{ provide: NZ_FORM_VARIANT, useValue: formVariantSignal }]
+    });
+    fixture = TestBed.createComponent(TestInputNumberFinalVariantComponent);
+    inputNumberElement = fixture.debugElement.query(By.directive(NzInputNumberComponent)).nativeElement;
+    fixture.detectChanges();
+    formVariantSignal.set('filled');
+    fixture.detectChanges();
+    expect(inputNumberElement.classList).toContain('ant-input-number-filled');
+  });
+
+  it('should use nzVariant over formVariant when nzVariant is explicitly set', () => {
+    TestBed.configureTestingModule({
+      providers: [{ provide: NZ_FORM_VARIANT, useValue: formVariantSignal }]
+    });
+    fixture = TestBed.createComponent(TestInputNumberFinalVariantComponent);
+    inputNumberElement = fixture.debugElement.query(By.directive(NzInputNumberComponent)).nativeElement;
+    fixture.componentInstance.variant.set('borderless');
+    fixture.detectChanges();
+    formVariantSignal.set('filled');
+    fixture.detectChanges();
+    expect(inputNumberElement.classList).toContain('ant-input-number-borderless');
+    expect(inputNumberElement.classList).not.toContain('ant-input-number-filled');
+  });
+
+  it('should use nzVariant when no formVariant is provided', () => {
+    fixture = TestBed.createComponent(TestInputNumberFinalVariantComponent);
+    inputNumberElement = fixture.debugElement.query(By.directive(NzInputNumberComponent)).nativeElement;
+    fixture.componentInstance.variant.set('filled');
+    fixture.detectChanges();
+    expect(inputNumberElement.classList).toContain('ant-input-number-filled');
+  });
+});
+
+@Component({
+  imports: [NzInputNumberModule, FormsModule],
+  template: `
+    <nz-input-number
+      [nzId]="id()"
+      [nzSize]="size()"
+      [nzPlaceHolder]="placeholder()"
+      [nzStatus]="status()"
+      [nzStep]="step()"
+      [nzMin]="min()"
+      [nzMax]="max()"
+      [nzPrecision]="precision()"
+      [nzDisabled]="disabled()"
+      [nzReadOnly]="readonly()"
+      [nzVariant]="variant()"
+      [nzKeyboard]="keyboard()"
+      [nzControls]="controls()"
+      [nzParser]="parser()"
+      [nzFormatter]="formatter()"
+      [(ngModel)]="value"
+      [disabled]="controlDisabled()"
+      [nzChangeOnWheel]="changeOnWheel()"
+      (nzOnStep)="onStep($event)"
+    />
+  `
+})
+class InputNumberTestComponent {
+  readonly id = signal<string | null>(null);
+  readonly size = signal<NzSizeLDSType>('default');
+  readonly placeholder = signal<string | null>(null);
+  readonly status = signal<NzStatus>('');
+  readonly step = signal(1);
+  readonly min = signal(Number.MIN_SAFE_INTEGER);
+  readonly max = signal(Number.MAX_SAFE_INTEGER);
+  readonly precision = signal<null | number>(null);
+  readonly disabled = signal(false);
+  readonly readonly = signal(false);
+  readonly variant = signal<NzVariant>('outlined');
+  readonly keyboard = signal(true);
+  readonly controls = signal(true);
+  readonly changeOnWheel = signal(true);
+  readonly parser = signal<((value: string) => number) | undefined>(undefined);
+  readonly formatter = signal<((value: number) => string) | undefined>(undefined);
+  readonly controlDisabled = signal(false);
+  value: number | null = null;
+  inputNumber = viewChild.required(NzInputNumberComponent);
+
+  get displayValue(): string {
+    return this.inputNumber()['displayValue']();
+  }
+
+  onStep(_event: NzInputNumberStepEvent): void {}
+}
+
+@Component({
+  imports: [NzInputNumberModule],
+  template: `
+    <nz-input-number
+      #withPropAffixes
+      nzPrefix="Prefix"
+      nzSuffix="Suffix"
+      [nzDisabled]="disabled()"
+      [nzReadOnly]="readonly()"
+      [nzVariant]="variant()"
+    />
+
+    <nz-input-number #withContentAffixes [nzDisabled]="disabled()" [nzReadOnly]="readonly()" [nzVariant]="variant()">
+      <span nzInputPrefix>Prefix</span>
+      <span nzInputSuffix>Suffix</span>
+    </nz-input-number>
+
+    <nz-input-number
+      #withPropAddons
+      nzAddonBefore="Before"
+      nzAddonAfter="After"
+      [nzDisabled]="disabled()"
+      [nzReadOnly]="readonly()"
+      [nzVariant]="variant()"
+    />
+
+    <nz-input-number #withContentAddons [nzDisabled]="disabled()" [nzReadOnly]="readonly()" [nzVariant]="variant()">
+      <span nzInputAddonBefore>Before</span>
+      <span nzInputAddonAfter>After</span>
+    </nz-input-number>
+
+    <nz-input-number
+      #withPropMix
+      nzPrefix="Prefix"
+      nzSuffix="Suffix"
+      nzAddonBefore="Before"
+      nzAddonAfter="After"
+      [nzDisabled]="disabled()"
+      [nzReadOnly]="readonly()"
+      [nzVariant]="variant()"
+    />
+
+    <nz-input-number #withContentMix [nzDisabled]="disabled()" [nzReadOnly]="readonly()" [nzVariant]="variant()">
+      <span nzInputPrefix>Prefix</span>
+      <span nzInputSuffix>Suffix</span>
+      <span nzInputAddonBefore>Before</span>
+      <span nzInputAddonAfter>After</span>
+    </nz-input-number>
+  `
+})
+class InputNumberWithAffixesAndAddonsTestComponent {
+  readonly disabled = signal(false);
+  readonly readonly = signal(false);
+  readonly variant = signal<NzVariant>('outlined');
+
+  readonly withPropAffixes = viewChild.required('withPropAffixes', { read: ElementRef });
+  readonly withContentAffixes = viewChild.required('withContentAffixes', { read: ElementRef });
+  readonly withPropAddons = viewChild.required('withPropAddons', { read: ElementRef });
+  readonly withContentAddons = viewChild.required('withContentAddons', { read: ElementRef });
+  readonly withPropMix = viewChild.required('withPropMix', { read: ElementRef });
+  readonly withContentMix = viewChild.required('withContentMix', { read: ElementRef });
+}
+
+@Component({
+  imports: [NzInputNumberModule],
+  selector: 'nz-test-input-number-final-size',
+  template: `<nz-input-number [nzSize]="size()" />`
+})
+class TestInputNumberFinalSizeComponent {
+  readonly size = signal<NzSizeLDSType>('default');
+}
+
+@Component({
+  imports: [NzInputNumberModule],
+  template: `<nz-input-number [nzVariant]="variant()" />`
+})
+class TestInputNumberFinalVariantComponent {
+  readonly variant = signal<NzVariant | undefined>(undefined);
+}

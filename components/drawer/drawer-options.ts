@@ -4,15 +4,23 @@
  */
 
 import { Direction } from '@angular/cdk/bidi';
-import { TemplateRef, Type } from '@angular/core';
+import { InjectionToken, TemplateRef, Type } from '@angular/core';
 
 import { NzSafeAny } from 'ng-zorro-antd/core/types';
 
 import { NzDrawerRef } from './drawer-ref';
 
+export const DRAWER_DEFAULT_SIZE = 378;
+export const DRAWER_LARGE_SIZE = 736;
 export type NzDrawerPlacement = 'left' | 'right' | 'top' | 'bottom';
+export type NzDrawerSize = 'default' | 'large';
 
-export interface NzDrawerOptionsOfComponent<T = NzSafeAny, D = NzSafeAny> {
+/**
+ * @deprecated Use `NzDrawerOptions` instead.
+ */
+export type NzDrawerOptionsOfComponent<T = NzSafeAny, D = NzSafeAny> = NzDrawerOptions<T, D>;
+
+export interface NzDrawerOptions<T = NzSafeAny, D = NzSafeAny> {
   nzClosable?: boolean;
   nzMaskClosable?: boolean;
   nzCloseOnNavigation?: boolean;
@@ -21,20 +29,29 @@ export interface NzDrawerOptionsOfComponent<T = NzSafeAny, D = NzSafeAny> {
   nzKeyboard?: boolean;
   nzNoAnimation?: boolean;
   nzTitle?: string | TemplateRef<{}>;
+  nzExtra?: string | TemplateRef<{}>;
   nzFooter?: string | TemplateRef<{}>;
   nzContent?: TemplateRef<{ $implicit: D; drawerRef: NzDrawerRef }> | Type<T>;
+  /**
+   * @deprecated will be removed in v23, please use `nzData` instead
+   */
   nzContentParams?: Partial<T & D>;
+  nzData?: D;
   nzMaskStyle?: object;
   nzBodyStyle?: object;
   nzWrapClassName?: string;
+  nzSize?: NzDrawerSize;
   nzWidth?: number | string;
   nzHeight?: number | string;
   nzPlacement?: NzDrawerPlacement;
   nzZIndex?: number;
   nzOffsetX?: number;
   nzOffsetY?: number;
-}
-
-export interface NzDrawerOptions<T = NzSafeAny, D = NzSafeAny> extends NzDrawerOptionsOfComponent<T, D> {
   nzOnCancel?(): Promise<NzSafeAny>;
 }
+
+export type NzDrawerUpdateOptions<T = NzSafeAny> = Omit<NzDrawerOptions<T>, 'nzContent' | 'nzContentParams' | 'nzData'>;
+
+export const NZ_DRAWER_DATA = new InjectionToken<NzSafeAny>(
+  typeof ngDevMode !== 'undefined' && ngDevMode ? 'nz-drawer-data' : ''
+);

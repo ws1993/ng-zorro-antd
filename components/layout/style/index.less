@@ -8,6 +8,7 @@
   display: flex;
   flex: auto;
   flex-direction: column;
+
   /* fix firefox can't set height smaller than content on flex item */
   min-height: 0;
   background: @layout-body-background;
@@ -15,6 +16,10 @@
   &,
   * {
     box-sizing: border-box;
+  }
+
+  &-rtl {
+    direction: rtl;
   }
 
   &&-has-sider {
@@ -48,6 +53,7 @@
 
   &-content {
     flex: auto;
+
     /* fix firefox can't set height smaller than content on flex item */
     min-height: 0;
   }
@@ -140,4 +146,3 @@
 }
 
 @import './light';
-@import './rtl';

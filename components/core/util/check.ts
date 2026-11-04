@@ -15,6 +15,10 @@ export function isNil(value: unknown): value is null | undefined {
   return typeof value === 'undefined' || value === null;
 }
 
+export const isPlainObject = <T extends object = object>(val: unknown): val is T => {
+  return val !== null && typeof val === 'object';
+};
+
 /**
  * Examine if two objects are shallowly equaled.
  */
@@ -50,10 +54,14 @@ export function shallowEqual(objA?: IndexableObject, objB?: IndexableObject): bo
   return true;
 }
 
-export function isNonEmptyString(value: NzSafeAny): boolean {
+export function isNumber(value: unknown): value is number {
+  return typeof value === 'number' && !Number.isNaN(value);
+}
+
+export function isNonEmptyString(value: unknown): boolean {
   return typeof value === 'string' && value !== '';
 }
 
-export function isTemplateRef(value: NzSafeAny): boolean {
+export function isTemplateRef<T>(value: TemplateRef<T> | NzSafeAny): value is TemplateRef<T> {
   return value instanceof TemplateRef;
 }

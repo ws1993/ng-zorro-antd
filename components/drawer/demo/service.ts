@@ -1,14 +1,23 @@
-/* declarations: NzDrawerCustomComponent */
+import { Component, TemplateRef, ViewChild, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
-import { Component, Input, TemplateRef, ViewChild } from '@angular/core';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NZ_DRAWER_DATA, NzDrawerModule, NzDrawerRef, NzDrawerService } from 'ng-zorro-antd/drawer';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzInputModule } from 'ng-zorro-antd/input';
 
-import { NzDrawerRef, NzDrawerService } from 'ng-zorro-antd/drawer';
+interface IDrawerData {
+  value: string;
+}
 
 @Component({
   selector: 'nz-demo-drawer-service',
+  imports: [FormsModule, NzButtonModule, NzDrawerModule, NzFormModule, NzInputModule],
   template: `
     <ng-template #drawerTemplate let-data let-drawerRef="drawerRef">
       value: {{ data?.value }}
+      <br />
       <br />
       <button nz-button nzType="primary" (click)="drawerRef.close()">close</button>
     </ng-template>
@@ -23,21 +32,22 @@ import { NzDrawerRef, NzDrawerService } from 'ng-zorro-antd/drawer';
   `
 })
 export class NzDemoDrawerServiceComponent {
+  private readonly drawerService = inject(NzDrawerService);
+
   @ViewChild('drawerTemplate', { static: false }) drawerTemplate?: TemplateRef<{
-    $implicit: { value: string };
+    $implicit: IDrawerData;
     drawerRef: NzDrawerRef<string>;
   }>;
-  value = 'ng';
-
-  constructor(private drawerService: NzDrawerService) {}
+  readonly value = signal('ng');
 
   openTemplate(): void {
     const drawerRef = this.drawerService.create({
       nzTitle: 'Template',
       nzFooter: 'Footer',
+      nzExtra: 'Extra',
       nzContent: this.drawerTemplate,
       nzContentParams: {
-        value: this.value
+        value: this.value()
       }
     });
 
@@ -51,11 +61,16 @@ export class NzDemoDrawerServiceComponent {
   }
 
   openComponent(): void {
-    const drawerRef = this.drawerService.create<NzDrawerCustomComponent, { value: string }, string>({
+    const drawerRef = this.drawerService.create<NzDrawerCustomComponent, IDrawerData, string>({
       nzTitle: 'Component',
+      nzFooter: 'Footer',
+      nzExtra: 'Extra',
       nzContent: NzDrawerCustomComponent,
       nzContentParams: {
-        value: this.value
+        value: this.value()
+      },
+      nzData: {
+        value: 'Ng Zorro'
       }
     });
 
@@ -66,28 +81,29 @@ export class NzDemoDrawerServiceComponent {
     drawerRef.afterClose.subscribe(data => {
       console.log(data);
       if (typeof data === 'string') {
-        this.value = data;
+        this.value.set(data);
       }
+      console.log('Drawer(Component) close');
     });
   }
 }
 
 @Component({
   selector: 'nz-drawer-custom-component',
+  imports: [FormsModule, NzButtonModule, NzDividerModule, NzInputModule],
   template: `
     <div>
-      <input nz-input [(ngModel)]="value" />
-      <nz-divider></nz-divider>
+      <input nz-input [(ngModel)]="data" />
+      <nz-divider />
       <button nzType="primary" (click)="close()" nz-button>Confirm</button>
     </div>
   `
 })
 export class NzDrawerCustomComponent {
-  @Input() value = '';
-
-  constructor(private drawerRef: NzDrawerRef<string>) {}
+  readonly data = inject<IDrawerData>(NZ_DRAWER_DATA).value;
+  readonly drawerRef: NzDrawerRef<this, string> = inject(NzDrawerRef);
 
   close(): void {
-    this.drawerRef.close(this.value);
+    this.drawerRef.close(this.data);
   }
 }

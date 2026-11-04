@@ -1,10 +1,23 @@
-import { BidiModule, Dir } from '@angular/cdk/bidi';
-import { LEFT_ARROW, RIGHT_ARROW } from '@angular/cdk/keycodes';
-import { Component, DebugElement, ViewChild } from '@angular/core';
-import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
 
-import { dispatchKeyboardEvent, dispatchMouseEvent } from 'ng-zorro-antd/core/testing';
+import { ENTER, LEFT_ARROW, RIGHT_ARROW } from '@angular/cdk/keycodes';
+import { Component, DebugElement, signal, ViewChild } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { Subject } from 'rxjs';
+
+import { vi } from 'vitest';
+
+import { NzResizeObserver } from 'ng-zorro-antd/cdk/resize-observer';
+import {
+  dispatchKeyboardEvent,
+  dispatchMouseEvent,
+  testDirectionality,
+  updateNonSignalsInput
+} from 'ng-zorro-antd/core/testing';
 
 import { NzCarouselContentDirective } from './carousel-content.directive';
 import { NzCarouselComponent } from './carousel.component';
@@ -14,15 +27,7 @@ import { NzCarouselTransformNoLoopStrategy } from './strategies/experimental/tra
 import { NZ_CAROUSEL_CUSTOM_STRATEGIES } from './typings';
 
 describe('carousel', () => {
-  beforeEach(fakeAsync(() => {
-    TestBed.configureTestingModule({
-      imports: [BidiModule, NzCarouselModule],
-      declarations: [NzTestCarouselBasicComponent, NzTestCarouselRtlComponent]
-    });
-    TestBed.compileComponents();
-  }));
-
-  describe('carousel basic', () => {
+  describe('basic', () => {
     let fixture: ComponentFixture<NzTestCarouselBasicComponent>;
     let testComponent: NzTestCarouselBasicComponent;
     let carouselWrapper: DebugElement;
@@ -43,37 +48,54 @@ describe('carousel', () => {
       expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
     });
 
-    it('should dynamic change content work', fakeAsync(() => {
-      fixture.detectChanges();
-      tick(3000);
-      fixture.detectChanges();
+    it('should dynamic change content work', async () => {
+      await stabilize(fixture, 20);
       expect(carouselContents.length).toBe(4);
-      testComponent.array = [];
-      fixture.detectChanges();
-      tick(3000);
-      fixture.detectChanges();
+      testComponent.array.set([]);
+      await stabilize(fixture, 20);
       carouselContents = fixture.debugElement.queryAll(By.directive(NzCarouselContentDirective));
       expect(carouselContents.length).toBe(0);
-    }));
+    });
 
     it('should nzDots work', () => {
       fixture.detectChanges();
-      expect(testComponent.dots).toBe(true);
+      expect(testComponent.dots()).toBe(true);
       expect(carouselWrapper.nativeElement.querySelector('.slick-dots').children.length).toBe(4);
-      testComponent.dots = false;
+      testComponent.dots.set(false);
       fixture.detectChanges();
       expect(carouselWrapper.nativeElement.querySelector('.slick-dots')).toBeNull();
     });
 
     it('should nzDotRender work', () => {
       fixture.detectChanges();
-      expect(testComponent.dots).toBe(true);
+      expect(testComponent.dots()).toBe(true);
       expect(carouselWrapper.nativeElement.querySelector('.slick-dots').children.length).toBe(4);
       expect(carouselWrapper.nativeElement.querySelector('.slick-dots').firstElementChild.innerText).toBe('1');
       expect(carouselWrapper.nativeElement.querySelector('.slick-dots').lastElementChild.innerText).toBe('4');
       expect(
         carouselWrapper.nativeElement.querySelector('.slick-dots').firstElementChild.firstElementChild.tagName
       ).toBe('A');
+    });
+
+    it('should call layout on component resize', async () => {
+      testComponent.nzCarouselComponent.ngOnInit();
+      const spy = vi.spyOn(testComponent.nzCarouselComponent, 'layout');
+      window.dispatchEvent(new Event('resize'));
+      await stabilize(fixture, 500);
+
+      (testComponent.nzCarouselComponent['nzResizeObserver'] as NzResizeObserver)
+        .observe(testComponent.nzCarouselComponent.el)
+        .subscribe(() => {
+          expect(spy).toHaveBeenCalled();
+        });
+    });
+
+    it('should call layout on component resize', async () => {
+      const spyOnResize = vi.spyOn(testComponent.nzCarouselComponent, 'layout');
+      window.dispatchEvent(new Event('resize'));
+      await stabilize(fixture, 500);
+
+      expect(spyOnResize).toHaveBeenCalled();
     });
 
     it('should click content change', () => {
@@ -83,143 +105,197 @@ describe('carousel', () => {
       expect(carouselContents[3].nativeElement.classList).toContain('slick-active');
     });
 
-    it('should keydown change content work', fakeAsync(() => {
+    it('should keydown change content work', async () => {
       fixture.detectChanges();
       const list = carouselWrapper.nativeElement.querySelector('.slick-list');
 
       expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
 
       dispatchKeyboardEvent(list, 'keydown', LEFT_ARROW);
-      tickMilliseconds(fixture, 700);
+      await stabilize(fixture, 20);
       expect(carouselContents[3].nativeElement.classList).toContain('slick-active');
       dispatchKeyboardEvent(list, 'keydown', LEFT_ARROW);
-      tickMilliseconds(fixture, 700);
+      await stabilize(fixture, 20);
       expect(carouselContents[2].nativeElement.classList).toContain('slick-active');
       dispatchKeyboardEvent(list, 'keydown', RIGHT_ARROW);
-      tickMilliseconds(fixture, 700);
+      await stabilize(fixture, 20);
       expect(carouselContents[3].nativeElement.classList).toContain('slick-active');
       dispatchKeyboardEvent(list, 'keydown', RIGHT_ARROW);
-      tickMilliseconds(fixture, 700);
+      await stabilize(fixture, 20);
       expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
-    }));
+    });
 
     it('should nzDotPosition work', () => {
-      testComponent.dotPosition = 'left';
+      testComponent.dotPosition.set('left');
       fixture.detectChanges();
       expect(carouselWrapper.nativeElement.firstElementChild!.classList).toContain('slick-vertical');
     });
 
-    it('should effect change work', fakeAsync(() => {
-      fixture.detectChanges();
-      tick(1000);
-      fixture.detectChanges();
+    it('should effect change work', async () => {
+      await stabilize(fixture, 20);
       expect(carouselWrapper.nativeElement.querySelector('.slick-track').style.transform).toBe(
         'translate3d(0px, 0px, 0px)'
       );
       carouselWrapper.nativeElement.querySelector('.slick-dots').lastElementChild.click();
-      tickMilliseconds(fixture, 700);
+      await stabilize(fixture, 20);
       expect(carouselWrapper.nativeElement.querySelector('.slick-track').style.transform).not.toBe('');
 
-      testComponent.effect = 'fade';
-      testComponent.dotPosition = 'left';
+      testComponent.effect.set('fade');
+      testComponent.dotPosition.set('left');
       fixture.detectChanges();
       expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
       carouselWrapper.nativeElement.querySelector('.slick-dots').lastElementChild.click();
-      tickMilliseconds(fixture, 700);
+      await stabilize(fixture, 20);
       expect(carouselWrapper.nativeElement.querySelector('.slick-track').style.transform).toBe('');
 
-      testComponent.effect = 'scrollx';
+      testComponent.effect.set('scrollx');
       fixture.detectChanges();
       expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
       carouselWrapper.nativeElement.querySelector('.slick-dots').lastElementChild.click();
-      tickMilliseconds(fixture, 700);
+      await stabilize(fixture, 20);
       expect(carouselWrapper.nativeElement.querySelector('.slick-track').style.transform).not.toBe(
         'translate3d(0px, 0px, 0px)'
       );
-    }));
+    });
 
-    it('should autoplay work', fakeAsync(() => {
-      testComponent.autoPlay = true;
-      fixture.detectChanges();
-      expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
-      fixture.detectChanges();
-      tick(5000);
-      fixture.detectChanges();
-      expect(carouselContents[1].nativeElement.classList).toContain('slick-active');
-      carouselWrapper.nativeElement.querySelector('.slick-dots').lastElementChild.click();
-      fixture.detectChanges();
-      tick(5000);
-      fixture.detectChanges();
-      testComponent.autoPlay = false;
-      fixture.detectChanges();
-      expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
-    }));
+    describe('autoplay', () => {
+      beforeEach(() => vi.useFakeTimers());
+      afterEach(() => vi.useRealTimers());
 
-    it('should autoplay speed work', fakeAsync(() => {
-      testComponent.autoPlay = true;
-      testComponent.autoPlaySpeed = 1000;
-      fixture.detectChanges();
-      expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
-      fixture.detectChanges();
-      tick(1000 + 10);
-      fixture.detectChanges();
-      expect(carouselContents[1].nativeElement.classList).toContain('slick-active');
-      testComponent.autoPlaySpeed = 0;
-      fixture.detectChanges();
-      tick(2000 + 10);
-      fixture.detectChanges();
-      expect(carouselContents[1].nativeElement.classList).toContain('slick-active');
-    }));
+      beforeEach(() => {
+        testComponent.autoPlay.set(true);
+        testComponent.autoPlaySpeed.set(20);
+        fixture.detectChanges();
+      });
 
-    it('should func work', fakeAsync(() => {
+      afterEach(() => {
+        testComponent.autoPlay.set(false);
+        fixture.detectChanges();
+      });
+
+      it('should autoplay work', () => {
+        testComponent.autoPlay.set(true);
+        testComponent.autoPlaySpeed.set(20);
+        fixture.detectChanges();
+        expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
+
+        vi.advanceTimersByTime(20);
+        fixture.detectChanges();
+        expect(carouselContents[1].nativeElement.classList).toContain('slick-active');
+
+        vi.advanceTimersByTime(testComponent.nzCarouselComponent.nzTransitionSpeed);
+        carouselWrapper.nativeElement.querySelector('.slick-dots').lastElementChild.click();
+        fixture.detectChanges();
+
+        vi.advanceTimersByTime(testComponent.nzCarouselComponent.nzTransitionSpeed + testComponent.autoPlaySpeed());
+        fixture.detectChanges();
+        testComponent.autoPlay.set(false);
+        fixture.detectChanges();
+        expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
+      });
+
+      it('should autoplay speed work', () => {
+        testComponent.autoPlay.set(true);
+        testComponent.autoPlaySpeed.set(20);
+        fixture.detectChanges();
+        expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
+
+        vi.advanceTimersByTime(20);
+        fixture.detectChanges();
+        expect(carouselContents[1].nativeElement.classList).toContain('slick-active');
+
+        testComponent.autoPlaySpeed.set(0);
+        fixture.detectChanges();
+        vi.advanceTimersByTime(60);
+        fixture.detectChanges();
+        expect(carouselContents[1].nativeElement.classList).toContain('slick-active');
+      });
+    });
+
+    it('should func work', async () => {
       fixture.detectChanges();
       expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
       testComponent.nzCarouselComponent.next();
-      tickMilliseconds(fixture, 700);
+      await stabilize(fixture, 20);
       expect(carouselContents[1].nativeElement.classList).toContain('slick-active');
       testComponent.nzCarouselComponent.pre();
-      tickMilliseconds(fixture, 700);
+      await stabilize(fixture, 20);
       expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
       testComponent.nzCarouselComponent.goTo(2);
-      tickMilliseconds(fixture, 700);
+      await stabilize(fixture, 20);
       expect(carouselContents[2].nativeElement.classList).toContain('slick-active');
-    }));
+    });
 
-    it('should resize content after window resized', fakeAsync(() => {
-      const resizeSpy = spyOn(testComponent.nzCarouselComponent.strategy!, 'withCarouselContents');
+    it('should resize content after window resized', async () => {
+      const resizeSpy = vi.spyOn(testComponent.nzCarouselComponent.strategy!, 'withCarouselContents');
       window.dispatchEvent(new Event('resize'));
-      tick(16);
-      expect(resizeSpy).toHaveBeenCalledTimes(1);
-    }));
+      await stabilize(fixture, 16);
+      expect(resizeSpy).toHaveBeenCalled();
+    });
 
     // this test may fail on WSL
-    it('should support swiping to switch', fakeAsync(() => {
+    it('should support swiping to switch', async () => {
       swipe(testComponent.nzCarouselComponent, 500);
-      tickMilliseconds(fixture, 700);
+      await stabilize(fixture, 20);
       expect(carouselContents[0].nativeElement.classList).not.toContain('slick-active');
       expect(carouselContents[1].nativeElement.classList).toContain('slick-active');
 
       swipe(testComponent.nzCarouselComponent, -500);
-      tickMilliseconds(fixture, 700);
+      await stabilize(fixture, 20);
       swipe(testComponent.nzCarouselComponent, -500);
-      tickMilliseconds(fixture, 700);
+      await stabilize(fixture, 20);
       expect(carouselContents[0].nativeElement.classList).not.toContain('slick-active');
       expect(carouselContents[3].nativeElement.classList).toContain('slick-active');
-    }));
+    });
 
-    it('should prevent swipes that are not long enough', fakeAsync(() => {
+    it('should prevent swipes that are not long enough', async () => {
       swipe(testComponent.nzCarouselComponent, 57);
-      tickMilliseconds(fixture, 700);
+      await stabilize(fixture, 20);
       expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
-    }));
+    });
 
-    it('should disable dragging during transitioning', fakeAsync(() => {
-      tickMilliseconds(fixture, 700);
+    it('should disable dragging during transitioning', async () => {
+      await stabilize(fixture, 20);
       testComponent.nzCarouselComponent.goTo(1);
       swipe(testComponent.nzCarouselComponent, 500);
-      tickMilliseconds(fixture, 700);
+      await stabilize(fixture, 20);
       expect(carouselContents[1].nativeElement.classList).toContain('slick-active');
-    }));
+    });
+
+    it('should disable loop work', async () => {
+      testComponent.loop.set(false);
+      fixture.detectChanges();
+      swipe(testComponent.nzCarouselComponent, -10);
+      await stabilize(fixture, 20);
+      expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
+      swipe(testComponent.nzCarouselComponent, -1000);
+      await stabilize(fixture, 20);
+      expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
+
+      testComponent.loop.set(true);
+      fixture.detectChanges();
+      swipe(testComponent.nzCarouselComponent, -1000);
+      await stabilize(fixture, 20);
+      expect(carouselContents[3].nativeElement.classList).toContain('slick-active');
+      swipe(testComponent.nzCarouselComponent, 1000);
+      await stabilize(fixture, 20);
+      expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
+
+      testComponent.loop.set(false);
+      testComponent.autoPlay.set(true);
+      testComponent.autoPlaySpeed.set(20);
+      fixture.detectChanges();
+      await stabilize(fixture, 140);
+      expect(carouselContents[3].nativeElement.classList).toContain('slick-active');
+      await stabilize(fixture, 40);
+      expect(carouselContents[3].nativeElement.classList).toContain('slick-active');
+    });
+
+    it('should call goTo function on slick dot click', () => {
+      vi.spyOn(testComponent.nzCarouselComponent, 'goTo');
+      carouselWrapper.nativeElement.querySelector('.slick-dots').lastElementChild.click();
+      expect(testComponent.nzCarouselComponent.goTo).toHaveBeenCalledWith(3);
+    });
   });
 
   describe('strategies', () => {
@@ -233,56 +309,73 @@ describe('carousel', () => {
     });
 
     describe('transform strategy', () => {
-      it('horizontal transform', fakeAsync(() => {
+      it('horizontal transform', async () => {
         expect(testComponent.nzCarouselComponent.slickTrackEl.style.transform).toBe(`translate3d(0px, 0px, 0px)`);
 
         testComponent.nzCarouselComponent.next();
-        tickMilliseconds(fixture, 700);
+        await stabilize(fixture, 20);
         expect(testComponent.nzCarouselComponent.slickTrackEl.style.transform).not.toBe(`translate3d(0px, 0px, 0px)`);
 
         testComponent.nzCarouselComponent.pre();
-        tickMilliseconds(fixture, 700);
+        await stabilize(fixture, 20);
         expect(testComponent.nzCarouselComponent.slickTrackEl.style.transform).toBe(`translate3d(0px, 0px, 0px)`);
 
         // From first to last.
         testComponent.nzCarouselComponent.pre();
-        tickMilliseconds(fixture, 700);
+        await stabilize(fixture, 20);
         expect(testComponent.nzCarouselComponent.slickTrackEl.style.transform).not.toBe(`translate3d(0px, 0px, 0px)`);
 
         // From last to first.
         testComponent.nzCarouselComponent.next();
-        tickMilliseconds(fixture, 700);
+        await stabilize(fixture, 20);
         expect(testComponent.nzCarouselComponent.slickTrackEl.style.transform).toBe(`translate3d(0px, 0px, 0px)`);
-      }));
+      });
 
-      it('vertical', fakeAsync(() => {
-        testComponent.dotPosition = 'left';
+      it('vertical', async () => {
+        testComponent.dotPosition.set('left');
         fixture.detectChanges();
 
         expect(testComponent.nzCarouselComponent.slickTrackEl.style.transform).toBe(`translate3d(0px, 0px, 0px)`);
 
         testComponent.nzCarouselComponent.next();
-        tickMilliseconds(fixture, 700);
+        await stabilize(fixture, 20);
         expect(testComponent.nzCarouselComponent.el.style.transform).not.toBe(`translate3d(0px, 0px, 0px)`);
 
         testComponent.nzCarouselComponent.pre();
-        tickMilliseconds(fixture, 700);
+        await stabilize(fixture, 20);
         expect(testComponent.nzCarouselComponent.slickTrackEl.style.transform).toBe(`translate3d(0px, 0px, 0px)`);
 
         // From first to last.
         testComponent.nzCarouselComponent.pre();
-        tickMilliseconds(fixture, 700);
+        await stabilize(fixture, 20);
         expect(testComponent.nzCarouselComponent.slickTrackEl.style.transform).not.toBe(`translate3d(0px, 0px, 0px)`);
 
         // From last to first.
         testComponent.nzCarouselComponent.next();
-        tickMilliseconds(fixture, 700);
+        await stabilize(fixture, 20);
         expect(testComponent.nzCarouselComponent.slickTrackEl.style.transform).toBe(`translate3d(0px, 0px, 0px)`);
-      }));
+      });
+    });
+  });
+
+  describe('carousel nzAfterChange return value', () => {
+    let fixture: ComponentFixture<NzTestCarouselActiveIndexComponent>;
+    let testComponent: NzTestCarouselActiveIndexComponent;
+
+    beforeEach(() => {
+      fixture = TestBed.createComponent(NzTestCarouselActiveIndexComponent);
+      fixture.detectChanges();
+      testComponent = fixture.debugElement.componentInstance;
     });
 
-    // already covered in components specs.
-    // describe('opacity strategy', () => {});
+    it('carousel activeIndex should be equal to nzAfterChange return value', async () => {
+      fixture.detectChanges();
+      for (const _ of [0, 1, 2, 3, 4]) {
+        testComponent.nzCarouselComponent.next();
+        await stabilize(fixture, 20);
+        expect(testComponent.index).toBe(testComponent.nzCarouselComponent.activeIndex);
+      }
+    });
   });
 });
 
@@ -292,10 +385,8 @@ describe('carousel custom strategies', () => {
   let carouselWrapper: DebugElement;
   let carouselContents: DebugElement[];
 
-  beforeEach(fakeAsync(() => {
+  beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [NzCarouselModule],
-      declarations: [NzTestCarouselBasicComponent],
       providers: [
         {
           provide: NZ_CAROUSEL_CUSTOM_STRATEGIES,
@@ -312,48 +403,122 @@ describe('carousel custom strategies', () => {
         }
       ]
     });
-  }));
+  });
 
-  it('could use custom strategies', fakeAsync(() => {
+  it('could use custom strategies', async () => {
     fixture = TestBed.createComponent(NzTestCarouselBasicComponent);
     fixture.detectChanges();
     testComponent = fixture.debugElement.componentInstance;
     carouselWrapper = fixture.debugElement.query(By.directive(NzCarouselComponent));
     carouselContents = fixture.debugElement.queryAll(By.directive(NzCarouselContentDirective));
 
-    testComponent.effect = 'flip';
+    testComponent.effect.set('flip');
     fixture.detectChanges();
     expect(carouselContents[0].nativeElement.style.transform).toBe('rotateY(0deg)');
     expect(carouselContents[1].nativeElement.style.transform).toBe('rotateY(180deg)');
     carouselWrapper.nativeElement.querySelector('.slick-dots').lastElementChild.click();
-    tickMilliseconds(fixture, 700);
+    await stabilize(fixture, 20);
     expect(carouselContents[0].nativeElement.style.transform).toBe('rotateY(180deg)');
     expect(carouselContents[3].nativeElement.style.transform).toBe('rotateY(0deg)');
 
-    testComponent.effect = 'transform-no-loop';
+    testComponent.effect.set('transform-no-loop');
     fixture.detectChanges();
     expect(carouselWrapper.nativeElement.querySelector('.slick-track').style.transform).toBe(
       'translate3d(0px, 0px, 0px)'
     );
     carouselWrapper.nativeElement.querySelector('.slick-dots').lastElementChild.click();
-    tickMilliseconds(fixture, 700);
+    await stabilize(fixture, 20);
     expect(carouselWrapper.nativeElement.querySelector('.slick-track').style.transform).not.toBe(
       'translate3d(0px, 0px, 0px)'
     );
 
-    testComponent.dotPosition = 'left';
+    testComponent.dotPosition.set('left');
     fixture.detectChanges();
     carouselWrapper.nativeElement.querySelector('.slick-dots').lastElementChild.click();
-    tickMilliseconds(fixture, 700);
+    await stabilize(fixture, 20);
     expect(carouselWrapper.nativeElement.querySelector('.slick-track').style.transform).not.toBe(
       'translate3d(0px, 0px, 0px)'
     );
-  }));
+  });
 });
 
-function tickMilliseconds<T>(fixture: ComponentFixture<T>, seconds: number = 1): void {
+describe('carousel arrows', () => {
+  let fixture: ComponentFixture<NzTestCarouselArrowsComponent>;
+  let testComponent: NzTestCarouselArrowsComponent;
+  let carouselWrapper: DebugElement;
+  let carouselContents: DebugElement[];
+
+  beforeEach(() => {
+    fixture = TestBed.createComponent(NzTestCarouselArrowsComponent);
+    fixture.detectChanges();
+    testComponent = fixture.debugElement.componentInstance;
+    carouselWrapper = fixture.debugElement.query(By.directive(NzCarouselComponent));
+    carouselContents = fixture.debugElement.queryAll(By.directive(NzCarouselContentDirective));
+  });
+
+  it('should render arrows when nzArrows is true', () => {
+    const prev = carouselWrapper.nativeElement.querySelector('.slick-prev');
+    const next = carouselWrapper.nativeElement.querySelector('.slick-next');
+    expect(prev).not.toBeNull();
+    expect(next).not.toBeNull();
+  });
+
+  it('should navigate via arrows', async () => {
+    expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
+    carouselWrapper.nativeElement.querySelector('.slick-next').click();
+    await stabilize(fixture, 20);
+    expect(carouselContents[1].nativeElement.classList).toContain('slick-active');
+    carouselWrapper.nativeElement.querySelector('.slick-prev').click();
+    await stabilize(fixture, 20);
+    expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
+  });
+
+  it('should disable arrows at edges when loop is false', async () => {
+    testComponent.loop.set(false);
+    fixture.detectChanges();
+    const prev = carouselWrapper.nativeElement.querySelector('.slick-prev');
+    const next = carouselWrapper.nativeElement.querySelector('.slick-next');
+    expect(prev.classList).toContain('slick-disabled');
+    expect(next.classList).not.toContain('slick-disabled');
+
+    // Go to last slide
+    for (let i = 0; i < 3; i++) {
+      next.click();
+      await stabilize(fixture, 20);
+    }
+    expect(carouselContents[3].nativeElement.classList).toContain('slick-active');
+    expect(next.classList).toContain('slick-disabled');
+
+    // Clicking next should not move beyond last
+    next.click();
+    await stabilize(fixture, 20);
+    expect(carouselContents[3].nativeElement.classList).toContain('slick-active');
+  });
+});
+
+describe('carousel no swipe', () => {
+  let fixture: ComponentFixture<NzTestCarouselNoSwipeComponent>;
+  let testComponent: NzTestCarouselNoSwipeComponent;
+  let carouselContents: DebugElement[];
+
+  beforeEach(() => {
+    fixture = TestBed.createComponent(NzTestCarouselNoSwipeComponent);
+    fixture.detectChanges();
+    testComponent = fixture.debugElement.componentInstance;
+    carouselContents = fixture.debugElement.queryAll(By.directive(NzCarouselContentDirective));
+  });
+
+  it('should not change slide on swipe when nzEnableSwipe is false', async () => {
+    expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
+    swipe(testComponent.nzCarouselComponent, 500);
+    await stabilize(fixture, 20);
+    expect(carouselContents[0].nativeElement.classList).toContain('slick-active');
+  });
+});
+
+async function stabilize<T>(fixture: ComponentFixture<T>, ms?: number): Promise<void> {
   fixture.detectChanges();
-  tick(seconds);
+  await updateNonSignalsInput(fixture, ms);
   fixture.detectChanges();
 }
 
@@ -376,22 +541,26 @@ function swipe(carousel: NzCarouselComponent, distance: number): void {
 }
 
 @Component({
-  // eslint-disable-next-line
   selector: 'nz-test-carousel',
+  imports: [NzCarouselModule],
   template: `
     <nz-carousel
-      [nzEffect]="effect"
-      [nzDots]="dots"
-      [nzDotPosition]="dotPosition"
+      [nzEffect]="effect()"
+      [nzDots]="dots()"
+      [nzDotPosition]="dotPosition()"
       [nzDotRender]="dotRender"
-      [nzAutoPlay]="autoPlay"
-      [nzAutoPlaySpeed]="autoPlaySpeed"
+      [nzAutoPlay]="autoPlay()"
+      [nzAutoPlaySpeed]="autoPlaySpeed()"
+      [nzTransitionSpeed]="transitionSpeed()"
+      [nzLoop]="loop()"
       (nzAfterChange)="afterChange($event)"
       (nzBeforeChange)="beforeChange($event)"
     >
-      <div nz-carousel-content *ngFor="let index of array">
-        <h3>{{ index }}</h3>
-      </div>
+      @for (index of array(); track index) {
+        <div nz-carousel-content>
+          <h3>{{ index }}</h3>
+        </div>
+      }
       <ng-template #dotRender let-index>
         <a>{{ index + 1 }}</a>
       </ng-template>
@@ -400,24 +569,128 @@ function swipe(carousel: NzCarouselComponent, distance: number): void {
 })
 export class NzTestCarouselBasicComponent {
   @ViewChild(NzCarouselComponent, { static: false }) nzCarouselComponent!: NzCarouselComponent;
-  dots = true;
-  dotPosition = 'bottom';
-  effect = 'scrollx';
-  array = [1, 2, 3, 4];
-  autoPlay = false;
-  autoPlaySpeed = 3000;
-  afterChange = jasmine.createSpy('afterChange callback');
-  beforeChange = jasmine.createSpy('beforeChange callback');
+  readonly dots = signal(true);
+  readonly dotPosition = signal<'top' | 'bottom' | 'left' | 'right'>('bottom');
+  readonly effect = signal('scrollx');
+  readonly array = signal([1, 2, 3, 4]);
+  readonly autoPlay = signal(false);
+  readonly autoPlaySpeed = signal(3000);
+  readonly transitionSpeed = signal(10);
+  readonly loop = signal(true);
+  afterChange = vi.fn();
+  beforeChange = vi.fn();
 }
 
 @Component({
+  imports: [NzCarouselModule],
   template: `
-    <div [dir]="direction">
-      <nz-test-carousel></nz-test-carousel>
-    </div>
+    <nz-carousel [nzTransitionSpeed]="10" (nzAfterChange)="afterChange($event)">
+      @for (index of array; track index) {
+        <div nz-carousel-content>
+          <h3>{{ index }}</h3>
+        </div>
+      }
+    </nz-carousel>
   `
 })
-export class NzTestCarouselRtlComponent {
-  @ViewChild(Dir) dir!: Dir;
-  direction = 'rtl';
+export class NzTestCarouselActiveIndexComponent {
+  @ViewChild(NzCarouselComponent, { static: true }) nzCarouselComponent!: NzCarouselComponent;
+  array = [0, 1, 2, 3, 4];
+  index = 0;
+
+  afterChange(index: number): void {
+    this.index = index;
+  }
 }
+
+@Component({
+  selector: 'nz-test-carousel-arrows',
+  imports: [NzCarouselModule],
+  template: `
+    <nz-carousel [nzArrows]="true" [nzLoop]="loop()" [nzTransitionSpeed]="10">
+      @for (index of array; track index) {
+        <div nz-carousel-content>
+          <h3>{{ index }}</h3>
+        </div>
+      }
+    </nz-carousel>
+  `
+})
+export class NzTestCarouselArrowsComponent {
+  @ViewChild(NzCarouselComponent, { static: true }) nzCarouselComponent!: NzCarouselComponent;
+  array = [1, 2, 3, 4];
+  readonly loop = signal(true);
+}
+
+@Component({
+  selector: 'nz-test-carousel-no-swipe',
+  imports: [NzCarouselModule],
+  template: `
+    <nz-carousel [nzEnableSwipe]="false" [nzTransitionSpeed]="10">
+      @for (index of array; track index) {
+        <div nz-carousel-content>
+          <h3>{{ index }}</h3>
+        </div>
+      }
+    </nz-carousel>
+  `
+})
+export class NzTestCarouselNoSwipeComponent {
+  @ViewChild(NzCarouselComponent, { static: true }) nzCarouselComponent!: NzCarouselComponent;
+  array = [1, 2, 3, 4];
+}
+
+describe('carousel', () => {
+  let fixture: ComponentFixture<NzTestCarouselBasicComponent>;
+  let component: NzCarouselComponent;
+  let mockObserve$: Subject<void>;
+
+  beforeEach(() => {
+    mockObserve$ = new Subject();
+    const nzResizeObserverSpy = {
+      observe: vi.fn().mockReturnValue(mockObserve$.asObservable())
+    };
+
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: NzResizeObserver,
+          useValue: nzResizeObserverSpy
+        }
+      ]
+    });
+
+    fixture = TestBed.createComponent(NzTestCarouselBasicComponent);
+    component = fixture.debugElement.query(By.directive(NzCarouselComponent)).componentInstance;
+  });
+
+  it('should not execute if keyCode is not of type LEFT_ARROW  or RIGHT_ARROW', async () => {
+    await stabilize(fixture, 20);
+    let event: KeyboardEvent;
+
+    event = new KeyboardEvent('keydown', { keyCode: LEFT_ARROW });
+    vi.spyOn(event, 'preventDefault');
+    component.slickListEl.dispatchEvent(event);
+    expect(event.preventDefault).toHaveBeenCalled();
+
+    event = new KeyboardEvent('keydown', { keyCode: RIGHT_ARROW });
+    vi.spyOn(event, 'preventDefault');
+    component.slickListEl.dispatchEvent(event);
+    expect(event.preventDefault).toHaveBeenCalled();
+
+    event = new KeyboardEvent('keydown', { keyCode: ENTER });
+    vi.spyOn(event, 'preventDefault');
+    component.slickListEl.dispatchEvent(event);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('should call layout method when resizing', async () => {
+    await stabilize(fixture, 20);
+    vi.spyOn(component, 'layout');
+    mockObserve$.next();
+    await stabilize(fixture, 101);
+    expect(component.layout).toHaveBeenCalled();
+  });
+});
+
+testDirectionality(() => NzTestCarouselBasicComponent, By.directive(NzCarouselComponent), 'ant-carousel');

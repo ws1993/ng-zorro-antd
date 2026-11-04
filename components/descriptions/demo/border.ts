@@ -1,7 +1,11 @@
 import { Component } from '@angular/core';
 
+import { NzBadgeModule } from 'ng-zorro-antd/badge';
+import { NzDescriptionsModule } from 'ng-zorro-antd/descriptions';
+
 @Component({
   selector: 'nz-demo-descriptions-border',
+  imports: [NzBadgeModule, NzDescriptionsModule],
   template: `
     <nz-descriptions nzTitle="User Info" nzBordered>
       <nz-descriptions-item nzTitle="Product">Cloud Database</nz-descriptions-item>
@@ -12,7 +16,7 @@ import { Component } from '@angular/core';
         2018-04-24 18:00:00 To 2019-04-24 18:00:00
       </nz-descriptions-item>
       <nz-descriptions-item nzTitle="Status" [nzSpan]="3">
-        <nz-badge nzStatus="processing" nzText="Running"></nz-badge>
+        <nz-badge nzStatus="processing" nzText="Running" />
       </nz-descriptions-item>
       <nz-descriptions-item nzTitle="Negotiated Amount">$80.00</nz-descriptions-item>
       <nz-descriptions-item nzTitle="Discount">$20.00</nz-descriptions-item>

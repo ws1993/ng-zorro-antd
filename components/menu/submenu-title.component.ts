@@ -3,92 +3,67 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Direction, Directionality } from '@angular/cdk/bidi';
-import {
-  ChangeDetectionStrategy,
-  ChangeDetectorRef,
-  Component,
-  EventEmitter,
-  Input,
-  OnDestroy,
-  OnInit,
-  Optional,
-  Output,
-  TemplateRef,
-  ViewEncapsulation
-} from '@angular/core';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { Directionality } from '@angular/cdk/bidi';
+import { Component, EventEmitter, inject, Input, Output, TemplateRef, ViewEncapsulation } from '@angular/core';
 
-import { NzMenuModeType } from './menu.types';
+import { NzOutletModule } from 'ng-zorro-antd/core/outlet';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+
+import { NzIsMenuInsideDropdownToken } from './menu.token';
+import { NzMenuModeType, NzSubmenuTrigger } from './menu.types';
 
 @Component({
   selector: '[nz-submenu-title]',
   exportAs: 'nzSubmenuTitle',
   encapsulation: ViewEncapsulation.None,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <i nz-icon [nzType]="nzIcon" *ngIf="nzIcon"></i>
+    @if (nzIcon) {
+      <nz-icon [nzType]="nzIcon" />
+    }
     <ng-container *nzStringTemplateOutlet="nzTitle">
-      <span>{{ nzTitle }}</span>
+      <span class="ant-menu-title-content">{{ nzTitle }}</span>
     </ng-container>
-    <ng-content></ng-content>
-    <span
-      [ngSwitch]="dir"
-      *ngIf="isMenuInsideDropDown; else notDropdownTpl"
-      class="ant-dropdown-menu-submenu-expand-icon"
-    >
-      <i *ngSwitchCase="'rtl'" nz-icon nzType="left" class="ant-dropdown-menu-submenu-arrow-icon"></i>
-      <i *ngSwitchDefault nz-icon nzType="right" class="ant-dropdown-menu-submenu-arrow-icon"></i>
-    </span>
-    <ng-template #notDropdownTpl>
-      <i class="ant-menu-submenu-arrow"></i>
-    </ng-template>
+    <ng-content />
+    @if (isMenuInsideDropdown) {
+      <span class="ant-dropdown-menu-submenu-expand-icon">
+        <nz-icon [nzType]="dir() === 'rtl' ? 'left' : 'right'" class="ant-dropdown-menu-submenu-arrow-icon" />
+      </span>
+    } @else {
+      <span class="ant-menu-submenu-arrow"></span>
+    }
   `,
   host: {
-    '[class.ant-dropdown-menu-submenu-title]': 'isMenuInsideDropDown',
-    '[class.ant-menu-submenu-title]': '!isMenuInsideDropDown',
-    '[style.paddingLeft.px]': `dir === 'rtl' ? null : paddingLeft `,
-    '[style.paddingRight.px]': `dir === 'rtl' ? paddingLeft : null`,
+    '[class.ant-dropdown-menu-submenu-title]': 'isMenuInsideDropdown',
+    '[class.ant-menu-submenu-title]': '!isMenuInsideDropdown',
+    '[style.padding-inline-start.px]': 'paddingLeft',
     '(click)': 'clickTitle()',
     '(mouseenter)': 'setMouseState(true)',
     '(mouseleave)': 'setMouseState(false)'
-  }
+  },
+  imports: [NzIconModule, NzOutletModule]
 })
-export class NzSubMenuTitleComponent implements OnDestroy, OnInit {
+export class NzSubMenuTitleComponent {
+  protected readonly isMenuInsideDropdown = inject(NzIsMenuInsideDropdownToken);
+  protected readonly dir = inject(Directionality).valueSignal;
+
   @Input() nzIcon: string | null = null;
   @Input() nzTitle: string | TemplateRef<void> | null = null;
-  @Input() isMenuInsideDropDown = false;
   @Input() nzDisabled = false;
   @Input() paddingLeft: number | null = null;
   @Input() mode: NzMenuModeType = 'vertical';
+  @Input() nzTriggerSubMenuAction: NzSubmenuTrigger = 'hover';
   @Output() readonly toggleSubMenu = new EventEmitter();
   @Output() readonly subMenuMouseState = new EventEmitter<boolean>();
 
-  dir: Direction = 'ltr';
-  private destroy$ = new Subject<void>();
-
-  constructor(private cdr: ChangeDetectorRef, @Optional() private directionality: Directionality) {}
-  ngOnInit(): void {
-    this.dir = this.directionality.value;
-    this.directionality.change?.pipe(takeUntil(this.destroy$)).subscribe((direction: Direction) => {
-      this.dir = direction;
-      this.cdr.detectChanges();
-    });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  setMouseState(state: boolean): void {
-    if (!this.nzDisabled) {
+  protected setMouseState(state: boolean): void {
+    if (!this.nzDisabled && this.nzTriggerSubMenuAction === 'hover') {
       this.subMenuMouseState.next(state);
     }
   }
-  clickTitle(): void {
-    if (this.mode === 'inline' && !this.nzDisabled) {
+
+  protected clickTitle(): void {
+    if ((this.mode === 'inline' || this.nzTriggerSubMenuAction === 'click') && !this.nzDisabled) {
+      this.subMenuMouseState.next(true);
       this.toggleSubMenu.emit();
     }
   }

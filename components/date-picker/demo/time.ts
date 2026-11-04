@@ -1,7 +1,11 @@
 import { Component } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+import { NzDatePickerModule } from 'ng-zorro-antd/date-picker';
 
 @Component({
   selector: 'nz-demo-date-picker-time',
+  imports: [FormsModule, NzDatePickerModule],
   template: `
     <nz-date-picker
       nzShowTime
@@ -9,7 +13,7 @@ import { Component } from '@angular/core';
       ngModel
       (ngModelChange)="onChange($event)"
       (nzOnOk)="onOk($event)"
-    ></nz-date-picker>
+    />
     <br />
     <nz-range-picker
       [nzShowTime]="{ nzFormat: 'HH:mm' }"
@@ -18,16 +22,14 @@ import { Component } from '@angular/core';
       (ngModelChange)="onChange($event)"
       (nzOnCalendarChange)="onCalendarChange($event)"
       (nzOnOk)="onOk($event)"
-    ></nz-range-picker>
+    />
   `,
-  styles: [
-    `
-      nz-date-picker,
-      nz-range-picker {
-        margin: 0 8px 12px 0;
-      }
-    `
-  ]
+  styles: `
+    nz-date-picker,
+    nz-range-picker {
+      margin: 0 8px 12px 0;
+    }
+  `
 })
 export class NzDemoDatePickerTimeComponent {
   onChange(result: Date): void {

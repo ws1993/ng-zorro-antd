@@ -1,9 +1,34 @@
 import { Component } from '@angular/core';
 
+import { NzAvatarModule } from 'ng-zorro-antd/avatar';
+import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzNoAnimationDirective } from 'ng-zorro-antd/core/animation';
+import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
+import { NzGridModule } from 'ng-zorro-antd/grid';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzPageHeaderModule } from 'ng-zorro-antd/page-header';
+import { NzSpaceModule } from 'ng-zorro-antd/space';
+import { NzTagModule } from 'ng-zorro-antd/tag';
+import { NzTypographyModule } from 'ng-zorro-antd/typography';
+
 @Component({
   selector: 'nz-demo-page-header-content',
+  imports: [
+    NzAvatarModule,
+    NzBreadCrumbModule,
+    NzButtonModule,
+    NzDropdownModule,
+    NzGridModule,
+    NzIconModule,
+    NzPageHeaderModule,
+    NzSpaceModule,
+    NzTagModule,
+    NzTypographyModule,
+    NzNoAnimationDirective
+  ],
   template: `
-    <nz-page-header class="site-page-header">
+    <nz-page-header>
       <!--breadcrumb-->
       <nz-breadcrumb nz-page-header-breadcrumb>
         <nz-breadcrumb-item>First-level Menu</nz-breadcrumb-item>
@@ -14,7 +39,7 @@ import { Component } from '@angular/core';
       </nz-breadcrumb>
 
       <!--avatar-->
-      <nz-avatar nz-page-header-avatar nzSrc="https://avatars0.githubusercontent.com/u/22736418?s=88&v=4"></nz-avatar>
+      <nz-avatar nz-page-header-avatar nzSrc="https://avatars0.githubusercontent.com/u/22736418?s=88&v=4" />
 
       <!--title-->
       <nz-page-header-title>Title</nz-page-header-title>
@@ -24,17 +49,27 @@ import { Component } from '@angular/core';
 
       <!--tags-->
       <nz-page-header-tags>
-        <nz-tag [nzColor]="'blue'">Running</nz-tag>
+        <nz-tag nzColor="blue">Running</nz-tag>
       </nz-page-header-tags>
 
       <!--extra-->
       <nz-page-header-extra>
-        <button nz-button>Operation</button>
-        <button nz-button>Operation</button>
-        <button nz-button nzType="primary">Primary</button>
-        <button nz-button nzNoAnimation nz-dropdown [nzDropdownMenu]="menu" style="border: none; padding: 0">
-          <i nz-icon nzType="ellipsis" nzTheme="outline" style="font-size: 20px; vertical-align: top;"></i>
-        </button>
+        <nz-space>
+          <button *nzSpaceItem nz-button>Operation</button>
+          <button *nzSpaceItem nz-button>Operation</button>
+          <button *nzSpaceItem nz-button nzType="primary">Primary</button>
+          <button
+            *nzSpaceItem
+            nz-button
+            nzNoAnimation
+            nz-dropdown
+            [nzDropdownMenu]="menu"
+            nzPlacement="bottomRight"
+            style="border: none; padding: 0"
+          >
+            <nz-icon nzType="more" nzTheme="outline" style="font-size: 20px; vertical-align: top;" />
+          </button>
+        </nz-space>
         <nz-dropdown-menu #menu="nzDropdownMenu">
           <ul nz-menu>
             <li nz-menu-item>1st menu item length</li>
@@ -79,41 +114,39 @@ import { Component } from '@angular/core';
       </nz-page-header-content>
     </nz-page-header>
   `,
-  styles: [
-    `
-      .content {
-        flex: 1;
-      }
+  styles: `
+    .content {
+      flex: 1;
+    }
 
-      .content p {
-        margin-bottom: 1em;
-      }
+    .content p {
+      margin-bottom: 1em;
+    }
 
-      .content-link a {
-        margin-right: 16px;
-      }
+    .content-link a {
+      margin-right: 16px;
+    }
 
-      .content-link a img {
-        margin-right: 8px;
-      }
+    .content-link a img {
+      margin-right: 8px;
+    }
 
+    .content-image {
+      margin: 0 0 0 60px;
+      display: flex;
+      align-items: center;
+    }
+
+    .content-image img {
+      width: 100%;
+    }
+
+    @media (max-width: 768px) {
       .content-image {
-        margin: 0 0 0 60px;
-        display: flex;
-        align-items: center;
+        flex: 100%;
+        margin: 24px 0 0;
       }
-
-      .content-image img {
-        width: 100%;
-      }
-
-      @media (max-width: 768px) {
-        .content-image {
-          flex: 100%;
-          margin: 24px 0 0;
-        }
-      }
-    `
-  ]
+    }
+  `
 })
 export class NzDemoPageHeaderContentComponent {}

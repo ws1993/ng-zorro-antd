@@ -1,14 +1,22 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzDrawerModule } from 'ng-zorro-antd/drawer';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzListModule } from 'ng-zorro-antd/list';
+import { NzTagModule } from 'ng-zorro-antd/tag';
 
 @Component({
   selector: 'nz-demo-drawer-multi-level-drawer',
+  imports: [NzButtonModule, NzDrawerModule, NzFormModule, NzInputModule, NzListModule, NzTagModule],
   template: `
     <button nz-button nzType="primary" (click)="open()">New Cookbook</button>
     <nz-drawer
       [nzClosable]="false"
-      [nzOffsetX]="childrenVisible ? 180 : 0"
+      [nzOffsetX]="childrenVisible() ? 180 : 0"
       [nzWidth]="320"
-      [nzVisible]="visible"
+      [nzVisible]="visible()"
       nzTitle="Cookbook"
       (nzOnClose)="close()"
     >
@@ -36,10 +44,10 @@ import { Component } from '@angular/core';
           </div>
         </div>
       </form>
-      <nz-drawer [nzClosable]="false" [nzVisible]="childrenVisible" nzTitle="Food" (nzOnClose)="closeChildren()">
+      <nz-drawer [nzClosable]="false" [nzVisible]="childrenVisible()" nzTitle="Food" (nzOnClose)="closeChildren()">
         <nz-list *nzDrawerContent [nzDataSource]="vegetables" [nzRenderItem]="item">
           <ng-template #item let-item>
-            <nz-list-item [nzContent]="item"></nz-list-item>
+            <nz-list-item [nzContent]="item" />
           </ng-template>
         </nz-list>
       </nz-drawer>
@@ -47,24 +55,23 @@ import { Component } from '@angular/core';
   `
 })
 export class NzDemoDrawerMultiLevelDrawerComponent {
-  visible = false;
-  childrenVisible = false;
-
-  vegetables = ['asparagus', 'bamboo', 'potato', 'carrot', 'cilantro', 'potato', 'eggplant'];
+  readonly visible = signal(false);
+  readonly childrenVisible = signal(false);
+  readonly vegetables = ['asparagus', 'bamboo', 'potato', 'carrot', 'cilantro', 'potato', 'eggplant'];
 
   open(): void {
-    this.visible = true;
+    this.visible.set(true);
   }
 
   close(): void {
-    this.visible = false;
+    this.visible.set(false);
   }
 
   openChildren(): void {
-    this.childrenVisible = true;
+    this.childrenVisible.set(true);
   }
 
   closeChildren(): void {
-    this.childrenVisible = false;
+    this.childrenVisible.set(false);
   }
 }

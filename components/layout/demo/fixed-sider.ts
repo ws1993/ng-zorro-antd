@@ -1,48 +1,53 @@
 import { Component } from '@angular/core';
 
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzLayoutModule } from 'ng-zorro-antd/layout';
+import { NzMenuModule } from 'ng-zorro-antd/menu';
+
 @Component({
   selector: 'nz-demo-layout-fixed-sider',
+  imports: [NzIconModule, NzMenuModule, NzLayoutModule],
   template: `
     <nz-layout class="layout">
       <nz-sider>
         <div class="logo"></div>
         <ul nz-menu nzTheme="dark" nzMode="inline">
           <li nz-menu-item>
-            <i nz-icon nzType="file"></i>
+            <nz-icon nzType="file" />
             <span>nav 1</span>
           </li>
           <li nz-menu-item>
-            <i nz-icon nzType="video-camera"></i>
+            <nz-icon nzType="video-camera" />
             <span>nav 2</span>
           </li>
           <li nz-menu-item>
-            <i nz-icon nzType="upload"></i>
+            <nz-icon nzType="upload" />
             <span>nav 3</span>
           </li>
           <li nz-menu-item>
-            <i nz-icon nzType="bar-chart"></i>
+            <nz-icon nzType="bar-chart" />
             <span>nav 4</span>
           </li>
           <li nz-menu-item>
-            <i nz-icon nzType="cloud-o"></i>
+            <nz-icon nzType="cloud-o" />
             <span>nav 5</span>
           </li>
           <li nz-menu-item>
-            <i nz-icon nzType="appstore-o"></i>
+            <nz-icon nzType="appstore-o" />
             <span>nav 6</span>
           </li>
           <li nz-menu-item>
-            <i nz-icon nzType="team"></i>
+            <nz-icon nzType="team" />
             <span>nav 7</span>
           </li>
           <li nz-menu-item>
-            <i nz-icon nzType="shop"></i>
+            <nz-icon nzType="shop" />
             <span>nav 8</span>
           </li>
         </ul>
       </nz-sider>
       <nz-layout class="right-layout">
-        <nz-header></nz-header>
+        <nz-header />
         <nz-content>
           <div class="inner-content">
             ...
@@ -142,53 +147,53 @@ import { Component } from '@angular/core';
             content
           </div>
         </nz-content>
-        <nz-footer>Ant Design ©2020 Implement By Angular</nz-footer>
+        <nz-footer>Ant Design ©{{ date.getFullYear() }} Implement By Angular</nz-footer>
       </nz-layout>
     </nz-layout>
   `,
-  styles: [
-    `
-      .logo {
-        height: 32px;
-        background: rgba(255, 255, 255, 0.2);
-        margin: 16px;
-      }
+  styles: `
+    .logo {
+      height: 32px;
+      background: rgba(255, 255, 255, 0.2);
+      margin: 16px;
+    }
 
-      .layout {
-        min-height: 100vh;
-      }
+    .layout {
+      min-height: 100vh;
+    }
 
-      nz-sider {
-        overflow: auto;
-        height: 100%;
-        position: fixed;
-        left: 0;
-      }
+    nz-sider {
+      overflow: auto;
+      height: 100%;
+      position: fixed;
+      inset-inline-start: 0;
+    }
 
-      .right-layout {
-        margin-left: 200px;
-      }
+    .right-layout {
+      margin-inline-start: 200px;
+    }
 
-      nz-header {
-        background: #fff;
-        padding: 0;
-      }
+    nz-header {
+      background: #fff;
+      padding: 0;
+    }
 
-      nz-content {
-        margin: 24px 16px 0;
-        overflow: initial;
-      }
+    nz-content {
+      margin: 24px 16px 0;
+      overflow: initial;
+    }
 
-      .inner-content {
-        padding: 24px;
-        background: #fff;
-        text-align: center;
-      }
+    .inner-content {
+      padding: 24px;
+      background: #fff;
+      text-align: center;
+    }
 
-      nz-footer {
-        text-align: center;
-      }
-    `
-  ]
+    nz-footer {
+      text-align: center;
+    }
+  `
 })
-export class NzDemoLayoutFixedSiderComponent {}
+export class NzDemoLayoutFixedSiderComponent {
+  protected readonly date = new Date();
+}

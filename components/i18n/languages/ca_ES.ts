@@ -15,7 +15,8 @@ export default {
     prev_5: '5 pàgines prèvies',
     next_5: '5 pàgines següents',
     prev_3: '3 pàgines prèvies',
-    next_3: '3 pàgines següents'
+    next_3: '3 pàgines següents',
+    page_size: 'mida de la pàgina'
   },
   DatePicker: {
     lang: {
@@ -138,6 +139,9 @@ export default {
   },
   Empty: {
     description: 'Sense dades'
+  },
+  Form: {
+    optional: '(opcional)'
   },
   Icon: {
     icon: 'icona'

@@ -3,7 +3,10 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { ChangeDetectionStrategy, Component, OnChanges, ViewEncapsulation } from '@angular/core';
+import { Component, OnChanges, ViewEncapsulation } from '@angular/core';
+
+import { NzStringTemplateOutletDirective } from 'ng-zorro-antd/core/outlet';
+
 import { AbstractTable } from './abstract-table';
 import { DateBodyRow, DateCell, DecadeCell } from './interface';
 
@@ -11,12 +14,11 @@ const MAX_ROW = 4;
 const MAX_COL = 3;
 
 @Component({
-  encapsulation: ViewEncapsulation.None,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   // eslint-disable-next-line @angular-eslint/component-selector
   selector: 'decade-table',
-  exportAs: 'decadeTable',
-  templateUrl: 'abstract-table.html'
+  imports: [NzStringTemplateOutletDirective],
+  templateUrl: 'abstract-table.html',
+  encapsulation: ViewEncapsulation.None
 })
 export class DecadeTableComponent extends AbstractTable implements OnChanges {
   get startYear(): number {
@@ -75,7 +77,7 @@ export class DecadeTableComponent extends AbstractTable implements OnChanges {
     return decades;
   }
 
-  getClassMap(cell: DecadeCell): { [key: string]: boolean } {
+  override getClassMap(cell: DecadeCell): Record<string, boolean> {
     return {
       [`${this.prefixCls}-cell`]: true,
       [`${this.prefixCls}-cell-in-view`]: !cell.isBiggerThanEnd && !cell.isLowerThanStart,

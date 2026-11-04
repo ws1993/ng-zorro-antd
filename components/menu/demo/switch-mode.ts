@@ -1,16 +1,22 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzMenuModule } from 'ng-zorro-antd/menu';
+import { NzSwitchModule } from 'ng-zorro-antd/switch';
 
 @Component({
   selector: 'nz-demo-menu-switch-mode',
+  imports: [FormsModule, NzDividerModule, NzMenuModule, NzSwitchModule],
   template: `
-    <nz-switch [(ngModel)]="mode"></nz-switch>
+    <nz-switch [(ngModel)]="mode" />
     Change Mode
-    <nz-divider nzType="vertical"></nz-divider>
-    <nz-switch [(ngModel)]="dark"></nz-switch>
+    <nz-divider nzType="vertical" />
+    <nz-switch [(ngModel)]="dark" />
     Change Theme
     <br />
     <br />
-    <ul nz-menu [nzMode]="mode ? 'vertical' : 'inline'" [nzTheme]="dark ? 'dark' : 'light'">
+    <ul nz-menu [nzMode]="mode() ? 'vertical' : 'inline'" [nzTheme]="dark() ? 'dark' : 'light'">
       <li nz-submenu nzTitle="Navigation One" nzIcon="mail">
         <ul>
           <li nz-menu-group nzTitle="Item 1">
@@ -48,15 +54,13 @@ import { Component } from '@angular/core';
       </li>
     </ul>
   `,
-  styles: [
-    `
-      [nz-menu] {
-        width: 240px;
-      }
-    `
-  ]
+  styles: `
+    [nz-menu] {
+      width: 240px;
+    }
+  `
 })
 export class NzDemoMenuSwitchModeComponent {
-  mode = false;
-  dark = false;
+  readonly mode = signal(false);
+  readonly dark = signal(false);
 }

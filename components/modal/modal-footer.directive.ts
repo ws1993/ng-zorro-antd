@@ -3,7 +3,7 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Directive, Optional, TemplateRef } from '@angular/core';
+import { Directive, TemplateRef, inject } from '@angular/core';
 
 import { NzModalRef } from './modal-ref';
 
@@ -12,11 +12,12 @@ import { NzModalRef } from './modal-ref';
   exportAs: 'nzModalFooter'
 })
 export class NzModalFooterDirective {
-  constructor(@Optional() private nzModalRef: NzModalRef, public templateRef: TemplateRef<{}>) {
-    if (this.nzModalRef) {
-      this.nzModalRef.updateConfig({
-        nzFooter: this.templateRef
-      });
-    }
+  public readonly templateRef: TemplateRef<{}> = inject(TemplateRef);
+  private nzModalRef = inject(NzModalRef, { optional: true });
+
+  constructor() {
+    this.nzModalRef?.updateConfig({
+      nzFooter: this.templateRef
+    });
   }
 }

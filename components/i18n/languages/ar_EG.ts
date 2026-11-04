@@ -9,18 +9,26 @@ export default {
     items_per_page: '/ الصفحة',
     jump_to: 'الذهاب إلى',
     jump_to_confirm: 'تأكيد',
-    page: '',
+    page: 'الصفحة',
     prev_page: 'الصفحة السابقة',
     next_page: 'الصفحة التالية',
     prev_5: 'خمس صفحات سابقة',
     next_5: 'خمس صفحات تالية',
     prev_3: 'ثلاث صفحات سابقة',
-    next_3: 'ثلاث صفحات تالية'
+    next_3: 'ثلاث صفحات تالية',
+    page_size: 'مقاس الصفحه'
   },
   DatePicker: {
     lang: {
       placeholder: 'اختيار التاريخ',
+      yearPlaceholder: 'اختيار السنة',
+      quarterPlaceholder: 'اختيار الربع',
+      monthPlaceholder: 'اختيار الشهر',
+      weekPlaceholder: 'اختيار الأسبوع',
       rangePlaceholder: ['البداية', 'النهاية'],
+      rangeYearPlaceholder: ['سنة البداية', 'سنة النهاية'],
+      rangeMonthPlaceholder: ['شهر البداية', 'شهر النهاية'],
+      rangeWeekPlaceholder: ['أسبوع البداية', 'أسبوع النهاية'],
       locale: 'ar_EG',
       today: 'اليوم',
       now: 'الأن',
@@ -31,6 +39,7 @@ export default {
       year: 'السنة',
       timeSelect: 'اختيار الوقت',
       dateSelect: 'اختيار التاريخ',
+      weekSelect: 'اختيار الأسبوع',
       monthSelect: 'اختيار الشهر',
       yearSelect: 'اختيار السنة',
       decadeSelect: 'اختيار العقد',
@@ -62,7 +71,14 @@ export default {
   Calendar: {
     lang: {
       placeholder: 'اختيار التاريخ',
+      yearPlaceholder: 'اختيار السنة',
+      quarterPlaceholder: 'اختيار الربع',
+      monthPlaceholder: 'اختيار الشهر',
+      weekPlaceholder: 'اختيار الأسبوع',
       rangePlaceholder: ['البداية', 'النهاية'],
+      rangeYearPlaceholder: ['سنة البداية', 'سنة النهاية'],
+      rangeMonthPlaceholder: ['شهر البداية', 'شهر النهاية'],
+      rangeWeekPlaceholder: ['أسبوع البداية', 'أسبوع النهاية'],
       locale: 'ar_EG',
       today: 'اليوم',
       now: 'الأن',
@@ -73,6 +89,7 @@ export default {
       year: 'السنة',
       timeSelect: 'اختيار الوقت',
       dateSelect: 'اختيار التاريخ',
+      weekSelect: 'اختيار الأسبوع',
       monthSelect: 'اختيار الشهر',
       yearSelect: 'اختيار السنة',
       decadeSelect: 'اختيار العقد',
@@ -139,16 +156,46 @@ export default {
   Empty: {
     description: 'لا توجد بيانات'
   },
+  Form: {
+    optional: '(اختياري)'
+  },
   Icon: {
     icon: 'أيقونة'
   },
   Text: {
     edit: 'تعديل',
     copy: 'نسخ',
-    copied: 'تم النسخ',
-    expand: 'المزيد'
+    copied: 'نقل',
+    expand: 'وسع'
   },
   PageHeader: {
     back: 'عودة'
+  },
+  Image: {
+    preview: 'معاينة'
+  },
+  CronExpression: {
+    cronError: 'تعبير Cron غير صالح',
+    second: 'ثانية',
+    minute: 'دقيقة',
+    hour: 'ساعة',
+    day: 'يوم',
+    month: 'شهر',
+    week: 'أسبوع'
+  },
+  QRCode: {
+    expired: 'انتهت صلاحية رمز الاستجابة السريعة',
+    refresh: 'تحديث',
+    scanned: 'تم المسح'
+  },
+  CheckList: {
+    checkList: 'قائمة التحقق',
+    checkListFinish: 'لقد أكملت القائمة بنجاح!',
+    checkListClose: 'إغلاق',
+    checkListFooter: 'لم تعد قائمة التحقق مطلوبة',
+    checkListCheck: 'هل تريد إغلاق القائمة؟',
+    ok: 'تأكيد',
+    cancel: 'إلغاء',
+    checkListCheckOther: 'لا حاجة لعرضها مرة أخرى'
   }
 };

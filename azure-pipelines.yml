@@ -14,18 +14,22 @@ stages:
   jobs:
     - job: Nodes
       steps:
-      - task: NodeTool@0
+      - task: UseNode@1
         inputs:
-          versionSpec: '14.16.1'
+          version: '22.22.3'
         displayName: 'Install Node.js'
 
 - stage: build
   jobs:
     - job: build_site
       steps:
+        - task: UseNode@1
+          displayName: 'Install Node.js'
+          inputs:
+            version: '22.22.3'
         - task: Npm@1
           inputs:
-            command: 'install'
+            command: 'ci'
         - script: |
             npm run build
             export DEPLOY_DOMAIN=https://preview-${SYSTEM_PULLREQUEST_PULLREQUESTNUMBER}-ng-zorro-antd.surge.sh
@@ -52,22 +56,23 @@ stages:
       steps:
         - task: Npm@1
           inputs:
-            command: 'install'
-        - script: |
-            npm run test
-            cat ./coverage-report/lcov.info | ./node_modules/.bin/codecov
+            command: 'ci'
+        - script: npm run test
+          displayName: 'Run tests'
+        - script: cat ./coverage-report/lcov.info | npx -y codecov@3.8.2
+          displayName: 'Upload coverage to Codecov'
+          condition: succeededOrFailed()
 
-        - task: PublishCodeCoverageResults@1
-          displayName: 'publish code coverage results'
+        - task: PublishCodeCoverageResults@2
+          displayName: 'Publish code coverage results'
           condition: succeededOrFailed()
           inputs:
-            codeCoverageTool: Cobertura
             summaryFileLocation: $(System.DefaultWorkingDirectory)/coverage-report/cobertura-coverage.xml
-            reportDirectory: $(System.DefaultWorkingDirectory)/coverage-report
+            pathToSources: $(System.DefaultWorkingDirectory)
             failIfCoverageEmpty: true
 
         - task: PublishTestResults@2
-          displayName: 'publish test results'
+          displayName: 'Publish test results'
           condition: succeededOrFailed()
           inputs:
             searchFolder: $(System.DefaultWorkingDirectory)/junit
@@ -80,8 +85,9 @@ stages:
       steps:
         - task: Npm@1
           inputs:
-            command: 'install'
+            command: 'ci'
         - script: npm run test:schematics
+
   dependsOn: env
 
 - stage: lint
@@ -90,6 +96,6 @@ stages:
       steps:
         - task: Npm@1
           inputs:
-            command: 'install'
+            command: 'ci'
         - script: npm run lint
   dependsOn: env

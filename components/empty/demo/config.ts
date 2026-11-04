@@ -1,30 +1,49 @@
-import { Component, TemplateRef, ViewChild } from '@angular/core';
+import { Component, TemplateRef, ViewChild, effect, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
+import { NzCascaderModule } from 'ng-zorro-antd/cascader';
 import { NzConfigService } from 'ng-zorro-antd/core/config';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzEmptyModule } from 'ng-zorro-antd/empty';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzListModule } from 'ng-zorro-antd/list';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzSwitchModule } from 'ng-zorro-antd/switch';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzTransferModule } from 'ng-zorro-antd/transfer';
+import { NzTreeSelectModule } from 'ng-zorro-antd/tree-select';
 
 @Component({
   selector: 'nz-demo-empty-config',
+  imports: [
+    FormsModule,
+    NzCascaderModule,
+    NzDividerModule,
+    NzEmptyModule,
+    NzIconModule,
+    NzListModule,
+    NzSelectModule,
+    NzSwitchModule,
+    NzTableModule,
+    NzTransferModule,
+    NzTreeSelectModule
+  ],
   template: `
-    <nz-switch
-      [nzUnCheckedChildren]="'default'"
-      [nzCheckedChildren]="'customize'"
-      [(ngModel)]="customize"
-      (ngModelChange)="onConfigChange()"
-    ></nz-switch>
+    <nz-switch nzUnCheckedChildren="default" nzCheckedChildren="customize" [(ngModel)]="customize" />
 
-    <nz-divider></nz-divider>
+    <nz-divider />
 
     <h3>Select</h3>
-    <nz-select style="width: 200px"></nz-select>
+    <nz-select style="width: 200px" />
 
     <h3>TreeSelect</h3>
-    <nz-tree-select style="width: 200px;"></nz-tree-select>
+    <nz-tree-select style="width: 200px;" />
 
     <h3>Cascader</h3>
-    <nz-cascader style="width: 200px;" [nzShowSearch]="true" [nzOptions]="[]"></nz-cascader>
+    <nz-cascader style="width: 200px;" [nzShowSearch]="true" [nzOptions]="[]" />
 
     <h3>Transfer</h3>
-    <nz-transfer></nz-transfer>
+    <nz-transfer />
 
     <h3>Table</h3>
     <nz-table [nzData]="[]">
@@ -38,36 +57,33 @@ import { NzConfigService } from 'ng-zorro-antd/core/config';
     </nz-table>
 
     <h3>List</h3>
-    <nz-list [nzDataSource]="[]"></nz-list>
+    <nz-list [nzDataSource]="[]" />
 
     <ng-template #customTpl let-name>
       <div style="text-align: center;">
-        <i nz-icon nzType="smile" style="font-size: 20px;"></i>
+        <nz-icon nzType="smile" style="font-size: 20px;" />
         <p>Data Not Found in {{ name }}</p>
       </div>
     </ng-template>
   `,
-  styles: [
-    `
-      h3 {
-        font-size: inherit;
-        margin: 16px 0 8px 0;
-      }
-    `
-  ]
+  styles: `
+    h3 {
+      font-size: inherit;
+      margin: 16px 0 8px 0;
+    }
+  `
 })
 export class NzDemoEmptyConfigComponent {
-  @ViewChild('customTpl', { static: false }) customTpl?: TemplateRef<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  private readonly nzConfigService = inject(NzConfigService);
 
-  customize = false;
+  @ViewChild('customTpl', { static: false }) customTpl?: TemplateRef<string>;
 
-  constructor(private nzConfigService: NzConfigService) {}
+  readonly customize = signal(false);
 
-  onConfigChange(): void {
-    if (this.customize) {
-      this.nzConfigService.set('empty', { nzDefaultEmptyContent: this.customTpl });
-    } else {
-      this.nzConfigService.set('empty', { nzDefaultEmptyContent: undefined });
-    }
+  constructor() {
+    effect(() => {
+      const template = this.customize() ? this.customTpl : undefined;
+      this.nzConfigService.set('empty', { nzDefaultEmptyContent: template });
+    });
   }
 }

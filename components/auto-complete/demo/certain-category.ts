@@ -1,107 +1,80 @@
-import { Component, OnInit, ViewEncapsulation } from '@angular/core';
+import { Component } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
-export interface AutocompleteOptionGroups {
-  title: string;
-  count?: number;
-  children?: AutocompleteOptionGroups[];
-}
+import { NzAutocompleteModule } from 'ng-zorro-antd/auto-complete';
+import { NzFlexModule } from 'ng-zorro-antd/flex';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
 
 @Component({
   selector: 'nz-demo-auto-complete-certain-category',
-  encapsulation: ViewEncapsulation.None,
+  imports: [FormsModule, NzAutocompleteModule, NzFlexModule, NzIconModule, NzInputModule],
   template: `
-    <div class="example-input">
-      <nz-input-group nzSize="large" [nzSuffix]="suffixIcon">
-        <input
-          placeholder="input here"
-          nz-input
-          [(ngModel)]="inputValue"
-          (ngModelChange)="onChange($event)"
-          [nzAutocomplete]="auto"
-        />
-      </nz-input-group>
-      <ng-template #suffixIcon>
-        <i nz-icon nzType="search"></i>
-      </ng-template>
-      <nz-autocomplete #auto>
-        <nz-auto-optgroup *ngFor="let group of optionGroups" [nzLabel]="groupTitle">
+    <nz-input-search>
+      <input placeholder="input here" nz-input nzSize="large" [(ngModel)]="value" [nzAutocomplete]="auto" />
+    </nz-input-search>
+    <nz-autocomplete #auto>
+      @for (group of options; track group.title) {
+        <nz-auto-optgroup [nzLabel]="groupTitle">
           <ng-template #groupTitle>
-            <span>
+            <nz-flex nzJustify="space-between">
               {{ group.title }}
-              <a class="more-link" href="https://www.google.com/search?q=ng+zorro" target="_blank">更多</a>
-            </span>
+              <a href="https://www.google.com/search?q=ng+zorro" rel="noopener noreferrer" target="_blank">More</a>
+            </nz-flex>
           </ng-template>
-          <nz-auto-option *ngFor="let option of group.children" [nzLabel]="option.title" [nzValue]="option.title">
-            {{ option.title }}
-            <span class="certain-search-item-count">{{ option.count }} 人 关注</span>
-          </nz-auto-option>
+          @for (option of group.children; track option.title) {
+            <nz-auto-option [nzLabel]="option.title" [nzValue]="option.title">
+              <nz-flex nzJustify="space-between">
+                {{ option.title }}
+                <span>
+                  <nz-icon nzType="user" />
+                  {{ option.count }}
+                </span>
+              </nz-flex>
+            </nz-auto-option>
+          }
         </nz-auto-optgroup>
-      </nz-autocomplete>
-    </div>
-  `,
-  styles: [
-    `
-      .certain-search-item-count {
-        position: absolute;
-        color: #999;
-        right: 16px;
       }
-
-      .more-link {
-        float: right;
-      }
-    `
-  ]
+    </nz-autocomplete>
+  `
 })
-export class NzDemoAutoCompleteCertainCategoryComponent implements OnInit {
-  inputValue?: string;
-  optionGroups: AutocompleteOptionGroups[] = [];
-
-  constructor() {}
-
-  onChange(value: string): void {
-    console.log(value);
-  }
-
-  ngOnInit(): void {
-    setTimeout(() => {
-      this.optionGroups = [
+export class NzDemoAutoCompleteCertainCategoryComponent {
+  value?: string;
+  readonly options = [
+    {
+      title: 'Libraries',
+      children: [
         {
-          title: '话题',
-          children: [
-            {
-              title: 'AntDesign',
-              count: 10000
-            },
-            {
-              title: 'AntDesign UI',
-              count: 10600
-            }
-          ]
+          title: 'AntDesign',
+          count: 10000
         },
         {
-          title: '问题',
-          children: [
-            {
-              title: 'AntDesign UI 有多好',
-              count: 60100
-            },
-            {
-              title: 'AntDesign 是啥',
-              count: 30010
-            }
-          ]
-        },
-        {
-          title: '文章',
-          children: [
-            {
-              title: 'AntDesign 是一个设计语言',
-              count: 100000
-            }
-          ]
+          title: 'AntDesign UI',
+          count: 10600
         }
-      ];
-    }, 1000);
-  }
+      ]
+    },
+    {
+      title: 'Solutions',
+      children: [
+        {
+          title: 'AntDesign UI FAQ',
+          count: 60100
+        },
+        {
+          title: 'AntDesign FAQ',
+          count: 30010
+        }
+      ]
+    },
+    {
+      title: 'Articles',
+      children: [
+        {
+          title: 'AntDesign design language',
+          count: 100000
+        }
+      ]
+    }
+  ];
 }

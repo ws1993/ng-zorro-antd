@@ -9,26 +9,40 @@
   color: @breadcrumb-base-color;
   font-size: @breadcrumb-font-size;
 
+  &-rtl {
+    direction: rtl;
+  }
+
   .@{iconfont-css-prefix} {
     font-size: @breadcrumb-icon-font-size;
+  }
+
+  ol {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
 
   a {
     color: @breadcrumb-link-color;
     transition: color 0.3s;
+
     &:hover {
       color: @breadcrumb-link-color-hover;
     }
   }
 
-  & > span:last-child {
+  li:last-child {
     color: @breadcrumb-last-item-color;
+
     a {
       color: @breadcrumb-last-item-color;
     }
   }
 
-  & > span:last-child &-separator {
+  li:last-child > &-separator {
     display: none;
   }
 
@@ -40,15 +54,13 @@
   &-link {
     > .@{iconfont-css-prefix} + span,
     > .@{iconfont-css-prefix} + a {
-      margin-left: 4px;
+      margin-inline-start: 4px;
     }
   }
 
   &-overlay-link {
     > .@{iconfont-css-prefix} {
-      margin-left: 4px;
+      margin-inline-start: 4px;
     }
   }
 }
-
-@import './rtl';

@@ -3,94 +3,216 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Direction, Directionality } from '@angular/cdk/bidi';
+import { FocusMonitor } from '@angular/cdk/a11y';
+import { Directionality } from '@angular/cdk/bidi';
 import {
+  booleanAttribute,
+  ComponentRef,
+  computed,
+  DestroyRef,
   Directive,
+  effect,
   ElementRef,
-  Input,
-  OnChanges,
-  OnDestroy,
+  inject,
+  input,
+  linkedSignal,
   OnInit,
-  Optional,
-  Renderer2,
-  Self,
-  SimpleChanges
+  signal,
+  ViewContainerRef
 } from '@angular/core';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { NgControl } from '@angular/forms';
-import { Subject } from 'rxjs';
-import { filter, takeUntil } from 'rxjs/operators';
+import { FORM_FIELD } from '@angular/forms/signals';
+import { EMPTY } from 'rxjs';
+import { map, startWith } from 'rxjs/operators';
 
-import { BooleanInput, NzSizeLDSType } from 'ng-zorro-antd/core/types';
-import { InputBoolean } from 'ng-zorro-antd/core/util';
+import {
+  NZ_FORM_SIZE,
+  NZ_FORM_VARIANT,
+  NzFormItemFeedbackIconComponent,
+  NzFormStatusService
+} from 'ng-zorro-antd/core/form';
+import { NzSizeLDSType, NzStatus, NzVariant } from 'ng-zorro-antd/core/types';
+import { getStatusClassNames, InputFocusOptions, triggerFocus } from 'ng-zorro-antd/core/util';
+import { NZ_SPACE_COMPACT_ITEM_TYPE, NZ_SPACE_COMPACT_SIZE, NzSpaceCompactItemDirective } from 'ng-zorro-antd/space';
+
+import { NzInputPasswordDirective } from './input-password.directive';
+import { NZ_INPUT_SEARCH, NZ_INPUT_WRAPPER } from './tokens';
+
+const PREFIX_CLS = 'ant-input';
 
 @Directive({
   selector: 'input[nz-input],textarea[nz-input]',
   exportAs: 'nzInput',
   host: {
-    '[class.ant-input-disabled]': 'disabled',
-    '[class.ant-input-borderless]': 'nzBorderless',
-    '[class.ant-input-lg]': `nzSize === 'large'`,
-    '[class.ant-input-sm]': `nzSize === 'small'`,
-    '[attr.disabled]': 'disabled || null',
-    '[class.ant-input-rtl]': `dir=== 'rtl'`
-  }
+    class: 'ant-input',
+    '[attr.type]': 'type()',
+    '[class]': 'classes()',
+    '[class.ant-input-disabled]': 'finalDisabled()',
+    '[class.ant-input-outlined]': `finalVariant() === 'outlined'`,
+    '[class.ant-input-borderless]': `finalVariant() === 'borderless'`,
+    '[class.ant-input-filled]': `finalVariant() === 'filled'`,
+    '[class.ant-input-underlined]': `finalVariant() === 'underlined'`,
+    '[class.ant-input-lg]': `finalSize() === 'large'`,
+    '[class.ant-input-sm]': `finalSize() === 'small'`,
+    '[attr.disabled]': 'finalDisabled() || null',
+    '[attr.readonly]': 'readonly() || null',
+    '(input)': 'onInput($event)',
+    '[class.ant-input-rtl]': `dir() === 'rtl'`,
+    '[class.ant-input-focused]': 'focused()'
+  },
+  hostDirectives: [NzSpaceCompactItemDirective],
+  providers: [{ provide: NZ_SPACE_COMPACT_ITEM_TYPE, useValue: 'input' }]
 })
-export class NzInputDirective implements OnChanges, OnInit, OnDestroy {
-  static ngAcceptInputType_disabled: BooleanInput;
-  static ngAcceptInputType_nzBorderless: BooleanInput;
-  @Input() @InputBoolean() nzBorderless = false;
-  @Input() nzSize: NzSizeLDSType = 'default';
-  @Input()
-  get disabled(): boolean {
-    if (this.ngControl && this.ngControl.disabled !== null) {
-      return this.ngControl.disabled;
+export class NzInputDirective implements OnInit {
+  private elementRef = inject<ElementRef<HTMLInputElement | HTMLTextAreaElement>>(ElementRef);
+  private compactSize = inject(NZ_SPACE_COMPACT_SIZE, { optional: true });
+  private destroyRef = inject(DestroyRef);
+  private nzFormStatusService = inject(NzFormStatusService, { optional: true });
+  private inputWrapper = inject(NZ_INPUT_WRAPPER, { host: true, optional: true });
+  private focusMonitor = inject(FocusMonitor);
+  private hostView = inject(ViewContainerRef);
+  private readonly inputPasswordDir = inject(NzInputPasswordDirective, { host: true, optional: true });
+  private readonly inputSearchDir = inject(NZ_INPUT_SEARCH, { host: true, optional: true });
+  private readonly formField = inject(FORM_FIELD, { self: true, optional: true });
+
+  readonly ngControl = inject(NgControl, { self: true, optional: true });
+  private readonly nativeValue = signal(this.elementRef.nativeElement.value);
+  readonly value = computed(() => {
+    if (this.formField) {
+      return String(this.formField.state().value() ?? '');
     }
-    return this._disabled;
-  }
-  set disabled(value: boolean) {
-    this._disabled = value != null && `${value}` !== 'false';
-  }
-  _disabled = false;
-  disabled$ = new Subject<boolean>();
-  dir: Direction = 'ltr';
-  private destroy$ = new Subject<void>();
+    return this.nativeValue();
+  });
 
-  constructor(
-    @Optional() @Self() public ngControl: NgControl,
-    renderer: Renderer2,
-    elementRef: ElementRef,
-    @Optional() private directionality: Directionality
-  ) {
-    renderer.addClass(elementRef.nativeElement, 'ant-input');
-  }
+  readonly nzVariant = input<NzVariant>();
+  readonly nzSize = input<NzSizeLDSType>('default');
+  readonly nzStatus = input<NzStatus>('');
+  readonly disabled = input(false, { transform: booleanAttribute });
+  readonly readonly = input(false, { transform: booleanAttribute });
 
-  ngOnInit(): void {
-    if (this.ngControl) {
-      this.ngControl.statusChanges
-        ?.pipe(
-          filter(() => this.ngControl.disabled !== null),
-          takeUntil(this.destroy$)
-        )
-        .subscribe(() => {
-          this.disabled$.next(this.ngControl.disabled!);
-        });
+  readonly controlDisabled = signal(false);
+  readonly finalDisabled = computed(() => {
+    if (this.formField) {
+      return this.formField.state().disabled();
     }
+    return this.ngControl ? this.controlDisabled() : this.disabled();
+  });
+  readonly dir = inject(Directionality).valueSignal;
+  // TODO: When the input group is removed, we can remove this.
+  readonly size = linkedSignal(this.nzSize);
 
-    this.dir = this.directionality.value;
-    this.directionality.change?.pipe(takeUntil(this.destroy$)).subscribe((direction: Direction) => {
-      this.dir = direction;
+  private readonly formSize = inject(NZ_FORM_SIZE, { optional: true });
+  private readonly formVariant = inject(NZ_FORM_VARIANT, { optional: true });
+
+  readonly status = this.nzFormStatusService
+    ? toSignal(this.nzFormStatusService.formStatusChanges.pipe(map(value => value.status)), { initialValue: '' })
+    : this.nzStatus;
+  readonly hasFeedback = toSignal(
+    this.nzFormStatusService?.formStatusChanges.pipe(map(value => value.hasFeedback)) ?? EMPTY,
+    { initialValue: false }
+  );
+  readonly classes = computed(() => getStatusClassNames(PREFIX_CLS, this.status(), this.hasFeedback()));
+  readonly type = computed(() => {
+    if (this.inputPasswordDir) {
+      return this.inputPasswordDir.nzVisible() ? 'text' : 'password';
+    }
+    if (this.inputSearchDir) {
+      return 'search';
+    }
+    return this.elementRef.nativeElement.getAttribute('type') || 'text';
+  });
+
+  protected readonly focused = signal<boolean>(false);
+  protected readonly finalSize = computed(() => {
+    if (this.formSize?.()) {
+      return this.formSize();
+    }
+    if (this.compactSize) {
+      return this.compactSize();
+    }
+    return this.size();
+  });
+
+  protected readonly finalVariant = computed(() => this.nzVariant() || this.formVariant?.() || 'outlined');
+
+  feedbackRef: ComponentRef<NzFormItemFeedbackIconComponent> | null = null;
+  // TODO: When the input group is removed, we can remove this.
+  disabled$ = toObservable(this.finalDisabled);
+
+  constructor() {
+    this.destroyRef.onDestroy(() => {
+      this.focusMonitor.stopMonitoring(this.elementRef);
+    });
+
+    this.focusMonitor
+      .monitor(this.elementRef, false)
+      .pipe(takeUntilDestroyed())
+      .subscribe(origin => this.focused.set(!!origin));
+
+    effect(() => {
+      this.renderFeedbackIcon();
     });
   }
 
-  ngOnChanges(changes: SimpleChanges): void {
-    const { disabled } = changes;
-    if (disabled) {
-      this.disabled$.next(this.disabled);
-    }
+  ngOnInit(): void {
+    // statusChanges is only accessible in onInit
+    this.ngControl?.statusChanges?.pipe(startWith(null), takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.controlDisabled.set(!!this.ngControl!.disabled);
+    });
+
+    this.ngControl?.valueChanges
+      ?.pipe(startWith(this.ngControl?.control?.value), takeUntilDestroyed(this.destroyRef))
+      .subscribe(value => {
+        // The control may hold a non-string value (e.g. a `FormControl<number>`
+        // behind `type="number"`); `nativeValue` must stay a string so that
+        // consumers such as the count suffix can rely on string semantics.
+        this.nativeValue.set(String(value ?? ''));
+      });
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+  onInput(event: Event): void {
+    this.nativeValue.set((event.target as HTMLInputElement | HTMLTextAreaElement).value);
+  }
+
+  /**
+   * Writes a value into whichever binding owns the input's value.
+   *
+   * Features that change the value from outside the control — `nzAllowClear`
+   * and `nzCount` — must go through here rather than through `ngControl`.
+   * A Signal Forms binding does provide an `NgControl`, but it is a read-only
+   * interop object: it has no `setValue`, so writing through it throws
+   * `setValue is not a function` and the value is left untouched.
+   *
+   * Mirrors the branching of {@link value}, which reads from the same bindings.
+   */
+  writeValue(value: string): void {
+    if (this.formField) {
+      this.formField.state().value.set(value);
+      return;
+    }
+
+    this.ngControl?.control?.setValue(value);
+  }
+
+  private renderFeedbackIcon(): void {
+    if (!this.status() || !this.hasFeedback() || this.inputWrapper) {
+      // remove feedback
+      this.hostView.clear();
+      this.feedbackRef = null;
+      return;
+    }
+
+    this.feedbackRef = this.feedbackRef || this.hostView.createComponent(NzFormItemFeedbackIconComponent);
+    this.feedbackRef.location.nativeElement.classList.add('ant-input-suffix');
+    this.feedbackRef.setInput('status', this.status());
+  }
+
+  focus(options?: InputFocusOptions): void {
+    triggerFocus(this.elementRef.nativeElement, options);
+  }
+
+  blur(): void {
+    this.elementRef.nativeElement.blur();
   }
 }

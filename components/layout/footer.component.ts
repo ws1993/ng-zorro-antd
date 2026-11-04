@@ -3,18 +3,15 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { ChangeDetectionStrategy, Component, ElementRef, Renderer2, ViewEncapsulation } from '@angular/core';
+import { Component, ViewEncapsulation } from '@angular/core';
 
 @Component({
   selector: 'nz-footer',
   exportAs: 'nzFooter',
-  preserveWhitespaces: false,
+  template: `<ng-content />`,
   encapsulation: ViewEncapsulation.None,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: ` <ng-content></ng-content> `
-})
-export class NzFooterComponent {
-  constructor(public elementRef: ElementRef, private renderer: Renderer2) {
-    this.renderer.addClass(this.elementRef.nativeElement, 'ant-layout-footer');
+  host: {
+    class: 'ant-layout-footer'
   }
-}
+})
+export class NzFooterComponent {}

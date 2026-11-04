@@ -27,6 +27,10 @@
   width: 100%;
   font-size: 0;
   text-align: initial;
+
+  &-rtl {
+    direction: rtl;
+  }
 }
 
 .@{steps-prefix-cls}-item {
@@ -59,6 +63,7 @@
     width: @steps-icon-size;
     height: @steps-icon-size;
     margin: @steps-icon-margin;
+    margin-inline: 0 8px;
     font-size: @steps-icon-font-size;
     font-family: @font-family;
     line-height: @steps-icon-size;
@@ -74,10 +79,11 @@
       line-height: 1;
     }
   }
+
   &-tail {
     position: absolute;
     top: 12px;
-    left: 0;
+    inset-inline-start: 0;
     width: 100%;
     padding: 0 10px;
 
@@ -91,10 +97,11 @@
       content: '';
     }
   }
+
   &-title {
     position: relative;
     display: inline-block;
-    padding-right: 16px;
+    padding-inline-end: 16px;
     color: @text-color;
     font-size: @font-size-lg;
     line-height: @steps-title-line-height;
@@ -102,7 +109,7 @@
     &::after {
       position: absolute;
       top: (@steps-title-line-height / 2);
-      left: 100%;
+      inset-inline-start: 100%;
       display: block;
       width: 9999px;
       height: 1px;
@@ -110,25 +117,29 @@
       content: '';
     }
   }
+
   &-subtitle {
     display: inline;
-    margin-left: 8px;
+    margin-inline-start: 8px;
     color: @text-color-secondary;
     font-weight: normal;
     font-size: @font-size-base;
   }
+
   &-description {
     color: @text-color-secondary;
     font-size: @font-size-base;
   }
   .step-item-status(wait);
   .step-item-status(process);
+
   &-process > &-container > &-icon {
     background: @process-icon-color;
     .@{steps-prefix-cls}-icon {
       color: @process-icon-text-color;
     }
   }
+
   &-process > &-container > &-title {
     font-weight: 500;
   }
@@ -188,18 +199,20 @@
 
 .@{steps-prefix-cls}-horizontal:not(.@{steps-prefix-cls}-label-vertical) {
   .@{steps-prefix-cls}-item {
-    padding-left: 16px;
+    padding-inline-start: 16px;
     white-space: nowrap;
 
     &:first-child {
-      padding-left: 0;
+      padding-inline-start: 0;
     }
     &:last-child .@{steps-prefix-cls}-item-title {
-      padding-right: 0;
+      padding-inline-end: 0;
     }
+
     &-tail {
       display: none;
     }
+
     &-description {
       max-width: @steps-description-max-width;
       white-space: normal;
@@ -224,6 +237,7 @@
   }
   &-@{status} > &-container > &-content > &-title {
     color: @@title-color;
+
     &::after {
       background-color: @@tail-color;
     }
@@ -242,5 +256,4 @@
 @import './label-placement';
 @import './progress-dot';
 @import './nav';
-@import './rtl';
-@import './progress.less';
+@import './progress';

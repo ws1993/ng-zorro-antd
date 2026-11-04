@@ -3,92 +3,88 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnDestroy, Output } from '@angular/core';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { ChangeDetectorRef, Component, inject, input, output } from '@angular/core';
 
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzOutletModule } from 'ng-zorro-antd/core/outlet';
 import { isPromise } from 'ng-zorro-antd/core/util';
-import { NzI18nService, NzModalI18nInterface } from 'ng-zorro-antd/i18n';
+import { NzI18nPipe } from 'ng-zorro-antd/i18n';
 
 import { NzModalRef } from './modal-ref';
 import { ModalButtonOptions, ModalOptions } from './modal-types';
 
 @Component({
   selector: 'div[nz-modal-footer]',
-  exportAs: 'NzModalFooterBuiltin',
+  exportAs: 'nzModalFooterBuiltin',
+  imports: [NzOutletModule, NzButtonModule, NzI18nPipe],
   template: `
-    <ng-container *ngIf="config.nzFooter; else defaultFooterButtons">
+    @if (config.nzFooter) {
       <ng-container
-        *nzStringTemplateOutlet="config.nzFooter; context: { $implicit: config.nzComponentParams, modalRef: modalRef }"
+        *nzStringTemplateOutlet="config.nzFooter; context: { $implicit: config.nzData, modalRef: modalRef() }"
       >
-        <div *ngIf="!buttonsFooter" [innerHTML]="config.nzFooter"></div>
-        <ng-container *ngIf="buttonsFooter">
-          <button
-            *ngFor="let button of buttons"
-            nz-button
-            (click)="onButtonClick(button)"
-            [hidden]="!getButtonCallableProp(button, 'show')"
-            [nzLoading]="getButtonCallableProp(button, 'loading')"
-            [disabled]="getButtonCallableProp(button, 'disabled')"
-            [nzType]="button.type!"
-            [nzDanger]="button.danger"
-            [nzShape]="button.shape!"
-            [nzSize]="button.size!"
-            [nzGhost]="button.ghost!"
-          >
-            {{ button.label }}
-          </button>
-        </ng-container>
+        @if (buttons) {
+          @for (button of buttons; track button) {
+            <button
+              nz-button
+              (click)="onButtonClick(button)"
+              [hidden]="!getButtonCallableProp(button, 'show')"
+              [nzLoading]="getButtonCallableProp(button, 'loading')"
+              [disabled]="getButtonCallableProp(button, 'disabled')"
+              [nzType]="button.type!"
+              [nzDanger]="button.danger"
+              [nzShape]="button.shape!"
+              [nzSize]="button.size!"
+              [nzGhost]="button.ghost!"
+            >
+              {{ button.label }}
+            </button>
+          }
+        } @else {
+          <div [innerHTML]="config.nzFooter"></div>
+        }
       </ng-container>
-    </ng-container>
-    <ng-template #defaultFooterButtons>
-      <button
-        *ngIf="config.nzCancelText !== null"
-        [attr.cdkFocusInitial]="config.nzAutofocus === 'cancel' || null"
-        nz-button
-        (click)="onCancel()"
-        [nzLoading]="!!config.nzCancelLoading"
-        [disabled]="config.nzCancelDisabled"
-      >
-        {{ config.nzCancelText || locale.cancelText }}
-      </button>
-      <button
-        *ngIf="config.nzOkText !== null"
-        [attr.cdkFocusInitial]="config.nzAutofocus === 'ok' || null"
-        nz-button
-        [nzType]="config.nzOkType!"
-        [nzDanger]="config.nzOkDanger"
-        (click)="onOk()"
-        [nzLoading]="!!config.nzOkLoading"
-        [disabled]="config.nzOkDisabled"
-      >
-        {{ config.nzOkText || locale.okText }}
-      </button>
-    </ng-template>
+    } @else {
+      @if (config.nzCancelText !== null) {
+        <button
+          [attr.cdkFocusInitial]="config.nzAutofocus === 'cancel' || null"
+          nz-button
+          (click)="onCancel()"
+          [nzLoading]="config.nzCancelLoading"
+          [disabled]="config.nzCancelDisabled"
+        >
+          {{ config.nzCancelText || ('Modal.cancelText' | nzI18n) }}
+        </button>
+      }
+      @if (config.nzOkText !== null) {
+        <button
+          [attr.cdkFocusInitial]="config.nzAutofocus === 'ok' || null"
+          nz-button
+          [nzType]="config.nzOkType!"
+          [nzDanger]="config.nzOkDanger"
+          (click)="onOk()"
+          [nzLoading]="config.nzOkLoading"
+          [disabled]="config.nzOkDisabled"
+        >
+          {{ config.nzOkText || ('Modal.okText' | nzI18n) }}
+        </button>
+      }
+    }
   `,
   host: {
     class: 'ant-modal-footer'
-  },
-  changeDetection: ChangeDetectionStrategy.Default
-})
-export class NzModalFooterComponent implements OnDestroy {
-  buttonsFooter = false;
-  buttons: ModalButtonOptions[] = [];
-  locale!: NzModalI18nInterface;
-  @Output() readonly cancelTriggered = new EventEmitter<void>();
-  @Output() readonly okTriggered = new EventEmitter<void>();
-  @Input() modalRef!: NzModalRef;
-  private destroy$ = new Subject<void>();
-
-  constructor(private i18n: NzI18nService, public config: ModalOptions) {
-    if (Array.isArray(config.nzFooter)) {
-      this.buttonsFooter = true;
-      this.buttons = (config.nzFooter as ModalButtonOptions[]).map(mergeDefaultOption);
-    }
-    this.i18n.localeChange.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.locale = this.i18n.getLocaleData('Modal');
-    });
   }
+})
+export class NzModalFooterComponent {
+  private readonly cdr = inject(ChangeDetectorRef);
+  public readonly config = inject(ModalOptions);
+
+  readonly modalRef = input.required<NzModalRef>();
+  readonly cancelTriggered = output();
+  readonly okTriggered = output();
+
+  protected buttons = Array.isArray(this.config.nzFooter)
+    ? (this.config.nzFooter as ModalButtonOptions[]).map(mergeDefaultOption)
+    : null;
 
   onCancel(): void {
     this.cancelTriggered.emit();
@@ -98,13 +94,17 @@ export class NzModalFooterComponent implements OnDestroy {
     this.okTriggered.emit();
   }
 
+  markForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   /**
    * Returns the value of the specified key.
    * If it is a function, run and return the return value of the function.
    */
   getButtonCallableProp(options: ModalButtonOptions, prop: keyof ModalButtonOptions): boolean {
     const value = options[prop];
-    const componentInstance = this.modalRef.getContentComponent();
+    const componentInstance = this.modalRef().getContentComponent();
     return typeof value === 'function' ? value.apply(options, componentInstance && [componentInstance]) : value;
   }
 
@@ -125,11 +125,6 @@ export class NzModalFooterComponent implements OnDestroy {
           });
       }
     }
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 }
 

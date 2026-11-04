@@ -4,13 +4,13 @@
  */
 
 import { QueryList } from '@angular/core';
-import { Observable, Subject, timer } from 'rxjs';
+import { type Observable, Subject } from 'rxjs';
 
 import { NzCarouselContentDirective } from '../../carousel-content.directive';
 import { NzCarouselBaseStrategy } from '../base-strategy';
 
 export class NzCarouselFlipStrategy extends NzCarouselBaseStrategy {
-  withCarouselContents(contents: QueryList<NzCarouselContentDirective> | null): void {
+  override withCarouselContents(contents: QueryList<NzCarouselContentDirective> | null): void {
     super.withCarouselContents(contents);
 
     if (this.contents) {
@@ -28,8 +28,11 @@ export class NzCarouselFlipStrategy extends NzCarouselBaseStrategy {
         this.renderer.setStyle(content.el, 'backface-visibility', 'hidden');
       });
 
-      timer(this.carouselComponent!.nzTransitionSpeed).subscribe(() => {
-        this.contents.forEach(c => this.renderer.setStyle(c.el, 'transition', ['transform 500ms ease 0s']));
+      const { carouselComponent } = this;
+      carouselComponent!.ngZone.runOutsideAngular(() => {
+        setTimeout(() => {
+          this.contents.forEach(c => this.renderer.setStyle(c.el, 'transition', ['transform 500ms ease 0s']));
+        }, carouselComponent!.nzTransitionSpeed);
       });
     }
   }
@@ -39,10 +42,10 @@ export class NzCarouselFlipStrategy extends NzCarouselBaseStrategy {
     const complete$ = new Subject<void>();
     const speed = this.carouselComponent!.nzTransitionSpeed;
 
-    timer(speed).subscribe(() => {
+    setTimeout(() => {
       complete$.next();
       complete$.complete();
-    });
+    }, speed);
 
     if (rawF === rawT) {
       return complete$;
@@ -59,7 +62,7 @@ export class NzCarouselFlipStrategy extends NzCarouselBaseStrategy {
     return complete$.asObservable();
   }
 
-  dispose(): void {
+  override dispose(): void {
     this.contents.forEach((content: NzCarouselContentDirective) => {
       this.renderer.setStyle(content.el, 'transition', null);
       this.renderer.setStyle(content.el, 'transform', null);

@@ -3,8 +3,8 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Component, DebugElement, NgModule } from '@angular/core';
-import { ComponentFixture, fakeAsync, TestBed } from '@angular/core/testing';
+import { Component, DebugElement, signal } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import {
   createAliObjectsLoader,
@@ -16,18 +16,18 @@ import {
   NzImageModule,
   NzImageSrcLoader
 } from 'ng-zorro-antd/experimental/image';
+import { NzImageService } from 'ng-zorro-antd/image';
 
 describe('Experimental', () => {
   let fixture: ComponentFixture<TestImageExperimentalBaseComponent>;
   let context: TestImageExperimentalBaseComponent;
   let debugElement: DebugElement;
 
-  beforeEach(fakeAsync(() => {
+  beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [TestExperimentalImageModule]
+      providers: [NzImageService]
     });
-    TestBed.compileComponents();
-  }));
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(TestImageExperimentalBaseComponent);
@@ -38,7 +38,7 @@ describe('Experimental', () => {
   it('should be no srcset attribute by default', () => {
     const _src = 'test.jpg';
     const _encode = encodeURIComponent(_src);
-    context.src = _src;
+    context.src.set(_src);
     fixture.detectChanges();
     const image = debugElement.nativeElement.querySelector('img') as HTMLImageElement;
     expect(image.src).toContain(_encode);
@@ -48,8 +48,8 @@ describe('Experimental', () => {
   it('should nzAutoSrcset work', () => {
     const _src = 'test.jpg';
     const _encode = encodeURIComponent(_src);
-    context.src = _src;
-    context.autoSrc = true;
+    context.src.set(_src);
+    context.autoSrc.set(true);
     fixture.detectChanges();
     const image = debugElement.nativeElement.querySelector('img') as HTMLImageElement;
     expect(image.src).toContain(_encode);
@@ -60,10 +60,10 @@ describe('Experimental', () => {
     const _src = 'test.jpg';
     const _width = 100;
     const _loader: NzImageSrcLoader = ({ src, width }) => `${src}?w=${width}`;
-    context.src = _src;
-    context.width = _width;
-    context.autoSrc = true;
-    context.loader = _loader;
+    context.src.set(_src);
+    context.width.set(_width);
+    context.autoSrc.set(true);
+    context.loader.set(_loader);
     fixture.detectChanges();
     const image = debugElement.nativeElement.querySelector('img') as HTMLImageElement;
     expect(image.src).toContain(`${_src}`);
@@ -126,29 +126,21 @@ describe('NzSrcLoader', () => {
 });
 
 @Component({
+  imports: [NzImageModule],
   template: `
     <nz-image
-      [nzSrc]="src"
-      [nzAutoSrcset]="autoSrc"
-      [nzSrcLoader]="loader"
-      [nzWidth]="width"
+      [nzSrc]="src()"
+      [nzAutoSrcset]="autoSrc()"
+      [nzSrcLoader]="loader()"
+      [nzWidth]="width()"
       nzHeight="200"
       nzAlt="test"
-    ></nz-image>
+    />
   `
 })
 export class TestImageExperimentalBaseComponent {
-  src = '';
-  autoSrc = false;
-  loader = defaultImageSrcLoader;
-  width = 200;
+  readonly src = signal('');
+  readonly autoSrc = signal(false);
+  readonly loader = signal(defaultImageSrcLoader);
+  readonly width = signal(200);
 }
-
-const TEST_COMPONENTS = [TestImageExperimentalBaseComponent];
-
-@NgModule({
-  imports: [NzImageModule],
-  declarations: [...TEST_COMPONENTS],
-  exports: [...TEST_COMPONENTS]
-})
-export class TestExperimentalImageModule {}

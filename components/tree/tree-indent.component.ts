@@ -3,24 +3,23 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { ChangeDetectionStrategy, Component, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 
 @Component({
   selector: 'nz-tree-indent',
   exportAs: 'nzTreeIndent',
   template: `
-    <span
-      [class.ant-tree-indent-unit]="!nzSelectMode"
-      [class.ant-select-tree-indent-unit]="nzSelectMode"
-      [class.ant-select-tree-indent-unit-start]="nzSelectMode && nzIsStart[i]"
-      [class.ant-tree-indent-unit-start]="!nzSelectMode && nzIsStart[i]"
-      [class.ant-select-tree-indent-unit-end]="nzSelectMode && nzIsEnd[i]"
-      [class.ant-tree-indent-unit-end]="!nzSelectMode && nzIsEnd[i]"
-      *ngFor="let _ of listOfUnit; let i = index"
-    ></span>
+    @for (_ of listOfUnit; track $index) {
+      <span
+        [class.ant-tree-indent-unit]="!nzSelectMode"
+        [class.ant-select-tree-indent-unit]="nzSelectMode"
+        [class.ant-select-tree-indent-unit-start]="nzSelectMode && nzIsStart[$index]"
+        [class.ant-tree-indent-unit-start]="!nzSelectMode && nzIsStart[$index]"
+        [class.ant-select-tree-indent-unit-end]="nzSelectMode && nzIsEnd[$index]"
+        [class.ant-tree-indent-unit-end]="!nzSelectMode && nzIsEnd[$index]"
+      ></span>
+    }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  preserveWhitespaces: false,
   host: {
     '[attr.aria-hidden]': 'true',
     '[class.ant-tree-indent]': '!nzSelectMode',

@@ -1,165 +1,98 @@
-import { Component } from '@angular/core';
-import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
+import { Component, signal } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 
-import { NzSpaceAlign } from 'ng-zorro-antd/space';
+import { provideNzIconsTesting } from 'ng-zorro-antd/icon/testing';
+import { NzSpaceAlign, NzSpaceDirection, NzSpaceSize } from 'ng-zorro-antd/space';
 import { NzSpaceComponent } from 'ng-zorro-antd/space/space.component';
 
 import { NzSpaceModule } from './space.module';
 
-describe('Space', () => {
+describe('space', () => {
   let component: SpaceTestComponent;
   let fixture: ComponentFixture<SpaceTestComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        imports: [NzSpaceModule],
-        declarations: [SpaceTestComponent]
-      }).compileComponents();
-    })
-  );
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideNzIconsTesting()]
+    });
+  });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(SpaceTestComponent);
     component = fixture.componentInstance;
-    component.size = 'small';
-    component.direction = 'horizontal';
+    component.size.set('small');
+    component.direction.set('horizontal');
     fixture.detectChanges();
-  });
-
-  it('should render size when the items changes', () => {
-    let items = fixture.debugElement.queryAll(By.css('.ant-space-item'));
-    expect(items.length).toBe(2);
-
-    items.forEach((item, i) => {
-      const element = item.nativeElement as HTMLElement;
-      if (i < items.length - 1) {
-        expect(element.style.marginRight).toBe('8px');
-      } else {
-        expect(element.style.marginRight).toBe('');
-      }
-    });
-
-    component.show = true;
-    fixture.detectChanges();
-
-    items = fixture.debugElement.queryAll(By.css('.ant-space-item'));
-    expect(items.length).toBe(3);
-    items.forEach((item, i) => {
-      const element = item.nativeElement as HTMLElement;
-      if (i < items.length - 1) {
-        expect(element.style.marginRight).toBe('8px');
-      } else {
-        expect(element.style.marginRight).toBe('');
-      }
-    });
   });
 
   it('should render size', () => {
-    const items = fixture.debugElement.queryAll(By.css('.ant-space-item'));
-    items.forEach((item, i) => {
-      const element = item.nativeElement as HTMLElement;
-      if (i < items.length - 1) {
-        expect(element.style.marginRight).toBe('8px');
-      } else {
-        expect(element.style.marginRight).toBe('');
-      }
-    });
+    const spaceComponent = fixture.debugElement.query(By.directive(NzSpaceComponent));
+    const spaceElement = spaceComponent.nativeElement as HTMLElement;
 
-    component.size = 'middle';
+    // default size is 'small'
+    expect(spaceElement.style.columnGap).toBe('8px');
+    expect(spaceElement.style.rowGap).toBe('8px');
+
+    component.size.set('middle');
     fixture.detectChanges();
+    expect(spaceElement.style.columnGap).toBe('16px');
+    expect(spaceElement.style.rowGap).toBe('16px');
 
-    items.forEach((item, i) => {
-      const element = item.nativeElement as HTMLElement;
-      if (i < items.length - 1) {
-        expect(element.style.marginRight).toBe('16px');
-      } else {
-        expect(element.style.marginRight).toBe('');
-      }
-    });
-
-    component.size = 'large';
+    component.size.set('large');
     fixture.detectChanges();
-
-    items.forEach((item, i) => {
-      const element = item.nativeElement as HTMLElement;
-      if (i < items.length - 1) {
-        expect(element.style.marginRight).toBe('24px');
-      } else {
-        expect(element.style.marginRight).toBe('');
-      }
-    });
+    expect(spaceElement.style.columnGap).toBe('24px');
+    expect(spaceElement.style.rowGap).toBe('24px');
   });
 
   it('should render customize size', () => {
-    component.size = 36;
+    const spaceComponent = fixture.debugElement.query(By.directive(NzSpaceComponent));
+    const spaceElement = spaceComponent.nativeElement as HTMLElement;
+
+    component.size.set(36);
+    fixture.detectChanges();
+    expect(spaceElement.style.columnGap).toBe('36px');
+    expect(spaceElement.style.rowGap).toBe('36px');
+
+    component.size.set([36, 18]);
+    fixture.detectChanges();
+    expect(spaceElement.style.columnGap).toBe('36px');
+    expect(spaceElement.style.rowGap).toBe('18px');
+  });
+
+  it('should wrap', () => {
+    const spaceComponent = fixture.debugElement.query(By.directive(NzSpaceComponent));
+    const spaceElement = spaceComponent.nativeElement as HTMLElement;
+
+    // default wrap is false
+    expect(spaceElement.style.flexWrap).toBeFalsy();
+
+    component.wrap.set(true);
     fixture.detectChanges();
 
-    const items = fixture.debugElement.queryAll(By.css('.ant-space-item'));
-
-    items.forEach((item, i) => {
-      const element = item.nativeElement as HTMLElement;
-      if (i < items.length - 1) {
-        expect(element.style.marginRight).toBe('36px');
-      } else {
-        expect(element.style.marginRight).toBe('');
-      }
-    });
-
-    component.size = 18;
-    fixture.detectChanges();
-
-    items.forEach((item, i) => {
-      const element = item.nativeElement as HTMLElement;
-      if (i < items.length - 1) {
-        expect(element.style.marginRight).toBe('18px');
-      } else {
-        expect(element.style.marginRight).toBe('');
-      }
-    });
+    expect(spaceElement.style.flexWrap).toBe('wrap');
   });
 
   it('should set direction', () => {
-    const items = fixture.debugElement.queryAll(By.css('.ant-space-item'));
-
-    component.direction = 'vertical';
-    fixture.detectChanges();
-
     const spaceComponent = fixture.debugElement.query(By.directive(NzSpaceComponent));
+    const spaceElement = spaceComponent.nativeElement as HTMLElement;
 
-    expect((spaceComponent.nativeElement as HTMLElement).classList).toContain('ant-space-vertical');
-
-    items.forEach((item, i) => {
-      const element = item.nativeElement as HTMLElement;
-      if (i < items.length - 1) {
-        expect(element.style.marginRight).toBeFalsy();
-        expect(element.style.marginBottom).toBeTruthy();
-      } else {
-        expect(element.style.marginRight).toBeFalsy();
-        expect(element.style.marginBottom).toBeFalsy();
-      }
-    });
-
-    component.direction = 'horizontal';
+    component.direction.set('vertical');
     fixture.detectChanges();
+    expect(spaceElement.classList).toContain('ant-space-vertical');
 
-    expect((spaceComponent.nativeElement as HTMLElement).classList).toContain('ant-space-horizontal');
-
-    items.forEach((item, i) => {
-      const element = item.nativeElement as HTMLElement;
-      if (i < items.length - 1) {
-        expect(element.style.marginRight).toBeTruthy();
-        expect(element.style.marginBottom).toBeFalsy();
-      } else {
-        expect(element.style.marginRight).toBeFalsy();
-        expect(element.style.marginBottom).toBeFalsy();
-      }
-    });
+    component.direction.set('horizontal');
+    fixture.detectChanges();
+    expect(spaceElement.classList).toContain('ant-space-horizontal');
   });
 
   it('should set align', () => {
-    component.direction = 'vertical';
+    component.direction.set('vertical');
     fixture.detectChanges();
 
     const spaceComponent = fixture.debugElement.query(By.directive(NzSpaceComponent));
@@ -170,41 +103,32 @@ describe('Space', () => {
       expect(className.indexOf('ant-space-align') === -1).toBe(true);
     });
 
-    component.direction = 'horizontal';
+    component.direction.set('horizontal');
     fixture.detectChanges();
 
     expect(spaceNativeElement.classList).toContain('ant-space-align-center');
 
-    component.align = 'end';
+    component.align.set('end');
     fixture.detectChanges();
 
     expect(spaceNativeElement.classList).toContain('ant-space-align-end');
   });
 
   it('should render split', () => {
-    component.showSplit = true;
+    component.showSplit.set(true);
     fixture.detectChanges();
 
+    const spaceComponent = fixture.debugElement.query(By.directive(NzSpaceComponent));
+    const spaceElement = spaceComponent.nativeElement as HTMLElement;
     let items = fixture.debugElement.queryAll(By.css('.ant-space-item'));
     let splits = fixture.debugElement.queryAll(By.css('.ant-space-split'));
+
     expect(items.length).toBe(2);
     expect(splits.length).toBe(1);
+    expect(spaceElement.style.columnGap).toBe('8px');
+    expect(spaceElement.style.rowGap).toBe('8px');
 
-    items.forEach((item, i) => {
-      const element = item.nativeElement as HTMLElement;
-      if (i < items.length - 1) {
-        expect(element.style.marginRight).toBe('4px');
-      } else {
-        expect(element.style.marginRight).toBe('');
-      }
-    });
-
-    splits.forEach(item => {
-      const element = item.nativeElement as HTMLElement;
-      expect(element.style.marginRight).toBe('4px');
-    });
-
-    component.show = true;
+    component.show.set(true);
     fixture.detectChanges();
 
     items = fixture.debugElement.queryAll(By.css('.ant-space-item'));
@@ -212,31 +136,36 @@ describe('Space', () => {
 
     expect(items.length).toBe(3);
     expect(splits.length).toBe(2);
-
-    splits.forEach(item => {
-      const element = item.nativeElement as HTMLElement;
-      expect(element.style.marginRight).toBe('4px');
-    });
+    expect(spaceElement.style.columnGap).toBe('8px');
+    expect(spaceElement.style.rowGap).toBe('8px');
   });
 });
 
 @Component({
+  imports: [NzSpaceModule],
   template: `
-    <nz-space [nzSplit]="showSplit ? spaceSplit : null" [nzSize]="size" [nzDirection]="direction" [nzAlign]="align">
+    <nz-space
+      [nzSplit]="showSplit() ? spaceSplit : null"
+      [nzSize]="size()"
+      [nzDirection]="direction()"
+      [nzAlign]="align()"
+      [nzWrap]="wrap()"
+    >
       <div *nzSpaceItem>item</div>
       <div *nzSpaceItem>item</div>
-      <ng-container *ngIf="show">
+      @if (show()) {
         <div *nzSpaceItem>item</div>
-      </ng-container>
+      }
     </nz-space>
 
     <ng-template #spaceSplit>|</ng-template>
   `
 })
 class SpaceTestComponent {
-  size: string | number = 'small';
-  direction = 'horizontal';
-  show = false;
-  align?: NzSpaceAlign;
-  showSplit = false;
+  readonly size = signal<NzSpaceSize | [NzSpaceSize, NzSpaceSize]>('small');
+  readonly direction = signal<NzSpaceDirection>('horizontal');
+  readonly show = signal(false);
+  readonly align = signal<NzSpaceAlign | undefined>(undefined);
+  readonly wrap = signal<boolean | undefined>(undefined);
+  readonly showSplit = signal(false);
 }

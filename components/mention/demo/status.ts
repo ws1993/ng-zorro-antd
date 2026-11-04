@@ -1,0 +1,22 @@
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzMentionModule } from 'ng-zorro-antd/mention';
+
+@Component({
+  selector: 'nz-demo-mention-status',
+  imports: [FormsModule, NzInputModule, NzMentionModule],
+  template: `
+    <nz-mention [nzSuggestions]="suggestions" nzStatus="error" style="margin-bottom: 8px;">
+      <textarea rows="1" nz-input placeholder="input here" [(ngModel)]="value" nzMentionTrigger></textarea>
+    </nz-mention>
+    <nz-mention [nzSuggestions]="suggestions" nzStatus="warning">
+      <textarea rows="1" nz-input placeholder="input here" [(ngModel)]="value" nzMentionTrigger></textarea>
+    </nz-mention>
+  `
+})
+export class NzDemoMentionStatusComponent {
+  readonly value = signal('@afc163');
+  readonly suggestions = ['afc163', 'benjycui', 'yiminghe', 'RaoHai', '中文', 'にほんご'];
+}

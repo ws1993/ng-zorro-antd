@@ -3,36 +3,45 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { BidiModule } from '@angular/cdk/bidi';
-import { PlatformModule } from '@angular/cdk/platform';
-import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 
-import { NzOutletModule } from 'ng-zorro-antd/core/outlet';
-import { NzIconModule } from 'ng-zorro-antd/icon';
-
-import { NzAutosizeDirective } from './autosize.directive';
-import { NzInputGroupSlotComponent } from './input-group-slot.component';
-import { NzInputGroupComponent, NzInputGroupWhitSuffixOrPrefixDirective } from './input-group.component';
+import { NzInputAddonAfterDirective, NzInputAddonBeforeDirective } from './input-addon.directive';
+import { NzInputPrefixDirective, NzInputSuffixDirective } from './input-affix.directive';
+import { NzInputOtpComponent } from './input-otp.component';
+import { NzInputPasswordDirective, NzInputPasswordIconDirective } from './input-password.directive';
+import { NzInputSearchDirective, NzInputSearchEnterButtonDirective } from './input-search.directive';
+import { NzInputWrapperComponent } from './input-wrapper.component';
 import { NzInputDirective } from './input.directive';
 import { NzTextareaCountComponent } from './textarea-count.component';
 
 @NgModule({
-  declarations: [
+  imports: [
     NzTextareaCountComponent,
     NzInputDirective,
-    NzInputGroupComponent,
-    NzAutosizeDirective,
-    NzInputGroupSlotComponent,
-    NzInputGroupWhitSuffixOrPrefixDirective
+    NzInputWrapperComponent,
+    NzInputPasswordDirective,
+    NzInputPasswordIconDirective,
+    NzInputSearchDirective,
+    NzInputSearchEnterButtonDirective,
+    NzInputAddonBeforeDirective,
+    NzInputAddonAfterDirective,
+    NzInputPrefixDirective,
+    NzInputSuffixDirective,
+    NzInputOtpComponent
   ],
   exports: [
     NzTextareaCountComponent,
     NzInputDirective,
-    NzInputGroupComponent,
-    NzAutosizeDirective,
-    NzInputGroupWhitSuffixOrPrefixDirective
-  ],
-  imports: [BidiModule, CommonModule, NzIconModule, PlatformModule, NzOutletModule]
+    NzInputWrapperComponent,
+    NzInputPasswordDirective,
+    NzInputPasswordIconDirective,
+    NzInputSearchDirective,
+    NzInputSearchEnterButtonDirective,
+    NzInputAddonBeforeDirective,
+    NzInputAddonAfterDirective,
+    NzInputPrefixDirective,
+    NzInputSuffixDirective,
+    NzInputOtpComponent
+  ]
 })
 export class NzInputModule {}

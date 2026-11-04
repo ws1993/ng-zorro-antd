@@ -9,13 +9,14 @@ export default {
     items_per_page: '/ Seite',
     jump_to: 'Gehe zu',
     jump_to_confirm: 'bestätigen',
-    page: '',
+    page: 'Seite',
     prev_page: 'Vorherige Seite',
     next_page: 'Nächste Seite',
     prev_5: '5 Seiten zurück',
     next_5: '5 Seiten vor',
     prev_3: '3 Seiten zurück',
-    next_3: '3 Seiten vor'
+    next_3: '3 Seiten vor',
+    page_size: 'Page Size'
   },
   DatePicker: {
     lang: {
@@ -26,6 +27,7 @@ export default {
       weekPlaceholder: 'Woche auswählen',
       rangePlaceholder: ['Startdatum', 'Enddatum'],
       rangeYearPlaceholder: ['Startjahr', 'Endjahr'],
+      rangeQuarterPlaceholder: ['Startquartal', 'Endquartal'],
       rangeMonthPlaceholder: ['Startmonat', 'Endmonat'],
       rangeWeekPlaceholder: ['Startwoche', 'Endwoche'],
       locale: 'de_DE',
@@ -49,8 +51,8 @@ export default {
       monthBeforeYear: true,
       previousMonth: 'Vorheriger Monat (PageUp)',
       nextMonth: 'Nächster Monat (PageDown)',
-      previousYear: 'Vorheriges Jahr (Ctrl + left)',
-      nextYear: 'Nächstes Jahr (Ctrl + right)',
+      previousYear: 'Vorheriges Jahr (Strg + links)',
+      nextYear: 'Nächstes Jahr (Strg + rechts)',
       previousDecade: 'Vorheriges Jahrzehnt',
       nextDecade: 'Nächstes Jahrzehnt',
       previousCentury: 'Vorheriges Jahrhundert',
@@ -62,7 +64,8 @@ export default {
     }
   },
   TimePicker: {
-    placeholder: 'Zeit auswählen'
+    placeholder: 'Zeit auswählen',
+    rangePlaceholder: ['Startzeit', 'Endzeit']
   },
   Calendar: {
     lang: {
@@ -125,7 +128,10 @@ export default {
     collapse: 'Zeile reduzieren',
     triggerDesc: 'Klicken zur absteigenden  Sortierung',
     triggerAsc: 'Klicken zur aufsteigenden Sortierung',
-    cancelSort: 'Klicken zum Abbrechen der Sortierung'
+    cancelSort: 'Klicken zum Abbrechen der Sortierung',
+    filterCheckall: 'Alle Elemente anwählen',
+    filterSearchPlaceholder: 'In Filterung suchen',
+    selectNone: 'Alles löschen'
   },
   Modal: {
     okText: 'OK',
@@ -142,11 +148,11 @@ export default {
     itemUnit: 'Eintrag',
     itemsUnit: 'Einträge',
     remove: 'Entfernen',
-    selectCurrent: 'Aktuelle Seite auswählen',
-    removeCurrent: 'Aktuelle Seite abwählen',
-    selectAll: 'Alle Daten auswählen',
-    removeAll: 'Alle Daten abwählen',
-    selectInvert: 'Aktuelle Auswahl invertieren'
+    selectCurrent: 'Alle auf aktueller Seite auswählen',
+    removeCurrent: 'Auswahl auf aktueller Seite aufheben',
+    selectAll: 'Alle auswählen',
+    removeAll: 'Auswahl aufheben',
+    selectInvert: 'Auswahl umkehren'
   },
   Upload: {
     uploading: 'Hochladen...',
@@ -158,6 +164,12 @@ export default {
   Empty: {
     description: 'Keine Daten'
   },
+  Form: {
+    optional: '(optional)'
+  },
+  Icon: {
+    icon: 'Symbol'
+  },
   Text: {
     edit: 'Bearbeiten',
     copy: 'Kopieren',
@@ -166,5 +178,8 @@ export default {
   },
   PageHeader: {
     back: 'Zurück'
+  },
+  Image: {
+    preview: 'Vorschau'
   }
 };

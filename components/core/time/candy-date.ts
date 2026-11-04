@@ -8,22 +8,26 @@ import {
   addYears,
   differenceInCalendarDays,
   differenceInCalendarMonths,
+  differenceInCalendarQuarters,
   differenceInCalendarYears,
   differenceInHours,
   differenceInMinutes,
   differenceInSeconds,
+  getQuarter,
   isFirstDayOfMonth,
   isLastDayOfMonth,
   isSameDay,
   isSameHour,
   isSameMinute,
   isSameMonth,
+  isSameQuarter,
   isSameSecond,
   isSameYear,
   isToday,
   isValid,
   setDay,
   setMonth,
+  setQuarter,
   setYear,
   startOfMonth,
   startOfWeek
@@ -32,18 +36,44 @@ import {
 import { warn } from 'ng-zorro-antd/core/logger';
 import { IndexableObject, NzSafeAny } from 'ng-zorro-antd/core/types';
 
-export type CandyDateMode = 'decade' | 'year' | 'month' | 'day' | 'hour' | 'minute' | 'second';
+import { WeekDayIndex } from './date-config';
+
+/**
+ * @deprecated Will be removed in v23.
+ */
+export type CandyDateMode = 'decade' | 'year' | 'quarter' | 'month' | 'day' | 'hour' | 'minute' | 'second';
+
+/**
+ * @deprecated Use `NzDateAdapter` directly instead. Will be removed in v23.
+ */
 export type NormalizedMode = 'decade' | 'year' | 'month';
-export type WeekDayIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
-export type CandyDateType = CandyDate | Date | null;
+
+/**
+ * @deprecated Use `Date` and `NzDateAdapter` directly instead. Will be removed in v23.
+ */
+export type CandyDateType = CandyDate | Date | null | undefined;
+
+/**
+ * @deprecated Use `Date | null` directly instead. Will be removed in v23.
+ */
 export type SingleValue = CandyDate | null;
+
+/**
+ * @deprecated Use `Date | null` or `(Date | null)[]` directly instead. Will be removed in v23.
+ */
 export type CompatibleValue = SingleValue | SingleValue[];
 
+/**
+ * @deprecated Will be removed in v23.
+ */
 export function wrongSortOrder(rangeValue: SingleValue[]): boolean {
   const [start, end] = rangeValue;
   return !!start && !!end && end.isBeforeDay(start);
 }
 
+/**
+ * @deprecated Use `NzDateAdapter` directly instead. Will be removed in v23.
+ */
 export function normalizeRangeValue(
   value: SingleValue[],
   hasTimePicker: boolean,
@@ -74,6 +104,9 @@ export function normalizeRangeValue(
   return [newStart, newEnd];
 }
 
+/**
+ * @deprecated Use `Date` cloning directly instead. Will be removed in v23.
+ */
 export function cloneDate(value: CompatibleValue): CompatibleValue {
   if (Array.isArray(value)) {
     return value.map(v => (v instanceof CandyDate ? v.clone() : null));
@@ -87,6 +120,8 @@ export function cloneDate(value: CompatibleValue): CompatibleValue {
  * NOTE: every new API return new CandyDate object without side effects to the former Date object
  * NOTE: most APIs are based on local time other than customized locale id (this needs tobe support in future)
  * TODO: support format() against to angular's core API
+ *
+ * @deprecated Use `NzDateAdapter` directly instead. Will be removed in v23.
  */
 export class CandyDate implements IndexableObject {
   nativeDate: Date;
@@ -192,6 +227,14 @@ export class CandyDate implements IndexableObject {
     return new CandyDate(date);
   }
 
+  getQuarter(): number {
+    return getQuarter(this.nativeDate);
+  }
+
+  setQuarter(quarter: number): CandyDate {
+    return new CandyDate(setQuarter(this.nativeDate, quarter));
+  }
+
   addDays(amount: number): CandyDate {
     return this.setDate(this.getDate() + amount);
   }
@@ -210,6 +253,9 @@ export class CandyDate implements IndexableObject {
   }
 
   isSame(date: CandyDateType, grain: CandyDateMode = 'day'): boolean {
+    if (date == null) {
+      return false;
+    }
     let fn;
     switch (grain) {
       case 'decade':
@@ -217,6 +263,9 @@ export class CandyDate implements IndexableObject {
         break;
       case 'year':
         fn = isSameYear;
+        break;
+      case 'quarter':
+        fn = isSameQuarter;
         break;
       case 'month':
         fn = isSameMonth;
@@ -243,6 +292,9 @@ export class CandyDate implements IndexableObject {
   isSameYear(date: CandyDateType): boolean {
     return this.isSame(date, 'year');
   }
+  isSameQuarter(date: CandyDateType): boolean {
+    return this.isSame(date, 'quarter');
+  }
 
   isSameMonth(date: CandyDateType): boolean {
     return this.isSame(date, 'month');
@@ -265,13 +317,16 @@ export class CandyDate implements IndexableObject {
   }
 
   isBefore(date: CandyDateType, grain: CandyDateMode = 'day'): boolean {
-    if (date === null) {
+    if (date == null) {
       return false;
     }
     let fn;
     switch (grain) {
       case 'year':
         fn = differenceInCalendarYears;
+        break;
+      case 'quarter':
+        fn = differenceInCalendarQuarters;
         break;
       case 'month':
         fn = differenceInCalendarMonths;
@@ -297,6 +352,10 @@ export class CandyDate implements IndexableObject {
 
   isBeforeYear(date: CandyDateType): boolean {
     return this.isBefore(date, 'year');
+  }
+
+  isBeforeQuarter(date: CandyDateType): boolean {
+    return this.isBefore(date, 'quarter');
   }
 
   isBeforeMonth(date: CandyDateType): boolean {

@@ -1,11 +1,15 @@
-import { Component, ViewEncapsulation } from '@angular/core';
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzMentionModule } from 'ng-zorro-antd/mention';
 
 @Component({
   selector: 'nz-demo-mention-custom-tag',
-  encapsulation: ViewEncapsulation.None,
+  imports: [FormsModule, NzInputModule, NzMentionModule],
   template: `
     <nz-mention [nzSuggestions]="webFrameworks" [nzValueWith]="valueWith" (nzOnSelect)="onSelect($event)">
-      <input placeholder="@someone" nz-input nzMentionTrigger [(ngModel)]="inputValue" />
+      <textarea rows="1" placeholder="@someone" nz-input nzMentionTrigger [(ngModel)]="inputValue"></textarea>
       <ng-container *nzMentionSuggestion="let framework">
         <span>{{ framework.name }} - {{ framework.type }}</span>
       </ng-container>
@@ -13,8 +17,8 @@ import { Component, ViewEncapsulation } from '@angular/core';
   `
 })
 export class NzDemoMentionCustomTagComponent {
-  inputValue?: string;
-  webFrameworks = [
+  readonly inputValue = signal<string | undefined>(undefined);
+  readonly webFrameworks = [
     { name: 'React', type: 'JavaScript' },
     { name: 'Angular', type: 'JavaScript' },
     { name: 'Laravel', type: 'PHP' },
@@ -22,7 +26,7 @@ export class NzDemoMentionCustomTagComponent {
     { name: 'Django', type: 'Python' }
   ];
 
-  valueWith = (data: { name: string; type: string }): string => data.name;
+  readonly valueWith = (data: { name: string; type: string }): string => data.name;
 
   onSelect(value: string): void {
     console.log(value);

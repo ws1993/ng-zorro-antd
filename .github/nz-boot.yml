@@ -62,7 +62,6 @@ issue:
     components:
       Affix: cipchk
       Anchor: cipchk
-      BackTop: cipchk
       List: cipchk
       Upload: cipchk
       AutoComplete: hsuanxyz
@@ -79,24 +78,24 @@ issue:
       Typography: hsuanxyz
       Space: hsuanxyz
       Resizable: hsuanxyz
-      Breadcrumb: wendellhu95
-      Empty: wendellhu95
-      Carousel: wendellhu95
-      Cascader: wendellhu95
-      Descriptions: wendellhu95
-      Icon: wendellhu95
-      Message: wendellhu95
-      Notification: wendellhu95
-      Popconfirm: wendellhu95
-      Popover: wendellhu95
-      Progress: wendellhu95
-      Rate: wendellhu95
-      Result: wendellhu95
-      Slider: wendellhu95
-      Statistic: wendellhu95
-      Timeline: wendellhu95
-      Tooltip: wendellhu95
-      CodeEditor: wendellhu95
+      Breadcrumb: simplejason
+      Empty: simplejason
+      Carousel: simplejason
+      Cascader: simplejason
+      Descriptions: simplejason
+      Icon: simplejason
+      Message: simplejason
+      Notification: simplejason
+      Popconfirm: simplejason
+      Popover: simplejason
+      Progress: simplejason
+      Rate: simplejason
+      Result: simplejason
+      Slider: simplejason
+      Statistic: simplejason
+      Timeline: simplejason
+      Tooltip: simplejason
+      CodeEditor: simplejason
       Calendar: wenqi73
       DatePicker: wenqi73
       Skeleton: wenqi73
@@ -127,3 +126,4 @@ issue:
       Transfer: Ricbet
       Pipes: chensimeng
       Image: stygian-desolator
+      Splitter: laffery

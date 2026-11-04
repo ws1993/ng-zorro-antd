@@ -1,29 +1,33 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzFlexModule } from 'ng-zorro-antd/flex';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzProgressModule } from 'ng-zorro-antd/progress';
+import { NzSpaceModule } from 'ng-zorro-antd/space';
 
 @Component({
   selector: 'nz-demo-progress-dynamic',
+  imports: [NzButtonModule, NzIconModule, NzFlexModule, NzProgressModule, NzSpaceModule],
   template: `
-    <nz-progress [nzPercent]="percent"></nz-progress>
-    <nz-button-group>
-      <button nz-button (click)="decline()"><i nz-icon nzType="minus"></i></button>
-      <button nz-button (click)="increase()"><i nz-icon nzType="plus"></i></button>
-    </nz-button-group>
+    <div nz-flex nzVertical nzGap="small">
+      <nz-progress [nzPercent]="percent()" />
+      <nz-progress [nzPercent]="percent()" nzType="circle" />
+      <nz-space-compact>
+        <button nz-button (click)="decline()"><nz-icon nzType="minus" /></button>
+        <button nz-button (click)="increase()"><nz-icon nzType="plus" /></button>
+      </nz-space-compact>
+    </div>
   `
 })
 export class NzDemoProgressDynamicComponent {
-  percent = 0;
+  readonly percent = signal(0);
 
   increase(): void {
-    this.percent = this.percent + 10;
-    if (this.percent > 100) {
-      this.percent = 100;
-    }
+    this.percent.update(percent => Math.min(percent + 10, 100));
   }
 
   decline(): void {
-    this.percent = this.percent - 10;
-    if (this.percent < 0) {
-      this.percent = 0;
-    }
+    this.percent.update(percent => Math.max(percent - 10, 0));
   }
 }

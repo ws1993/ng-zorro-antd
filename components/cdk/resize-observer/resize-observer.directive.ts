@@ -10,36 +10,41 @@ import {
   EventEmitter,
   Input,
   OnChanges,
-  OnDestroy,
   Output,
-  SimpleChanges
+  SimpleChanges,
+  booleanAttribute,
+  inject,
+  DestroyRef
 } from '@angular/core';
 import { Subscription } from 'rxjs';
-
-import { BooleanInput } from 'ng-zorro-antd/core/types';
-import { InputBoolean } from 'ng-zorro-antd/core/util';
 
 import { NzResizeObserver } from './resize-observer.service';
 
 @Directive({
   selector: '[nzResizeObserver]'
 })
-export class NzResizeObserverDirective implements AfterContentInit, OnDestroy, OnChanges {
-  static ngAcceptInputType_nzResizeObserverDisabled: BooleanInput;
+export class NzResizeObserverDirective implements AfterContentInit, OnChanges {
+  private readonly resizeObserver = inject(NzResizeObserver);
+  private readonly elementRef = inject(ElementRef<HTMLElement>);
+  private readonly destroyRef = inject(DestroyRef);
+
+  @Input({ transform: booleanAttribute }) nzResizeObserverDisabled = false;
   @Output() readonly nzResizeObserve = new EventEmitter<ResizeObserverEntry[]>();
-  @Input() @InputBoolean() nzResizeObserverDisabled = false;
+
   private currentSubscription: Subscription | null = null;
 
   private subscribe(): void {
     this.unsubscribe();
-    this.currentSubscription = this.nzResizeObserver.observe(this.elementRef).subscribe(this.nzResizeObserve);
+    this.currentSubscription = this.resizeObserver.observe(this.elementRef).subscribe(this.nzResizeObserve);
   }
 
   private unsubscribe(): void {
     this.currentSubscription?.unsubscribe();
   }
 
-  constructor(private nzResizeObserver: NzResizeObserver, private elementRef: ElementRef<HTMLElement>) {}
+  constructor() {
+    this.destroyRef.onDestroy(() => this.unsubscribe());
+  }
 
   ngAfterContentInit(): void {
     if (!this.currentSubscription && !this.nzResizeObserverDisabled) {
@@ -47,13 +52,9 @@ export class NzResizeObserverDirective implements AfterContentInit, OnDestroy, O
     }
   }
 
-  ngOnDestroy(): void {
-    this.unsubscribe();
-  }
-
   ngOnChanges(changes: SimpleChanges): void {
-    const { nzResizeObserve } = changes;
-    if (nzResizeObserve) {
+    const { nzResizeObserverDisabled } = changes;
+    if (nzResizeObserverDisabled) {
       if (this.nzResizeObserverDisabled) {
         this.unsubscribe();
       } else {

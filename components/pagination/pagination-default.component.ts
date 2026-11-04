@@ -3,18 +3,15 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Direction, Directionality } from '@angular/cdk/bidi';
+import { Directionality } from '@angular/cdk/bidi';
+import { NgTemplateOutlet } from '@angular/common';
 import {
-  ChangeDetectionStrategy,
-  ChangeDetectorRef,
   Component,
   ElementRef,
   EventEmitter,
+  inject,
   Input,
   OnChanges,
-  OnDestroy,
-  OnInit,
-  Optional,
   Output,
   Renderer2,
   SimpleChanges,
@@ -22,60 +19,71 @@ import {
   ViewChild,
   ViewEncapsulation
 } from '@angular/core';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
 
 import { NzSafeAny } from 'ng-zorro-antd/core/types';
 import { NzPaginationI18nInterface } from 'ng-zorro-antd/i18n';
 
 import { NzPaginationItemComponent } from './pagination-item.component';
+import { NzPaginationOptionsComponent } from './pagination-options.component';
 import { PaginationItemRenderContext } from './pagination.types';
 
 @Component({
   selector: 'nz-pagination-default',
-  preserveWhitespaces: false,
   encapsulation: ViewEncapsulation.None,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ng-template #containerTemplate>
-      <li class="ant-pagination-total-text" *ngIf="showTotal">
-        <ng-template
-          [ngTemplateOutlet]="showTotal"
-          [ngTemplateOutletContext]="{ $implicit: total, range: ranges }"
-        ></ng-template>
-      </li>
-      <li
-        *ngFor="let page of listOfPageItem; trackBy: trackByPageItem"
-        nz-pagination-item
-        [locale]="locale"
-        [type]="page.type"
-        [index]="page.index"
-        [disabled]="!!page.disabled"
-        [itemRender]="itemRender"
-        [active]="pageIndex === page.index"
-        (gotoIndex)="jumpPage($event)"
-        (diffIndex)="jumpDiff($event)"
-        [direction]="dir"
-      ></li>
-      <div
-        nz-pagination-options
-        *ngIf="showQuickJumper || showSizeChanger"
-        [total]="total"
-        [locale]="locale"
-        [disabled]="disabled"
-        [nzSize]="nzSize"
-        [showSizeChanger]="showSizeChanger"
-        [showQuickJumper]="showQuickJumper"
-        [pageIndex]="pageIndex"
-        [pageSize]="pageSize"
-        [pageSizeOptions]="pageSizeOptions"
-        (pageIndexChange)="onPageIndexChange($event)"
-        (pageSizeChange)="onPageSizeChange($event)"
-      ></div>
+      <ul>
+        @if (showTotal) {
+          <li class="ant-pagination-total-text">
+            <ng-template
+              [ngTemplateOutlet]="showTotal"
+              [ngTemplateOutletContext]="{ $implicit: total, range: ranges }"
+            />
+          </li>
+        }
+
+        @for (page of listOfPageItem; track trackByPageItem($index, page)) {
+          <li
+            nz-pagination-item
+            [locale]="locale"
+            [type]="page.type"
+            [index]="page.index"
+            [disabled]="!!page.disabled"
+            [itemRender]="itemRender"
+            [active]="pageIndex === page.index"
+            (gotoIndex)="jumpPage($event)"
+            (diffIndex)="jumpDiff($event)"
+            [direction]="dir()"
+          ></li>
+        }
+
+        @if (showQuickJumper || showSizeChanger) {
+          <li
+            nz-pagination-options
+            [total]="total"
+            [locale]="locale"
+            [disabled]="disabled"
+            [nzSize]="nzSize"
+            [showSizeChanger]="showSizeChanger"
+            [showQuickJumper]="showQuickJumper"
+            [pageIndex]="pageIndex"
+            [pageSize]="pageSize"
+            [pageSizeOptions]="pageSizeOptions"
+            (pageIndexChange)="onPageIndexChange($event)"
+            (pageSizeChange)="onPageSizeChange($event)"
+          ></li>
+        }
+      </ul>
     </ng-template>
-  `
+  `,
+  imports: [NgTemplateOutlet, NzPaginationItemComponent, NzPaginationOptionsComponent],
+  host: {
+    '[class.ant-pagination-rtl]': `dir() === 'rtl'`
+  }
 })
-export class NzPaginationDefaultComponent implements OnChanges, OnDestroy, OnInit {
+export class NzPaginationDefaultComponent implements OnChanges {
+  protected readonly dir = inject(Directionality).valueSignal;
+
   @ViewChild('containerTemplate', { static: true }) template!: TemplateRef<NzSafeAny>;
   @Input() nzSize: 'default' | 'small' = 'default';
   @Input() itemRender: TemplateRef<PaginationItemRenderContext> | null = null;
@@ -90,41 +98,14 @@ export class NzPaginationDefaultComponent implements OnChanges, OnDestroy, OnIni
   @Input() pageSizeOptions: number[] = [10, 20, 30, 40];
   @Output() readonly pageIndexChange = new EventEmitter<number>();
   @Output() readonly pageSizeChange = new EventEmitter<number>();
+
   ranges = [0, 0];
   listOfPageItem: Array<Partial<NzPaginationItemComponent>> = [];
 
-  dir: Direction = 'ltr';
-  private destroy$ = new Subject<void>();
-
-  constructor(
-    private cdr: ChangeDetectorRef,
-    private renderer: Renderer2,
-    private elementRef: ElementRef,
-    @Optional() private directionality: Directionality
-  ) {
-    renderer.removeChild(renderer.parentNode(elementRef.nativeElement), elementRef.nativeElement);
-  }
-  ngOnInit(): void {
-    this.directionality.change?.pipe(takeUntil(this.destroy$)).subscribe((direction: Direction) => {
-      this.dir = direction;
-      this.updateRtlStyle();
-      this.cdr.detectChanges();
-    });
-    this.dir = this.directionality.value;
-    this.updateRtlStyle();
-  }
-
-  private updateRtlStyle(): void {
-    if (this.dir === 'rtl') {
-      this.renderer.addClass(this.elementRef.nativeElement, 'ant-pagination-rtl');
-    } else {
-      this.renderer.removeClass(this.elementRef.nativeElement, 'ant-pagination-rtl');
-    }
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+  constructor() {
+    const el: HTMLElement = inject(ElementRef<HTMLElement>).nativeElement;
+    const renderer = inject(Renderer2);
+    renderer.removeChild(renderer.parentNode(el), el);
   }
 
   jumpPage(index: number): void {
@@ -148,7 +129,8 @@ export class NzPaginationDefaultComponent implements OnChanges, OnDestroy, OnIni
   }
 
   getLastIndex(total: number, pageSize: number): number {
-    return Math.ceil(total / pageSize);
+    const maxPage = pageSize > 0 ? Math.ceil(total / pageSize) : 0;
+    return maxPage || 1;
   }
 
   buildIndexes(): void {
@@ -172,10 +154,7 @@ export class NzPaginationDefaultComponent implements OnChanges, OnDestroy, OnIni
     const generatePage = (start: number, end: number): Array<Partial<NzPaginationItemComponent>> => {
       const list = [];
       for (let i = start; i <= end; i++) {
-        list.push({
-          index: i,
-          type: 'page'
-        });
+        list.push({ index: i, type: 'page' });
       }
       return list;
     };

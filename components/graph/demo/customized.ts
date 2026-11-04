@@ -1,15 +1,20 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, signal, ViewChild } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
+import { NzButtonModule } from 'ng-zorro-antd/button';
 import {
   NzGraphComponent,
   NzGraphData,
   NzGraphDataDef,
+  NzGraphModule,
   NzGraphZoomDirective,
   NzRankDirection
 } from 'ng-zorro-antd/graph';
+import { NzRadioModule } from 'ng-zorro-antd/radio';
 
 @Component({
   selector: 'nz-demo-graph-customized',
+  imports: [FormsModule, NzButtonModule, NzGraphModule, NzRadioModule],
   template: `
     <button nz-button nzType="default" (click)="expandAll()">ExpandAll</button>
     <button nz-button nzType="default" (click)="collapseAll()">CollapseAll</button>
@@ -24,7 +29,7 @@ import {
       nz-graph-zoom
       [nzGraphData]="graphData"
       [nzAutoSize]="true"
-      [nzRankDirection]="rankDirection"
+      [nzRankDirection]="rankDirection()"
       (nzGraphInitialized)="graphInitialized($event)"
     >
       <ng-container *nzGraphNode="let node">
@@ -48,55 +53,53 @@ import {
       </ng-container>
     </nz-graph>
   `,
-  styles: [
-    `
-      nz-radio-group {
-        float: right;
-      }
+  styles: `
+    nz-radio-group {
+      float: right;
+    }
 
-      button {
-        margin-right: 12px;
-      }
+    button {
+      margin-right: 12px;
+    }
 
-      nz-graph {
-        height: 400px;
-      }
+    nz-graph {
+      height: 400px;
+    }
 
-      .graph-node {
-        border: 1px solid #8cc8ff;
-        cursor: pointer;
-        font-size: 12px;
-        height: 100%;
-        line-height: 1.2;
-        border-radius: 0;
-        text-align: center;
-        word-break: break-all;
-        display: block;
-      }
+    .graph-node {
+      border: 1px solid #8cc8ff;
+      cursor: pointer;
+      font-size: 12px;
+      height: 100%;
+      line-height: 1.2;
+      border-radius: 0;
+      text-align: center;
+      word-break: break-all;
+      display: block;
+    }
 
-      .group-node {
-        border-width: 4px;
-      }
+    .group-node {
+      border-width: 4px;
+    }
 
-      .leaf-node {
-        color: #1a90ff;
-        background: rgba(26, 144, 255, 0.15);
-        min-height: 30px;
-        height: fit-content;
-      }
+    .leaf-node {
+      color: #1a90ff;
+      background: rgba(26, 144, 255, 0.15);
+      min-height: 30px;
+      height: fit-content;
+    }
 
-      .title {
-        padding: 4px;
-        word-break: keep-all;
-      }
-    `
-  ]
+    .title {
+      padding: 4px;
+      word-break: keep-all;
+    }
+  `
 })
 export class NzDemoGraphCustomizedComponent {
   @ViewChild(NzGraphComponent, { static: true }) nzGraphComponent!: NzGraphComponent;
   @ViewChild(NzGraphZoomDirective, { static: true }) zoomController!: NzGraphZoomDirective;
-  zoom = 0.5;
-  testDef: NzGraphDataDef = {
+  readonly zoom = 0.5;
+  readonly testDef: NzGraphDataDef = {
     nodes: [
       {
         id: '0',
@@ -265,10 +268,8 @@ export class NzDemoGraphCustomizedComponent {
       G0: ['4', '5', '15']
     }
   };
-  rankDirection: NzRankDirection = 'TB';
-  graphData = new NzGraphData(this.testDef);
-
-  constructor() {}
+  readonly rankDirection = signal<NzRankDirection>('TB');
+  readonly graphData = new NzGraphData(this.testDef);
 
   expand(name: string): void {
     this.graphData.expand(name);

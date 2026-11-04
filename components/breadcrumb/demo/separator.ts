@@ -1,7 +1,11 @@
 import { Component } from '@angular/core';
 
+import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+
 @Component({
   selector: 'nz-demo-breadcrumb-separator',
+  imports: [NzBreadCrumbModule, NzIconModule],
   template: `
     <h4>String</h4>
     <nz-breadcrumb nzSeparator=">">
@@ -20,21 +24,19 @@ import { Component } from '@angular/core';
       </nz-breadcrumb-item>
       <nz-breadcrumb-item>An Application</nz-breadcrumb-item>
     </nz-breadcrumb>
-    <ng-template #iconTemplate><i nz-icon nzType="arrow-right"></i></ng-template>
+    <ng-template #iconTemplate><nz-icon nzType="arrow-right" /></ng-template>
   `,
-  styles: [
-    `
-      h4:first-child {
-        margin-top: 0;
-      }
+  styles: `
+    h4:first-child {
+      margin-top: 0;
+    }
 
-      h4 {
-        margin: 16px 0;
-        font-size: 14px;
-        line-height: 1;
-        font-weight: normal;
-      }
-    `
-  ]
+    h4 {
+      margin: 16px 0;
+      font-size: 14px;
+      line-height: 1;
+      font-weight: normal;
+    }
+  `
 })
 export class NzDemoBreadcrumbSeparatorComponent {}

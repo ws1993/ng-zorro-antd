@@ -1,0 +1,40 @@
+import { provideHttpClient, withFetch, withJsonpSupport } from '@angular/common/http';
+import { ApplicationConfig } from '@angular/core';
+import { provideClientHydration } from '@angular/platform-browser';
+import { provideRouter, withInMemoryScrolling } from '@angular/router';
+import { provideServiceWorker } from '@angular/service-worker';
+
+import { IconDefinition } from '@ant-design/icons-angular';
+import * as AllIcons from '@ant-design/icons-angular/icons';
+import { enUS } from 'date-fns/locale';
+import { NzConfig, provideNzConfig } from 'ng-zorro-antd/core/config';
+import { provideNzDateFnsAdapter } from 'ng-zorro-antd/core/time';
+import { provideNzIcons } from 'ng-zorro-antd/icon';
+
+import { environment } from '../environments/environment';
+import { routes } from './app.routes';
+
+const antDesignIcons = AllIcons as Record<string, IconDefinition>;
+const icons: IconDefinition[] = Object.keys(antDesignIcons).map(key => antDesignIcons[key]);
+
+const nzConfig: NzConfig = {
+  codeEditor: {
+    monacoEnvironment: { globalAPI: true }
+  },
+  icon: { nzTwotoneColor: '#1890ff' }
+};
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideNzConfig(nzConfig),
+    provideNzIcons(icons),
+    provideRouter(
+      routes,
+      withInMemoryScrolling({ scrollPositionRestoration: environment.production ? 'enabled' : 'disabled' })
+    ),
+    provideClientHydration(),
+    provideNzDateFnsAdapter({ locale: enUS }),
+    provideHttpClient(withJsonpSupport(), withFetch()),
+    provideServiceWorker('ngsw-worker.js', { enabled: environment.production })
+  ]
+};

@@ -1,11 +1,17 @@
-import { BidiModule, Dir } from '@angular/cdk/bidi';
-import { Component, DebugElement, TemplateRef, ViewChild } from '@angular/core';
-import { discardPeriodicTasks, fakeAsync, tick, waitForAsync } from '@angular/core/testing';
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
+import { Directionality } from '@angular/cdk/bidi';
+import { Component, DebugElement, signal, TemplateRef, ViewChild } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 
-import { ɵComponentBed as ComponentBed, ɵcreateComponentBed as createComponentBed } from 'ng-zorro-antd/core/testing';
+import { provideMockDirectionality } from 'ng-zorro-antd/core/testing';
 import { NzSafeAny } from 'ng-zorro-antd/core/types';
-import { NzIconTestModule } from 'ng-zorro-antd/icon/testing';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { provideNzIconsTesting } from 'ng-zorro-antd/icon/testing';
 
 import { NzContentComponent } from './content.component';
 import { NzFooterComponent } from './footer.component';
@@ -16,27 +22,26 @@ import { NzSiderComponent } from './sider.component';
 
 declare const viewport: NzSafeAny;
 
-describe('layout', () => {
+describe('nz-layout', () => {
   describe('basic', () => {
-    let testBed: ComponentBed<NzLayoutBasicComponent>;
+    let fixture: ComponentFixture<NzLayoutBasicComponent>;
     let headers: DebugElement[];
     let contents: DebugElement[];
     let footers: DebugElement[];
     let siders: DebugElement[];
     let layouts: DebugElement[];
 
-    beforeEach(
-      waitForAsync(() => {
-        testBed = createComponentBed(NzLayoutBasicComponent, { imports: [NzLayoutModule] });
-        headers = testBed.fixture.debugElement.queryAll(By.directive(NzHeaderComponent));
-        contents = testBed.fixture.debugElement.queryAll(By.directive(NzContentComponent));
-        footers = testBed.fixture.debugElement.queryAll(By.directive(NzFooterComponent));
-        siders = testBed.fixture.debugElement.queryAll(By.directive(NzSiderComponent));
-        layouts = testBed.fixture.debugElement.queryAll(By.directive(NzLayoutComponent));
-      })
-    );
+    beforeEach(() => {
+      fixture = TestBed.createComponent(NzLayoutBasicComponent);
+      headers = fixture.debugElement.queryAll(By.directive(NzHeaderComponent));
+      contents = fixture.debugElement.queryAll(By.directive(NzContentComponent));
+      footers = fixture.debugElement.queryAll(By.directive(NzFooterComponent));
+      siders = fixture.debugElement.queryAll(By.directive(NzSiderComponent));
+      layouts = fixture.debugElement.queryAll(By.directive(NzLayoutComponent));
+    });
 
     it('should have correct class', () => {
+      fixture.detectChanges();
       expect(headers.every(header => header.nativeElement.classList.contains('ant-layout-header'))).toBe(true);
       expect(layouts.every(layout => layout.nativeElement.classList.contains('ant-layout'))).toBe(true);
       expect(contents.every(content => content.nativeElement.classList.contains('ant-layout-content'))).toBe(true);
@@ -53,145 +58,145 @@ describe('layout', () => {
       expect(layouts[5].nativeElement.classList.contains('ant-layout-has-sider')).toBe(true);
     });
   });
+
   describe('side', () => {
-    let testBed: ComponentBed<NzLayoutSideComponent>;
+    let fixture: ComponentFixture<NzLayoutSideComponent>;
     let testComponent: NzLayoutSideComponent;
     let sider: DebugElement;
     let trigger: DebugElement;
 
     beforeEach(() => {
-      testBed = createComponentBed(NzLayoutSideComponent, { imports: [NzLayoutModule] });
-      testComponent = testBed.component;
-      sider = testBed.fixture.debugElement.query(By.directive(NzSiderComponent));
+      fixture = TestBed.createComponent(NzLayoutSideComponent);
+      testComponent = fixture.componentInstance;
+      sider = fixture.debugElement.query(By.directive(NzSiderComponent));
     });
 
     it('should nzCollapsed work', () => {
-      testComponent.isCollapsed = false;
-      testBed.fixture.detectChanges();
-      trigger = testBed.fixture.debugElement.query(By.css('.ant-layout-sider-trigger'));
-      expect(
-        sider.nativeElement.style.cssText === 'flex: 0 0 200px; max-width: 200px; min-width: 200px; width: 200px;'
-      ).toBe(true);
-      expect(trigger.nativeElement.style.cssText === 'width: 200px;').toBe(true);
+      testComponent.isCollapsed.set(false);
+      fixture.detectChanges();
+      trigger = fixture.debugElement.query(By.css('.ant-layout-sider-trigger'));
+      expect(sider.nativeElement.style.cssText).toBe(
+        'flex: 0 0 200px; max-width: 200px; min-width: 200px; width: 200px;'
+      );
+      expect(trigger.nativeElement.style.cssText).toBe('width: 200px;');
       trigger.nativeElement.click();
-      testBed.fixture.detectChanges();
-      expect(testComponent.isCollapsed).toBe(true);
-      expect(
-        sider.nativeElement.style.cssText === 'flex: 0 0 80px; max-width: 80px; min-width: 80px; width: 80px;'
-      ).toBe(true);
-      expect(trigger.nativeElement.style.cssText === 'width: 80px;').toBe(true);
+      fixture.detectChanges();
+      expect(testComponent.isCollapsed()).toBe(true);
+      expect(sider.nativeElement.style.cssText).toBe('flex: 0 0 80px; max-width: 80px; min-width: 80px; width: 80px;');
+      expect(trigger.nativeElement.style.cssText).toBe('width: 80px;');
       trigger.nativeElement.click();
-      testBed.fixture.detectChanges();
-      expect(testComponent.isCollapsed).toBe(false);
-      expect(
-        sider.nativeElement.style.cssText === 'flex: 0 0 200px; max-width: 200px; min-width: 200px; width: 200px;'
-      ).toBe(true);
-      expect(trigger.nativeElement.style.cssText === 'width: 200px;').toBe(true);
-      testComponent.isCollapsed = true;
-      testBed.fixture.detectChanges();
-      expect(
-        sider.nativeElement.style.cssText === 'flex: 0 0 80px; max-width: 80px; min-width: 80px; width: 80px;'
-      ).toBe(true);
-      expect(trigger.nativeElement.style.cssText === 'width: 80px;').toBe(true);
-      testComponent.isCollapsed = false;
-      testBed.fixture.detectChanges();
-      expect(
-        sider.nativeElement.style.cssText === 'flex: 0 0 200px; max-width: 200px; min-width: 200px; width: 200px;'
-      ).toBe(true);
-      expect(trigger.nativeElement.style.cssText === 'width: 200px;').toBe(true);
+      fixture.detectChanges();
+      expect(testComponent.isCollapsed()).toBe(false);
+      expect(sider.nativeElement.style.cssText).toBe(
+        'flex: 0 0 200px; max-width: 200px; min-width: 200px; width: 200px;'
+      );
+      expect(trigger.nativeElement.style.cssText).toBe('width: 200px;');
+      testComponent.isCollapsed.set(true);
+      fixture.detectChanges();
+      expect(sider.nativeElement.style.cssText).toBe('flex: 0 0 80px; max-width: 80px; min-width: 80px; width: 80px;');
+      expect(trigger.nativeElement.style.cssText).toBe('width: 80px;');
+      testComponent.isCollapsed.set(false);
+      fixture.detectChanges();
+      expect(sider.nativeElement.style.cssText).toBe(
+        'flex: 0 0 200px; max-width: 200px; min-width: 200px; width: 200px;'
+      );
+      expect(trigger.nativeElement.style.cssText).toBe('width: 200px;');
     });
+
     it('should nzWidth work', () => {
-      testComponent.isCollapsed = false;
-      testComponent.width = 300;
-      testBed.fixture.detectChanges();
-      trigger = testBed.fixture.debugElement.query(By.css('.ant-layout-sider-trigger'));
-      expect(
-        sider.nativeElement.style.cssText === 'flex: 0 0 300px; max-width: 300px; min-width: 300px; width: 300px;'
-      ).toBe(true);
-      expect(trigger.nativeElement.style.cssText === 'width: 300px;').toBe(true);
+      testComponent.isCollapsed.set(false);
+      testComponent.width.set(300);
+      fixture.detectChanges();
+      trigger = fixture.debugElement.query(By.css('.ant-layout-sider-trigger'));
+      expect(sider.nativeElement.style.cssText).toBe(
+        'flex: 0 0 300px; max-width: 300px; min-width: 300px; width: 300px;'
+      );
+      expect(trigger.nativeElement.style.cssText).toBe('width: 300px;');
       trigger.nativeElement.click();
-      testBed.fixture.detectChanges();
-      expect(testComponent.isCollapsed).toBe(true);
-      expect(
-        sider.nativeElement.style.cssText === 'flex: 0 0 80px; max-width: 80px; min-width: 80px; width: 80px;'
-      ).toBe(true);
-      expect(trigger.nativeElement.style.cssText === 'width: 80px;').toBe(true);
+      fixture.detectChanges();
+      expect(testComponent.isCollapsed()).toBe(true);
+      expect(sider.nativeElement.style.cssText).toBe('flex: 0 0 80px; max-width: 80px; min-width: 80px; width: 80px;');
+      expect(trigger.nativeElement.style.cssText).toBe('width: 80px;');
       trigger.nativeElement.click();
-      testBed.fixture.detectChanges();
-      expect(testComponent.isCollapsed).toBe(false);
-      expect(
-        sider.nativeElement.style.cssText === 'flex: 0 0 300px; max-width: 300px; min-width: 300px; width: 300px;'
-      ).toBe(true);
-      expect(trigger.nativeElement.style.cssText === 'width: 300px;').toBe(true);
-      testComponent.isCollapsed = true;
-      testBed.fixture.detectChanges();
-      expect(
-        sider.nativeElement.style.cssText === 'flex: 0 0 80px; max-width: 80px; min-width: 80px; width: 80px;'
-      ).toBe(true);
-      expect(trigger.nativeElement.style.cssText === 'width: 80px;').toBe(true);
-      testComponent.isCollapsed = false;
-      testBed.fixture.detectChanges();
-      expect(
-        sider.nativeElement.style.cssText === 'flex: 0 0 300px; max-width: 300px; min-width: 300px; width: 300px;'
-      ).toBe(true);
-      expect(trigger.nativeElement.style.cssText === 'width: 300px;').toBe(true);
+      fixture.detectChanges();
+      expect(testComponent.isCollapsed()).toBe(false);
+      expect(sider.nativeElement.style.cssText).toBe(
+        'flex: 0 0 300px; max-width: 300px; min-width: 300px; width: 300px;'
+      );
+      expect(trigger.nativeElement.style.cssText).toBe('width: 300px;');
+      testComponent.isCollapsed.set(true);
+      fixture.detectChanges();
+      expect(sider.nativeElement.style.cssText).toBe('flex: 0 0 80px; max-width: 80px; min-width: 80px; width: 80px;');
+      expect(trigger.nativeElement.style.cssText).toBe('width: 80px;');
+      testComponent.isCollapsed.set(false);
+      fixture.detectChanges();
+      expect(sider.nativeElement.style.cssText).toBe(
+        'flex: 0 0 300px; max-width: 300px; min-width: 300px; width: 300px;'
+      );
+      expect(trigger.nativeElement.style.cssText).toBe('width: 300px;');
     });
 
     it('should nzReverseArrow work', () => {
-      testComponent.isCollapsed = false;
-      testBed.fixture.detectChanges();
-      trigger = testBed.fixture.debugElement.query(By.css('.ant-layout-sider-trigger'));
+      testComponent.isCollapsed.set(false);
+      fixture.detectChanges();
+      trigger = fixture.debugElement.query(By.css('.ant-layout-sider-trigger'));
       expect(trigger.nativeElement.firstElementChild!.classList.contains('anticon-left')).toBe(true);
-      testComponent.isCollapsed = true;
-      testBed.fixture.detectChanges();
+      testComponent.isCollapsed.set(true);
+      fixture.detectChanges();
       expect(trigger.nativeElement.firstElementChild!.classList.contains('anticon-right')).toBe(true);
-      testComponent.isReverseArrow = true;
-      testComponent.isCollapsed = false;
-      testBed.fixture.detectChanges();
+      testComponent.isReverseArrow.set(true);
+      testComponent.isCollapsed.set(false);
+      fixture.detectChanges();
       expect(trigger.nativeElement.firstElementChild!.classList.contains('anticon-right')).toBe(true);
-      testComponent.isCollapsed = true;
-      testBed.fixture.detectChanges();
+      testComponent.isCollapsed.set(true);
+      fixture.detectChanges();
       expect(trigger.nativeElement.firstElementChild!.classList.contains('anticon-left')).toBe(true);
     });
   });
+
   describe('custom-trigger', () => {
-    let testBed: ComponentBed<NzLayoutCustomTriggerComponent>;
+    let fixture: ComponentFixture<NzLayoutCustomTriggerComponent>;
     let testComponent: NzLayoutCustomTriggerComponent;
 
     beforeEach(() => {
-      testBed = createComponentBed(NzLayoutCustomTriggerComponent, { imports: [NzLayoutModule, NzIconTestModule] });
-      testComponent = testBed.component;
+      TestBed.configureTestingModule({
+        providers: [provideNzIconsTesting()]
+      });
+      fixture = TestBed.createComponent(NzLayoutCustomTriggerComponent);
+      testComponent = fixture.componentInstance;
     });
+
     it('should not display trigger', () => {
-      testBed.fixture.detectChanges();
-      const trigger = testBed.fixture.debugElement.query(By.css('.ant-layout-sider-trigger'));
+      fixture.detectChanges();
+      const trigger = fixture.debugElement.query(By.css('.ant-layout-sider-trigger'));
       expect(trigger).toBeNull();
     });
+
     it('should display trigger', () => {
       testComponent.changeTrigger();
-      testBed.fixture.detectChanges();
-      const trigger = testBed.fixture.debugElement.query(By.css('.ant-layout-sider-trigger'));
+      fixture.detectChanges();
+      const trigger = fixture.debugElement.query(By.css('.ant-layout-sider-trigger'));
       expect(trigger.nativeElement.firstElementChild!.classList.contains('anticon-up')).toBe(true);
       expect(trigger).not.toBeNull();
     });
   });
+
   describe('responsive', () => {
-    let testBed: ComponentBed<NzLayoutResponsiveComponent>;
+    let fixture: ComponentFixture<NzLayoutResponsiveComponent>;
     let sider: DebugElement;
 
     beforeEach(() => {
-      testBed = createComponentBed(NzLayoutResponsiveComponent, { imports: [NzLayoutModule] });
-      sider = testBed.fixture.debugElement.query(By.directive(NzSiderComponent));
+      TestBed.configureTestingModule({
+        providers: [provideNzIconsTesting()]
+      });
+      fixture = TestBed.createComponent(NzLayoutResponsiveComponent);
+      sider = fixture.debugElement.query(By.directive(NzSiderComponent));
     });
 
-    it('should responsive work', fakeAsync(() => {
+    it('should responsive work', async () => {
       viewport.set(500);
       window.dispatchEvent(new Event('resize'));
-      testBed.fixture.detectChanges();
-      tick(1000);
-      testBed.fixture.detectChanges();
-      discardPeriodicTasks();
-      testBed.fixture.detectChanges();
+      await fixture.whenStable();
       expect(sider.nativeElement.style.cssText).toBe('flex: 0 0 0px; max-width: 0px; min-width: 0px; width: 0px;');
       expect(
         sider.nativeElement
@@ -199,44 +204,47 @@ describe('layout', () => {
           .firstElementChild.getAttribute('nzType')
       ).toBe('menu-fold');
       viewport.reset();
-    }));
+    });
   });
+
   describe('RTL', () => {
-    let testBed: ComponentBed<NzTestLayoutRtlComponent>;
+    let fixture: ComponentFixture<NzLayoutBasicComponent>;
     let layouts: DebugElement[];
+    let dir: Directionality;
 
     beforeEach(() => {
-      testBed = createComponentBed(NzTestLayoutRtlComponent, {
-        imports: [BidiModule, NzLayoutModule],
-        declarations: [NzLayoutBasicComponent]
+      TestBed.configureTestingModule({
+        providers: [provideMockDirectionality()]
       });
-      layouts = testBed.fixture.debugElement.queryAll(By.directive(NzLayoutComponent));
+      fixture = TestBed.createComponent(NzLayoutBasicComponent);
+      layouts = fixture.debugElement.queryAll(By.directive(NzLayoutComponent));
+      dir = TestBed.inject(Directionality);
     });
 
-    it('should className correct on dir change', fakeAsync(() => {
-      testBed.fixture.detectChanges();
+    it('should className correct on dir change', () => {
+      dir.valueSignal.set('rtl');
+      fixture.detectChanges();
       expect(layouts.every(layout => layout.nativeElement.classList.contains('ant-layout-rtl'))).toBe(true);
 
-      testBed.fixture.componentInstance.direction = 'ltr';
-      testBed.fixture.detectChanges();
-
+      dir.valueSignal.set('ltr');
+      fixture.detectChanges();
       expect(layouts.every(layout => layout.nativeElement.classList.contains('ant-layout-rtl'))).toBe(false);
-    }));
+    });
   });
 });
 
 @Component({
+  imports: [NzIconModule, NzLayoutModule],
   template: `
     <nz-layout>
-      <nz-sider nzCollapsible [(nzCollapsed)]="isCollapsed" [nzTrigger]="triggerTemplate"></nz-sider>
+      <nz-sider nzCollapsible [(nzCollapsed)]="isCollapsed" [nzTrigger]="triggerTemplate" />
       <nz-layout>
         <nz-header>
-          <i
+          <nz-icon
             class="trigger"
-            nz-icon
-            [nzType]="isCollapsed ? 'menu-unfold' : 'menu-fold'"
-            (click)="isCollapsed = !isCollapsed"
-          ></i>
+            [nzType]="isCollapsed() ? 'menu-unfold' : 'menu-fold'"
+            (click)="isCollapsed.set(!isCollapsed())"
+          />
         </nz-header>
         <nz-content>
           <div>Bill is a cat.</div>
@@ -245,12 +253,12 @@ describe('layout', () => {
       </nz-layout>
     </nz-layout>
     <ng-template #trigger>
-      <i nz-icon nzType="up"></i>
+      <nz-icon nzType="up" />
     </ng-template>
   `
 })
 export class NzLayoutCustomTriggerComponent {
-  isCollapsed = false;
+  readonly isCollapsed = signal(false);
   triggerTemplate: TemplateRef<void> | null = null;
   @ViewChild('trigger', { static: true }) customTrigger!: TemplateRef<void>;
 
@@ -261,16 +269,12 @@ export class NzLayoutCustomTriggerComponent {
 }
 
 @Component({
+  imports: [NzLayoutModule],
   template: `
     <nz-layout>
-      <nz-sider
-        nzCollapsible
-        [(nzCollapsed)]="isCollapsed"
-        [nzWidth]="width"
-        [nzReverseArrow]="isReverseArrow"
-      ></nz-sider>
+      <nz-sider nzCollapsible [(nzCollapsed)]="isCollapsed" [nzWidth]="width()" [nzReverseArrow]="isReverseArrow()" />
       <nz-layout>
-        <nz-header></nz-header>
+        <nz-header />
         <nz-content>
           <div>Bill is a cat.</div>
         </nz-content>
@@ -280,23 +284,24 @@ export class NzLayoutCustomTriggerComponent {
   `
 })
 export class NzLayoutSideComponent {
-  isCollapsed = false;
-  isReverseArrow = false;
-  width: string | number = '200px';
+  readonly isCollapsed = signal(false);
+  readonly isReverseArrow = signal(false);
+  readonly width = signal<string | number>('200px');
 }
 
 @Component({
+  imports: [NzIconModule, NzLayoutModule],
   template: `
     <nz-layout>
       <nz-sider
         nzCollapsible
         [(nzCollapsed)]="isCollapsed"
-        [nzBreakpoint]="'lg'"
+        nzBreakpoint="lg"
         [nzCollapsedWidth]="0"
         [nzZeroTrigger]="zeroTrigger"
-      ></nz-sider>
+      />
       <nz-layout>
-        <nz-header></nz-header>
+        <nz-header />
         <nz-content>
           <div>Content</div>
         </nz-content>
@@ -304,16 +309,16 @@ export class NzLayoutSideComponent {
       </nz-layout>
     </nz-layout>
     <ng-template #zeroTrigger>
-      <i nz-icon nzType="menu-fold" nzTheme="outline"></i>
+      <nz-icon nzType="menu-fold" nzTheme="outline" />
     </ng-template>
   `
 })
 export class NzLayoutResponsiveComponent {
-  isCollapsed = false;
+  readonly isCollapsed = signal(false);
 }
 
 @Component({
-  // eslint-disable-next-line
+  imports: [NzLayoutModule],
   selector: 'nz-test-layout-basic',
   template: `
     <nz-layout>
@@ -351,15 +356,3 @@ export class NzLayoutResponsiveComponent {
   `
 })
 export class NzLayoutBasicComponent {}
-
-@Component({
-  template: `
-    <div [dir]="direction">
-      <nz-test-layout-basic></nz-test-layout-basic>
-    </div>
-  `
-})
-export class NzTestLayoutRtlComponent {
-  @ViewChild(Dir) dir!: Dir;
-  direction = 'rtl';
-}

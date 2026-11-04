@@ -1,16 +1,16 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { concatMap } from 'rxjs/operators';
 
+import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzMessageService } from 'ng-zorro-antd/message';
 
 @Component({
   selector: 'nz-demo-message-close',
-  template: `
-    <button nz-button [nzType]="'default'" (click)="startShowMessages()">Display a sequence of messages</button>
-  `
+  imports: [NzButtonModule],
+  template: `<button nz-button nzType="default" (click)="startShowMessages()">Display a sequence of messages</button>`
 })
 export class NzDemoMessageCloseComponent {
-  constructor(private message: NzMessageService) {}
+  private readonly message = inject(NzMessageService);
 
   startShowMessages(): void {
     this.message

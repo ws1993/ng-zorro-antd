@@ -4,20 +4,22 @@ __ngcc_entry_points__.json
 
 # compiled output
 dist/
-/site/
 tmp/
 junit/
+.vitest/attachments/
+components/**/*/__screenshots__/
 out-tsc/
-/publish/
-/lib/
+/site
+publish/
+/lib
 schematics/demo
 schematics/utils/version-names.ts
 ng-zorro.github.io/
+archive-docs/
 
 # dependencies
 node_modules
 node_modules.*/
-package-lock.json
 integration/**/package-lock.json
 yarn.lock
 
@@ -32,8 +34,15 @@ yarn.lock
 
 # IDE - VSCode
 .vscode/*
+!.vscode/mcp.json
+
+#IDE - Zed
+.zed/
 
 # misc
+/.angular/cache
+/.nx-cache
+/.nx
 /.sass-cache
 /connect.lock
 /coverage
@@ -45,6 +54,7 @@ testem.log
 .eslintcache
 yarn-error.log
 report.*.json
+monospace.json
 
 # e2e
 /e2e/*.js
@@ -53,3 +63,9 @@ report.*.json
 # System Files
 .DS_Store
 Thumbs.db
+
+# Local AI Agents skills
+.qwen/skills
+
+# Agents
+.claude/projects/

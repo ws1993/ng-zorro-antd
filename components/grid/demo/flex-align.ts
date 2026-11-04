@@ -1,7 +1,10 @@
 import { Component } from '@angular/core';
 
+import { NzGridModule } from 'ng-zorro-antd/grid';
+
 @Component({
   selector: 'nz-demo-grid-flex-align',
+  imports: [NzGridModule],
   template: `
     <div>
       <p>Align Top</p>
@@ -27,12 +30,10 @@ import { Component } from '@angular/core';
       </div>
     </div>
   `,
-  styles: [
-    `
-      [nz-row] {
-        background-color: rgba(128, 128, 128, 0.08);
-      }
-    `
-  ]
+  styles: `
+    [nz-row] {
+      background-color: rgba(128, 128, 128, 0.08);
+    }
+  `
 })
 export class NzDemoGridFlexAlignComponent {}

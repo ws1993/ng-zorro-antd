@@ -9,13 +9,14 @@
 .antCheckboxFn(@checkbox-prefix-cls: ~'@{select-tree-prefix-cls}-checkbox');
 
 .@{tree-select-prefix-cls} {
+  &-rtl {
+    direction: rtl;
+  }
+
   // ======================= Dropdown =======================
   &-dropdown {
-    padding: @padding-xs (@padding-xs / 2) 0;
+    padding: @padding-xs (@padding-xs / 2);
 
-    &-rtl {
-      direction: rtl;
-    }
     // ======================== Tree ========================
     .@{select-tree-prefix-cls} {
       border-radius: 0;
@@ -24,8 +25,6 @@
         align-items: stretch;
 
         .@{select-tree-prefix-cls}-treenode {
-          padding-bottom: @padding-xs;
-
           .@{select-tree-prefix-cls}-node-content-wrapper {
             flex: auto;
           }

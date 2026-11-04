@@ -1,9 +1,13 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+import { NzRadioModule } from 'ng-zorro-antd/radio';
 
 @Component({
   selector: 'nz-demo-radio-radiobutton',
+  imports: [FormsModule, NzRadioModule],
   template: `
-    <nz-radio-group [(ngModel)]="radioValue">
+    <nz-radio-group [(ngModel)]="value">
       <label nz-radio-button nzValue="A">Hangzhou</label>
       <label nz-radio-button nzValue="B">Shanghai</label>
       <label nz-radio-button nzValue="C">Beijing</label>
@@ -11,7 +15,7 @@ import { Component } from '@angular/core';
     </nz-radio-group>
     <br />
     <br />
-    <nz-radio-group [(ngModel)]="radioValue">
+    <nz-radio-group [(ngModel)]="value">
       <label nz-radio-button nzValue="A">Hangzhou</label>
       <label nz-radio-button nzValue="B" nzDisabled>Shanghai</label>
       <label nz-radio-button nzValue="C">Beijing</label>
@@ -19,7 +23,7 @@ import { Component } from '@angular/core';
     </nz-radio-group>
     <br />
     <br />
-    <nz-radio-group [(ngModel)]="radioValue">
+    <nz-radio-group [(ngModel)]="value">
       <label nz-radio-button nzValue="A" nzDisabled>Hangzhou</label>
       <label nz-radio-button nzValue="B" nzDisabled>Shanghai</label>
       <label nz-radio-button nzValue="C" nzDisabled>Beijing</label>
@@ -28,5 +32,5 @@ import { Component } from '@angular/core';
   `
 })
 export class NzDemoRadioRadiobuttonComponent {
-  radioValue = 'A';
+  readonly value = signal('A');
 }

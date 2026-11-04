@@ -1,10 +1,21 @@
-import { BidiModule, Dir } from '@angular/cdk/bidi';
-import { Component, DebugElement, TemplateRef, ViewChild } from '@angular/core';
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
+import { AsyncPipe } from '@angular/common';
+import { Component, DebugElement, signal, TemplateRef, ViewChild } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { timer } from 'rxjs';
+import { map } from 'rxjs/operators';
 
-import { ComponentBed, createComponentBed } from 'ng-zorro-antd/core/testing/component-bed';
-import { NzIconTestModule } from 'ng-zorro-antd/icon/testing';
+import { vi } from 'vitest';
+
+import { testDirectionality } from 'ng-zorro-antd/core/testing';
+import { NzDirectionVHType, NzSizeLDSType } from 'ng-zorro-antd/core/types';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { provideNzIconsTesting } from 'ng-zorro-antd/icon/testing';
 
 import { NzListComponent } from './list.component';
 import { NzListModule } from './list.module';
@@ -13,11 +24,11 @@ describe('list', () => {
   let fixture: ComponentFixture<TestListComponent>;
   let context: TestListComponent;
   let dl: DebugElement;
+
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [NzListModule, NzIconTestModule],
-      declarations: [TestListComponent, TestListWithTemplateComponent, TestListItemComponent]
-    }).compileComponents();
+      providers: [provideNzIconsTesting()]
+    });
     fixture = TestBed.createComponent(TestListComponent);
     context = fixture.componentInstance;
     dl = fixture.debugElement;
@@ -31,7 +42,7 @@ describe('list', () => {
         { type: 'vertical', ret: true }
       ]) {
         it(`[${item.type}]`, () => {
-          context.nzItemLayout = item.type;
+          context.nzItemLayout.set(item.type as NzDirectionVHType);
           fixture.detectChanges();
           expect(dl.query(By.css(`.ant-list-${item.type}`)) != null).toBe(item.ret);
         });
@@ -41,7 +52,7 @@ describe('list', () => {
     describe('#nzBordered', () => {
       for (const value of [true, false]) {
         it(`[${value}]`, () => {
-          context.nzBordered = value;
+          context.nzBordered.set(value);
           fixture.detectChanges();
           expect(dl.query(By.css('.ant-list-bordered')) != null).toBe(value);
         });
@@ -50,33 +61,38 @@ describe('list', () => {
 
     describe('#nzHeader', () => {
       it('with string', () => {
-        expect(dl.query(By.css('.ant-list-header')) != null).toBe(true);
+        expect(dl.query(By.css('.ant-list-header'))).not.toBeNull();
       });
+
       it('with custom template', () => {
         const fixtureTemp = TestBed.createComponent(TestListWithTemplateComponent);
         fixtureTemp.detectChanges();
-        expect(fixtureTemp.debugElement.query(By.css('.list-header')) != null).toBe(true);
+        expect(fixtureTemp.debugElement.query(By.css('.list-header'))).not.toBeNull();
       });
     });
 
     describe('#nzFooter', () => {
+      let fixtureTemp: ComponentFixture<TestListWithTemplateComponent>;
+      beforeEach(() => {
+        fixtureTemp = TestBed.createComponent(TestListWithTemplateComponent);
+        fixtureTemp.detectChanges();
+      });
+
       it('with string', () => {
         expect(dl.query(By.css('.ant-list-footer')) != null).toBe(true);
       });
+
       it('with custom template', () => {
-        const fixtureTemp = TestBed.createComponent(TestListWithTemplateComponent);
-        fixtureTemp.detectChanges();
         const footerEl = fixtureTemp.debugElement.query(By.css('.ant-list-footer'));
         expect((footerEl.nativeElement as HTMLDivElement).innerText).toBe(
-          fixtureTemp.componentInstance.footer as string
+          fixtureTemp.componentInstance.footer() as string
         );
       });
+
       it('change string to template', () => {
-        const fixtureTemp = TestBed.createComponent(TestListWithTemplateComponent);
-        fixtureTemp.detectChanges();
         const footerEl = fixtureTemp.debugElement.query(By.css('.ant-list-footer'));
         expect((footerEl.nativeElement as HTMLDivElement).innerText).toBe(
-          fixtureTemp.componentInstance.footer as string
+          fixtureTemp.componentInstance.footer() as string
         );
         (fixtureTemp.debugElement.query(By.css('#change')).nativeElement as HTMLButtonElement).click();
         fixtureTemp.detectChanges();
@@ -91,7 +107,7 @@ describe('list', () => {
         { type: 'large', cls: '.ant-list-lg' }
       ]) {
         it(`[${item.type}]`, () => {
-          context.nzSize = item.type;
+          context.nzSize.set(item.type as NzSizeLDSType);
           fixture.detectChanges();
           expect(dl.query(By.css(item.cls)) != null).toBe(true);
         });
@@ -101,7 +117,7 @@ describe('list', () => {
     describe('#nzSplit', () => {
       for (const value of [true, false]) {
         it(`[${value}]`, () => {
-          context.nzSplit = value;
+          context.nzSplit.set(value);
           fixture.detectChanges();
           expect(dl.query(By.css('.ant-list-split')) != null).toBe(value);
         });
@@ -111,15 +127,15 @@ describe('list', () => {
     describe('#nzLoading', () => {
       for (const value of [true, false]) {
         it(`[${value}]`, () => {
-          context.nzLoading = value;
+          context.nzLoading.set(value);
           fixture.detectChanges();
           expect(dl.query(By.css('.ant-list-loading')) != null).toBe(value);
         });
       }
 
       it('should be minimum area block when data is empty', () => {
-        context.nzLoading = true;
-        context.data = [];
+        context.nzLoading.set(true);
+        context.data.set([]);
         fixture.detectChanges();
         expect(dl.query(By.css('.ant-spin-nested-loading'))).not.toBeNull();
       });
@@ -127,50 +143,64 @@ describe('list', () => {
 
     describe('#nzDataSource', () => {
       it('should working', () => {
-        expect(dl.queryAll(By.css('nz-list-item')).length).toBe(context.data!.length);
+        expect(dl.queryAll(By.css('nz-list-item')).length).toBe(context.data()!.length);
       });
 
       it('should be render empty text when data source is empty', () => {
         expect(dl.queryAll(By.css('.ant-list-empty-text')).length).toBe(0);
-        context.data = [];
+        context.data.set([]);
         fixture.detectChanges();
         expect(dl.queryAll(By.css('.ant-list-empty-text')).length).toBe(1);
       });
 
-      it('should be ingore empty text when unspecified data source', () => {
-        context.data = undefined;
+      it('should be ignore empty text when unspecified data source', () => {
+        context.data.set(undefined!);
         fixture.detectChanges();
         expect(dl.queryAll(By.css('.ant-list-empty-text')).length).toBe(0);
       });
     });
 
     it('#nzGrid', () => {
-      const colCls = `.ant-col-${context.nzGrid.span}`;
-      expect(dl.queryAll(By.css(colCls)).length).toBe(context.data!.length);
+      const colCls = `.ant-col-${context.nzGrid().span}`;
+      expect(dl.queryAll(By.css(colCls)).length).toBe(context.data()!.length);
     });
 
     it('#loadMore', () => {
-      expect(dl.query(By.css('.loadmore')) != null).toBe(true);
+      expect(dl.query(By.css('.loadmore'))).not.toBeNull();
     });
 
     it('#pagination', () => {
-      expect(dl.query(By.css('.pagination')) != null).toBe(true);
+      expect(dl.query(By.css('.pagination'))).not.toBeNull();
     });
 
     it('should be use split main and extra when item layout is vertical', () => {
-      context.nzItemLayout = 'vertical';
+      context.nzItemLayout.set('vertical');
       fixture.detectChanges();
-      expect(dl.query(By.css('.ant-list-item-main')) != null).toBe(true);
-      expect(dl.query(By.css('.ant-list-item-extra')) != null).toBe(true);
+      expect(dl.query(By.css('.ant-list-item-main'))).not.toBeNull();
+      expect(dl.query(By.css('.ant-list-item-extra'))).not.toBeNull();
+    });
+
+    describe('asynchronous action', () => {
+      beforeEach(() => vi.useFakeTimers());
+      afterEach(() => vi.useRealTimers());
+
+      it('should display the asynchronous action', async () => {
+        vi.advanceTimersByTime(500);
+        await Promise.resolve();
+        fixture.detectChanges();
+        expect(dl.query(By.css('.ant-list-item-action'))).not.toBeNull();
+      });
     });
   });
 
   describe('item', () => {
     let fixtureTemp: ComponentFixture<TestListItemComponent>;
+
     beforeEach(() => {
       fixtureTemp = TestBed.createComponent(TestListItemComponent);
       fixtureTemp.detectChanges();
     });
+
     it('with string', () => {
       expect(
         (
@@ -180,12 +210,14 @@ describe('list', () => {
       expect(fixtureTemp.debugElement.query(By.css('#item-string .ant-list-item-action')) != null).toBe(true);
       expect(fixtureTemp.debugElement.query(By.css('#item-string .extra-logo')) != null).toBe(true);
     });
+
     it('with custom template of [nzContent]', () => {
       expect(fixtureTemp.debugElement.query(By.css('#item-template .item-content')) != null).toBe(true);
     });
+
     it('#nzNoFlex', () => {
       expect(fixtureTemp.debugElement.query(By.css('#item-string .ant-list-item-no-flex')) != null).toBe(false);
-      fixtureTemp.componentInstance.noFlex = true;
+      fixtureTemp.componentInstance.noFlex.set(true);
       fixtureTemp.detectChanges();
       expect(fixtureTemp.debugElement.query(By.css('#item-string .ant-list-item-no-flex')) != null).toBe(true);
     });
@@ -193,15 +225,18 @@ describe('list', () => {
 
   describe('item-meta', () => {
     let fixtureTemp: ComponentFixture<TestListItemComponent>;
+
     beforeEach(() => {
       fixtureTemp = TestBed.createComponent(TestListItemComponent);
       fixtureTemp.detectChanges();
     });
+
     it('with string', () => {
       expect(fixtureTemp.debugElement.query(By.css('#item-string .ant-list-item-meta-title')) != null).toBe(true);
       expect(fixtureTemp.debugElement.query(By.css('#item-string .ant-list-item-meta-description')) != null).toBe(true);
       expect(fixtureTemp.debugElement.query(By.css('#item-string .ant-list-item-meta-avatar')) != null).toBe(true);
     });
+
     it('with custom template', () => {
       expect(fixtureTemp.debugElement.query(By.css('#item-template .item-title')) != null).toBe(true);
       expect(fixtureTemp.debugElement.query(By.css('#item-template .item-desc')) != null).toBe(true);
@@ -210,44 +245,25 @@ describe('list', () => {
   });
 });
 
-describe('list RTL', () => {
-  let testBed: ComponentBed<NzTestListRtlComponent>;
-  let fixture: ComponentFixture<NzTestListRtlComponent>;
-  let componentElement: HTMLElement;
-
-  beforeEach(() => {
-    testBed = createComponentBed(NzTestListRtlComponent, {
-      declarations: [TestListComponent, NzTestListRtlComponent],
-      imports: [NzListModule, NzIconTestModule, BidiModule]
-    });
-    componentElement = testBed.debugElement.query(By.directive(NzListComponent)).nativeElement;
-    fixture = testBed.fixture;
-    fixture.detectChanges();
-  });
-
-  it('should className correct on dir change', () => {
-    expect(componentElement.classList).toContain('ant-list-rtl');
-    fixture.componentInstance.direction = 'ltr';
-    fixture.detectChanges();
-    expect(componentElement.classList).not.toContain('ant-list-rtl');
-  });
+testDirectionality(() => TestListComponent, By.directive(NzListComponent), 'ant-list', {
+  providers: [provideNzIconsTesting()]
 });
 
 @Component({
-  // eslint-disable-next-line
+  imports: [NzListModule, AsyncPipe],
   selector: 'nz-test-list',
   template: `
     <nz-list
       #comp
-      [nzDataSource]="data"
-      [nzItemLayout]="nzItemLayout"
-      [nzBordered]="nzBordered"
+      [nzDataSource]="data()"
+      [nzItemLayout]="nzItemLayout()"
+      [nzBordered]="nzBordered()"
       [nzFooter]="nzFooter"
       [nzHeader]="nzHeader"
-      [nzLoading]="nzLoading"
-      [nzSize]="nzSize"
-      [nzSplit]="nzSplit"
-      [nzGrid]="nzGrid"
+      [nzLoading]="nzLoading()"
+      [nzSize]="nzSize()"
+      [nzSplit]="nzSplit()"
+      [nzGrid]="nzGrid()"
       [nzRenderItem]="item"
       [nzLoadMore]="loadMore"
       [nzPagination]="pagination"
@@ -258,11 +274,16 @@ describe('list RTL', () => {
             nzTitle="title"
             nzAvatar="https://zos.alipayobjects.com/rmsportal/ODTLcjxAfvqbxHnVXCYX.png"
             nzDescription="Ant Design, a design language for background applications, is refined by Ant UED Team"
-          ></nz-list-item-meta>
+          />
+          <ul nz-list-item-actions>
+            @for (action of actions$ | async; track action) {
+              <nz-list-item-action>{{ action }}</nz-list-item-action>
+            }
+          </ul>
         </nz-list-item>
       </ng-template>
       <ng-template #loadMore>
-        <div class="loadmore">loadmore</div>
+        <div class="loadmore">load more</div>
       </ng-template>
       <ng-template #pagination>
         <div class="pagination">pagination</div>
@@ -275,27 +296,28 @@ describe('list RTL', () => {
 })
 class TestListComponent {
   @ViewChild('comp', { static: false }) comp!: NzListComponent;
-  nzItemLayout = 'horizontal';
-  nzBordered = false;
+  readonly nzItemLayout = signal<NzDirectionVHType>('horizontal');
+  readonly nzBordered = signal(false);
   nzFooter = 'footer';
   nzHeader = 'header';
-  nzLoading = false;
-  nzSize = 'default';
-  nzSplit = true;
-  data?: string[] = [
+  readonly nzLoading = signal(false);
+  readonly nzSize = signal<NzSizeLDSType>('default');
+  readonly nzSplit = signal(true);
+  readonly data = signal<string[]>([
     'Racing car sprays burning fuel into crowd.',
     'Japanese princess to wed commoner.',
-    'Racing car sprays burning fuel into crowd.',
-    'Japanese princess to wed commoner.'
-  ];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  nzGrid: any = { gutter: 16, span: 12 };
+    'Australian walks 100km after outback crash.',
+    'Man charged over missing wedding girl.'
+  ]);
+  readonly nzGrid = signal({ gutter: 16, span: 12 });
+  readonly actions$ = timer(500).pipe(map(() => ['Edit', 'Delete']));
 }
 
 @Component({
+  imports: [NzListModule],
   template: `
-    <button (click)="footer = nzFooter" id="change">change</button>
-    <nz-list [nzFooter]="footer" [nzHeader]="nzHeader">
+    <button (click)="footer.set(nzFooter)" id="change">change</button>
+    <nz-list [nzFooter]="footer()" [nzHeader]="nzHeader">
       <ng-template #nzFooter><p class="list-footer">footer</p></ng-template>
       <ng-template #nzHeader><p class="list-header">header</p></ng-template>
     </nz-list>
@@ -304,15 +326,16 @@ class TestListComponent {
 class TestListWithTemplateComponent {
   @ViewChild('nzFooter', { static: false }) nzFooter!: TemplateRef<void>;
 
-  footer: string | TemplateRef<void> = 'footer with string';
+  readonly footer = signal<string | TemplateRef<void>>('footer with string');
 }
 
 @Component({
+  imports: [NzIconModule, NzListModule],
   template: `
     <nz-list id="item-string">
-      <nz-list-item [nzContent]="'content'" [nzActions]="[action]" [nzExtra]="extra" [nzNoFlex]="noFlex">
+      <nz-list-item nzContent="content" [nzActions]="[action]" [nzExtra]="extra" [nzNoFlex]="noFlex()">
         <ng-template #action>
-          <i nz-icon nzType="star-o" style="margin-right: 8px;"></i>
+          <nz-icon nzType="star-o" style="margin-right: 8px;" />
           156
         </ng-template>
         <ng-template #extra>
@@ -327,7 +350,7 @@ class TestListWithTemplateComponent {
           nzTitle="title"
           nzAvatar="https://zos.alipayobjects.com/rmsportal/ODTLcjxAfvqbxHnVXCYX.png"
           nzDescription="Ant Design, a design language for background applications, is refined by Ant UED Team"
-        ></nz-list-item-meta>
+        />
       </nz-list-item>
     </nz-list>
     <nz-list id="item-template">
@@ -343,17 +366,5 @@ class TestListWithTemplateComponent {
   `
 })
 class TestListItemComponent {
-  noFlex = false;
-}
-
-@Component({
-  template: `
-    <div [dir]="direction">
-      <nz-test-list></nz-test-list>
-    </div>
-  `
-})
-export class NzTestListRtlComponent {
-  @ViewChild(Dir) dir!: Dir;
-  direction = 'rtl';
+  readonly noFlex = signal(false);
 }

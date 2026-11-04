@@ -14,8 +14,10 @@ export type JoinedEditorOptions = EditorOptions | DiffEditorOptions;
 
 export type NzEditorMode = 'normal' | 'diff';
 
-export const enum NzCodeEditorLoadingStatus {
-  UNLOAD = 'unload',
-  LOADING = 'loading',
-  LOADED = 'LOADED'
-}
+export const NzCodeEditorLoadingStatus = {
+  UNLOAD: 'unload',
+  LOADING: 'loading',
+  LOADED: 'LOADED'
+} as const;
+
+export type NzCodeEditorLoadingStatus = (typeof NzCodeEditorLoadingStatus)[keyof typeof NzCodeEditorLoadingStatus];

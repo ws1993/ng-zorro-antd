@@ -1,8 +1,9 @@
-import { AfterViewInit, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, OnDestroy, ViewChild } from '@angular/core';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
-import { NzTableComponent } from 'ng-zorro-antd/table';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzTableComponent, NzTableModule } from 'ng-zorro-antd/table';
 
 export interface VirtualDataInterface {
   index: number;
@@ -13,6 +14,7 @@ export interface VirtualDataInterface {
 
 @Component({
   selector: 'nz-demo-table-virtual',
+  imports: [NzButtonModule, NzTableModule],
   template: `
     <button nz-button (click)="scrollToIndex(200)">Scroll To Index 200</button>
     <br />
@@ -66,10 +68,15 @@ export interface VirtualDataInterface {
     </nz-table>
   `
 })
-export class NzDemoTableVirtualComponent implements OnInit, AfterViewInit, OnDestroy {
+export class NzDemoTableVirtualComponent implements AfterViewInit, OnDestroy {
   @ViewChild('virtualTable', { static: false }) nzTableComponent?: NzTableComponent<VirtualDataInterface>;
-  private destroy$ = new Subject();
-  listOfData: VirtualDataInterface[] = [];
+  private readonly destroy$ = new Subject<boolean>();
+  readonly listOfData: VirtualDataInterface[] = Array.from({ length: 20000 }).map((_, i) => ({
+    index: i,
+    name: `Edward`,
+    age: i,
+    address: `London`
+  }));
 
   scrollToIndex(index: number): void {
     this.nzTableComponent?.cdkVirtualScrollViewport?.scrollToIndex(index);
@@ -77,19 +84,6 @@ export class NzDemoTableVirtualComponent implements OnInit, AfterViewInit, OnDes
 
   trackByIndex(_: number, data: VirtualDataInterface): number {
     return data.index;
-  }
-
-  ngOnInit(): void {
-    const data = [];
-    for (let i = 0; i < 20000; i++) {
-      data.push({
-        index: i,
-        name: `Edward`,
-        age: i,
-        address: `London`
-      });
-    }
-    this.listOfData = data;
   }
 
   ngAfterViewInit(): void {
@@ -101,7 +95,7 @@ export class NzDemoTableVirtualComponent implements OnInit, AfterViewInit, OnDes
   }
 
   ngOnDestroy(): void {
-    this.destroy$.next();
+    this.destroy$.next(true);
     this.destroy$.complete();
   }
 }

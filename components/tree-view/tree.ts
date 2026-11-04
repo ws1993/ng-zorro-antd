@@ -3,82 +3,92 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Direction, Directionality } from '@angular/cdk/bidi';
+import { Directionality } from '@angular/cdk/bidi';
 import { DataSource } from '@angular/cdk/collections';
-import { CdkTree, TreeControl } from '@angular/cdk/tree';
+import { CdkTree } from '@angular/cdk/tree';
 import {
   ChangeDetectorRef,
   Component,
-  Host,
   Input,
   IterableDiffer,
-  IterableDiffers,
-  OnDestroy,
-  OnInit,
-  Optional,
-  ViewContainerRef
+  ViewContainerRef,
+  booleanAttribute,
+  inject,
+  DestroyRef,
+  TrackByFunction
 } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
 
-import { NzNoAnimationDirective } from 'ng-zorro-antd/core/no-animation';
-import { BooleanInput, NzSafeAny } from 'ng-zorro-antd/core/types';
-import { InputBoolean } from 'ng-zorro-antd/core/util';
+import { NzNoAnimationDirective } from 'ng-zorro-antd/core/animation';
 
-@Component({ template: '' })
-// eslint-disable-next-line @angular-eslint/component-class-suffix
-export class NzTreeView<T> extends CdkTree<T> implements OnInit, OnDestroy {
-  static ngAcceptInputType_nzDirectoryTree: BooleanInput;
-  static ngAcceptInputType_nzBlockNode: BooleanInput;
+import { getDescendants } from './utils';
 
-  private destroy$ = new Subject();
-  dir: Direction = 'ltr';
-  _dataSourceChanged = new Subject<void>();
-  @Input('nzTreeControl') treeControl!: TreeControl<T, NzSafeAny>;
-  @Input('nzDataSource')
-  get dataSource(): DataSource<T> | Observable<T[]> | T[] {
+@Component({
+  template: ''
+})
+export class NzTreeView<T> extends CdkTree<T> {
+  /* eslint-disable @angular-eslint/no-input-rename */
+  @Input({ alias: 'nzLevelAccessor' }) override levelAccessor?: (dataNode: T) => number = undefined;
+  @Input({ alias: 'nzChildrenAccessor' }) override childrenAccessor?: (dataNode: T) => T[] = undefined;
+  @Input({ alias: 'nzDataSource' })
+  override get dataSource(): DataSource<T> | Observable<T[]> | T[] {
     return super.dataSource;
   }
-  set dataSource(dataSource: DataSource<T> | Observable<T[]> | T[]) {
+  override set dataSource(dataSource: DataSource<T> | Observable<T[]> | T[]) {
     super.dataSource = dataSource;
   }
-  @Input() @InputBoolean() nzDirectoryTree = false;
-  @Input() @InputBoolean() nzBlockNode = false;
+  @Input({ alias: 'nzTrackBy' }) override trackBy: TrackByFunction<T> = (_index, item: T) => item;
+  @Input({ transform: booleanAttribute }) nzDirectoryTree = false;
+  @Input({ transform: booleanAttribute }) nzBlockNode = false;
 
-  constructor(
-    protected differs: IterableDiffers,
-    protected changeDetectorRef: ChangeDetectorRef,
-    @Host() @Optional() public noAnimation?: NzNoAnimationDirective,
-    @Optional() private directionality?: Directionality
-  ) {
-    super(differs, changeDetectorRef);
-  }
+  protected readonly noAnimation = inject(NzNoAnimationDirective, { host: true, optional: true });
+  protected readonly destroyRef = inject(DestroyRef);
+  protected readonly directionality = inject(Directionality);
+  protected readonly cdr = inject(ChangeDetectorRef);
 
-  ngOnInit(): void {
-    super.ngOnInit();
+  protected readonly dir = inject(Directionality).valueSignal;
+  readonly dataSourceChanged$ = new Subject<void>();
 
-    if (this.directionality) {
-      this.dir = this.directionality.value;
-      this.directionality.change?.pipe(takeUntil(this.destroy$)).subscribe((direction: Direction) => {
-        this.dir = direction;
-        this.changeDetectorRef.detectChanges();
-      });
-    }
-  }
+  dataNodes: T[] = [];
 
-  ngOnDestroy(): void {
-    super.ngOnDestroy();
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  renderNodeChanges(
-    data: T[] | readonly T[],
+  override renderNodeChanges(
+    data: T[],
     dataDiffer?: IterableDiffer<T>,
     viewContainer?: ViewContainerRef,
     parentData?: T
   ): void {
-    super.renderNodeChanges(data, dataDiffer, viewContainer, parentData);
-    this._dataSourceChanged.next();
+    /* https://github.com/angular/components/blob/21cc21ea3b280c3f82a19f5ec1b679eb1eee1358/src/cdk/tree/tree.ts#L1103
+     * If levelAccessor is used, renderNodes needs to be recalculated, because flattenData (i.e., dataNodes) is used as renderNodes by default in the @angular/components library
+     * If childrenAccessor is used, @angular/cdk library inner will calculate renderNodes.
+     */
+    const renderNodes = this.levelAccessor ? this.getRenderNodes(data) : [...data];
+    super.renderNodeChanges(renderNodes, dataDiffer, viewContainer, parentData);
+    this.dataSourceChanged$.next();
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * get render nodes (length <= flattenData.length)>
+   * @param nodes all flatten nodes
+   */
+  protected getRenderNodes(nodes: T[]): T[] {
+    const getLevel = this.levelAccessor!;
+    const results: T[] = [];
+    const currentExpand: boolean[] = [];
+    currentExpand[0] = true;
+
+    nodes.forEach(node => {
+      let expand = true;
+      for (let i = 0; i <= getLevel(node); i++) {
+        expand = expand && currentExpand[i];
+      }
+      if (expand) {
+        results.push(node);
+      }
+      if (getDescendants(nodes, node, getLevel)) {
+        currentExpand[getLevel(node) + 1] = this.isExpanded(node);
+      }
+    });
+    return results;
   }
 }

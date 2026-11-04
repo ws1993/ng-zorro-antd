@@ -3,27 +3,35 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Direction, Directionality } from '@angular/cdk/bidi';
+import { Directionality } from '@angular/cdk/bidi';
+import { Platform } from '@angular/cdk/platform';
+import { NgTemplateOutlet } from '@angular/common';
 import {
-  ChangeDetectionStrategy,
+  AfterViewInit,
+  booleanAttribute,
   ChangeDetectorRef,
   Component,
+  DestroyRef,
+  DOCUMENT,
   EventEmitter,
+  inject,
+  input,
   Input,
+  numberAttribute,
   OnChanges,
-  OnDestroy,
   OnInit,
-  Optional,
   Output,
+  signal,
   TemplateRef,
   ViewChild,
   ViewEncapsulation
 } from '@angular/core';
-import { Observable, of, Subject, Subscription } from 'rxjs';
-import { filter, takeUntil } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Observable, of, Subscription } from 'rxjs';
+import { filter } from 'rxjs/operators';
 
-import { BooleanInput, NumberInput, NzSafeAny } from 'ng-zorro-antd/core/types';
-import { InputBoolean, InputNumber, toBoolean } from 'ng-zorro-antd/core/util';
+import { BooleanInput, NzSafeAny } from 'ng-zorro-antd/core/types';
+import { fromEventOutsideAngular, generateClassName, toBoolean } from 'ng-zorro-antd/core/util';
 import { NzI18nService, NzUploadI18nInterface } from 'ng-zorro-antd/i18n';
 
 import {
@@ -32,64 +40,63 @@ import {
   NzUploadChangeParam,
   NzUploadFile,
   NzUploadListType,
-  NzUploadTransformFileType,
   NzUploadType,
   NzUploadXHRArgs,
   UploadFilter,
-  ZipButtonOptions
+  ZipButtonOptions,
+  type NzBeforeUploadFileType
 } from './interface';
 import { NzUploadBtnComponent } from './upload-btn.component';
 import { NzUploadListComponent } from './upload-list.component';
+
+const CLASS_NAME = 'ant-upload';
 
 @Component({
   selector: 'nz-upload',
   exportAs: 'nzUpload',
   templateUrl: './upload.component.html',
-  preserveWhitespaces: false,
   encapsulation: ViewEncapsulation.None,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '[class.ant-upload-picture-card-wrapper]': 'nzListType === "picture-card"'
-  }
+  },
+  imports: [NzUploadListComponent, NgTemplateOutlet, NzUploadBtnComponent]
 })
-export class NzUploadComponent implements OnInit, OnChanges, OnDestroy {
-  static ngAcceptInputType_nzLimit: NumberInput;
-  static ngAcceptInputType_nzSize: NumberInput;
-  static ngAcceptInputType_nzDirectory: BooleanInput;
-  static ngAcceptInputType_nzOpenFileDialogOnClick: BooleanInput;
-  static ngAcceptInputType_nzDisabled: BooleanInput;
-  static ngAcceptInputType_nzMultiple: BooleanInput;
+export class NzUploadComponent implements OnInit, AfterViewInit, OnChanges {
   static ngAcceptInputType_nzShowUploadList: BooleanInput | NzShowUploadList;
-  static ngAcceptInputType_nzShowButton: BooleanInput;
-  static ngAcceptInputType_nzWithCredentials: BooleanInput;
 
-  private destroy$ = new Subject<void>();
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly i18n = inject(NzI18nService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly document = inject(DOCUMENT);
+  private readonly platform = inject(Platform);
+  protected readonly dir = inject(Directionality).valueSignal;
+
   @ViewChild('uploadComp', { static: false }) uploadComp!: NzUploadBtnComponent;
   @ViewChild('listComp', { static: false }) listComp!: NzUploadListComponent;
 
   locale!: NzUploadI18nInterface;
-  dir: Direction = 'ltr';
 
   // #region fields
 
+  readonly nzId = input<string>();
   @Input() nzType: NzUploadType = 'select';
-  @Input() @InputNumber() nzLimit = 0;
-  @Input() @InputNumber() nzSize = 0;
+  @Input({ transform: numberAttribute }) nzLimit = 0;
+  @Input({ transform: numberAttribute }) nzSize = 0;
 
   @Input() nzFileType?: string;
   @Input() nzAccept?: string | string[];
   @Input() nzAction?: string | ((file: NzUploadFile) => string | Observable<string>);
-  @Input() @InputBoolean() nzDirectory = false;
-  @Input() @InputBoolean() nzOpenFileDialogOnClick = true;
-  @Input() nzBeforeUpload?: (file: NzUploadFile, fileList: NzUploadFile[]) => boolean | Observable<boolean>;
+  @Input({ transform: booleanAttribute }) nzDirectory = false;
+  @Input({ transform: booleanAttribute }) nzOpenFileDialogOnClick = true;
+  @Input() nzBeforeUpload?: (file: NzUploadFile, fileList: NzUploadFile[]) => NzBeforeUploadFileType;
   @Input() nzCustomRequest?: (item: NzUploadXHRArgs) => Subscription;
   @Input() nzData?: {} | ((file: NzUploadFile) => {} | Observable<{}>);
   @Input() nzFilter: UploadFilter[] = [];
   @Input() nzFileList: NzUploadFile[] = [];
-  @Input() @InputBoolean() nzDisabled = false;
+  @Input({ transform: booleanAttribute }) nzDisabled = false;
   @Input() nzHeaders?: {} | ((file: NzUploadFile) => {} | Observable<{}>);
   @Input() nzListType: NzUploadListType = 'text';
-  @Input() @InputBoolean() nzMultiple = false;
+  @Input({ transform: booleanAttribute }) nzMultiple = false;
   @Input() nzName = 'file';
 
   private _showUploadList: boolean | NzShowUploadList = true;
@@ -103,17 +110,18 @@ export class NzUploadComponent implements OnInit, OnChanges, OnDestroy {
     return this._showUploadList;
   }
 
-  @Input() @InputBoolean() nzShowButton = true;
-  @Input() @InputBoolean() nzWithCredentials = false;
+  @Input({ transform: booleanAttribute }) nzShowButton = true;
+  @Input({ transform: booleanAttribute }) nzWithCredentials = false;
 
   @Input() nzRemove?: (file: NzUploadFile) => boolean | Observable<boolean>;
   @Input() nzPreview?: (file: NzUploadFile) => void;
   @Input() nzPreviewFile?: (file: NzUploadFile) => Observable<string>;
   @Input() nzPreviewIsImage?: (file: NzUploadFile) => boolean;
-  @Input() nzTransformFile?: (file: NzUploadFile) => NzUploadTransformFileType;
   @Input() nzDownload?: (file: NzUploadFile) => void;
   @Input() nzIconRender: NzIconRenderTemplate | null = null;
-  @Input() nzFileListRender: TemplateRef<void> | null = null;
+  @Input() nzFileListRender: TemplateRef<{ $implicit: NzUploadFile[] }> | null = null;
+
+  readonly nzMaxCount = input<number>();
 
   @Output() readonly nzChange: EventEmitter<NzUploadChangeParam> = new EventEmitter<NzUploadChangeParam>();
   @Output() readonly nzFileListChange: EventEmitter<NzUploadFile[]> = new EventEmitter<NzUploadFile[]>();
@@ -163,7 +171,6 @@ export class NzUploadComponent implements OnInit, OnChanges, OnDestroy {
       multiple: this.nzMultiple,
       withCredentials: this.nzWithCredentials,
       filters,
-      transformFile: this.nzTransformFile,
       onStart: this.onStart,
       onProgress: this.onProgress,
       onSuccess: this.onSuccess,
@@ -173,12 +180,6 @@ export class NzUploadComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   // #endregion
-
-  constructor(
-    private cdr: ChangeDetectorRef,
-    private i18n: NzI18nService,
-    @Optional() private directionality: Directionality
-  ) {}
 
   // #region upload
 
@@ -206,12 +207,17 @@ export class NzUploadComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private onStart = (file: NzUploadFile): void => {
+    const maxCount = this.nzMaxCount();
     if (!this.nzFileList) {
       this.nzFileList = [];
     }
     const targetItem = this.fileToObject(file);
     targetItem.status = 'uploading';
-    this.nzFileList = this.nzFileList.concat(targetItem);
+    if (maxCount === 1) {
+      this.nzFileList = [targetItem];
+    } else if (!maxCount || maxCount <= 0 || this.nzFileList.length < maxCount) {
+      this.nzFileList = [...this.nzFileList, targetItem];
+    }
     this.nzFileListChange.emit(this.nzFileList);
     this.nzChange.emit({ file: targetItem, fileList: this.nzFileList, type: 'start' });
     this.detectChangesList();
@@ -220,10 +226,15 @@ export class NzUploadComponent implements OnInit, OnChanges, OnDestroy {
   private onProgress = (e: { percent: number }, file: NzUploadFile): void => {
     const fileList = this.nzFileList;
     const targetItem = this.getFileItem(file, fileList);
+
+    if (!targetItem) {
+      return;
+    }
+
     targetItem.percent = e.percent;
     this.nzChange.emit({
       event: e,
-      file: { ...targetItem },
+      file: targetItem,
       fileList: this.nzFileList,
       type: 'progress'
     });
@@ -233,10 +244,13 @@ export class NzUploadComponent implements OnInit, OnChanges, OnDestroy {
   private onSuccess = (res: {}, file: NzUploadFile): void => {
     const fileList = this.nzFileList;
     const targetItem = this.getFileItem(file, fileList);
+    if (!targetItem) {
+      return;
+    }
     targetItem.status = 'done';
     targetItem.response = res;
     this.nzChange.emit({
-      file: { ...targetItem },
+      file: targetItem,
       fileList,
       type: 'success'
     });
@@ -246,6 +260,11 @@ export class NzUploadComponent implements OnInit, OnChanges, OnDestroy {
   private onError = (err: {}, file: NzUploadFile): void => {
     const fileList = this.nzFileList;
     const targetItem = this.getFileItem(file, fileList);
+
+    if (!targetItem) {
+      return;
+    }
+
     targetItem.error = err;
     targetItem.status = 'error';
     this.nzChange.emit({
@@ -301,55 +320,54 @@ export class NzUploadComponent implements OnInit, OnChanges, OnDestroy {
 
   // #region styles
 
-  private prefixCls = 'ant-upload';
-  classList: string[] = [];
+  protected readonly classList = signal<string[]>([]);
 
   private setClassMap(): void {
     let subCls: string[] = [];
     if (this.nzType === 'drag') {
       if (this.nzFileList.some(file => file.status === 'uploading')) {
-        subCls.push(`${this.prefixCls}-drag-uploading`);
+        subCls.push(this.generateClass('drag-uploading'));
       }
       if (this.dragState === 'dragover') {
-        subCls.push(`${this.prefixCls}-drag-hover`);
+        subCls.push(this.generateClass('drag-hover'));
       }
     } else {
-      subCls = [`${this.prefixCls}-select-${this.nzListType}`];
+      subCls = [this.generateClass(`select-${this.nzListType}`)];
     }
 
-    this.classList = [
-      this.prefixCls,
-      `${this.prefixCls}-${this.nzType}`,
-      ...subCls,
-      (this.nzDisabled && `${this.prefixCls}-disabled`) || '',
-      (this.dir === 'rtl' && `${this.prefixCls}-rtl`) || ''
-    ].filter(item => !!item);
+    if (this.nzDisabled) {
+      subCls.push(this.generateClass('disabled'));
+    }
 
-    this.cdr.detectChanges();
+    this.classList.set([CLASS_NAME, this.generateClass(this.nzType), ...subCls]);
   }
 
   // #endregion
 
   ngOnInit(): void {
-    this.dir = this.directionality.value;
-    this.directionality.change?.pipe(takeUntil(this.destroy$)).subscribe((direction: Direction) => {
-      this.dir = direction;
-      this.setClassMap();
-      this.cdr.detectChanges();
-    });
-
-    this.i18n.localeChange.pipe(takeUntil(this.destroy$)).subscribe(() => {
+    this.i18n.localeChange.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.locale = this.i18n.getLocaleData('Upload');
       this.detectChangesList();
     });
+  }
+
+  ngAfterViewInit(): void {
+    if (this.platform.FIREFOX) {
+      // fix firefox drop open new tab
+      fromEventOutsideAngular<MouseEvent>(this.document.body, 'drop')
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(event => {
+          event.preventDefault();
+          event.stopPropagation();
+        });
+    }
   }
 
   ngOnChanges(): void {
     this.zipOptions().setClassMap();
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+  private generateClass(suffix: string): string {
+    return generateClassName(CLASS_NAME, suffix);
   }
 }

@@ -3,10 +3,10 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
+import { NgTemplateOutlet } from '@angular/common';
 import {
-  ChangeDetectionStrategy,
+  booleanAttribute,
   Component,
-  ElementRef,
   EventEmitter,
   Input,
   Output,
@@ -14,38 +14,56 @@ import {
   ViewEncapsulation
 } from '@angular/core';
 
+import { NzOutletModule } from 'ng-zorro-antd/core/outlet';
 import { NzSafeAny } from 'ng-zorro-antd/core/types';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+
+import { getItemTemplateOutletContext } from './util';
 
 @Component({
   selector: 'nz-select-item',
   encapsulation: ViewEncapsulation.None,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <ng-container *nzStringTemplateOutlet="contentTemplateOutlet; context: { $implicit: contentTemplateOutletContext }">
-      <div class="ant-select-selection-item-content" *ngIf="deletable; else labelTemplate">{{ label }}</div>
-      <ng-template #labelTemplate>{{ label }}</ng-template>
+    <ng-container *nzStringTemplateOutlet="contentTemplateOutlet; context: templateOutletContext">
+      @if (displayLabelInHtml) {
+        <span [class.ant-select-selection-item-content]="deletable" [innerHTML]="label"></span>
+      } @else {
+        <span [class.ant-select-selection-item-content]="deletable">{{ label }}</span>
+      }
     </ng-container>
-    <span *ngIf="deletable && !disabled" class="ant-select-selection-item-remove" (click)="onDelete($event)">
-      <i nz-icon nzType="close" *ngIf="!removeIcon; else removeIcon"></i>
-    </span>
+    @if (deletable && !disabled) {
+      <span class="ant-select-selection-item-remove" (click)="onDelete($event)">
+        @if (!removeIcon) {
+          <nz-icon nzType="close" />
+        } @else {
+          <ng-template [ngTemplateOutlet]="removeIcon" />
+        }
+      </span>
+    }
   `,
   host: {
+    class: 'ant-select-selection-item',
     '[attr.title]': 'label',
     '[class.ant-select-selection-item-disabled]': 'disabled'
-  }
+  },
+  imports: [NgTemplateOutlet, NzOutletModule, NzIconModule]
 })
 export class NzSelectItemComponent {
-  @Input() disabled = false;
+  @Input({ transform: booleanAttribute }) disabled = false;
   @Input() label: string | number | null | undefined = null;
-  @Input() deletable = false;
+  /**
+   * @internal Internally used, please do not use it directly.
+   * @description Whether the label is in HTML format.
+   */
+  @Input({ transform: booleanAttribute }) displayLabelInHtml = false;
+  @Input({ transform: booleanAttribute }) deletable = false;
   @Input() removeIcon: TemplateRef<NzSafeAny> | null = null;
   @Input() contentTemplateOutletContext: NzSafeAny | null = null;
   @Input() contentTemplateOutlet: string | TemplateRef<NzSafeAny> | null = null;
   @Output() readonly delete = new EventEmitter<MouseEvent>();
 
-  constructor(private elementRef: ElementRef) {
-    // TODO: move to host after View Engine deprecation
-    this.elementRef.nativeElement.classList.add('ant-select-selection-item');
+  protected get templateOutletContext(): NzSafeAny {
+    return getItemTemplateOutletContext(this.contentTemplateOutletContext);
   }
 
   onDelete(e: MouseEvent): void {

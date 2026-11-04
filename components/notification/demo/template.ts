@@ -1,29 +1,34 @@
-import { Component, TemplateRef, ViewChild } from '@angular/core';
+import { Component, TemplateRef, ViewChild, inject } from '@angular/core';
 
-import { NzNotificationService } from 'ng-zorro-antd/notification';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { type NzNotificationComponent, NzNotificationService } from 'ng-zorro-antd/notification';
+import { NzTagModule } from 'ng-zorro-antd/tag';
 
 @Component({
   selector: 'nz-demo-notification-template',
+  imports: [NzButtonModule, NzTagModule],
   template: `
-    <button nz-button [nzType]="'primary'" (click)="ninja()">Open the notification box</button>
+    <button nz-button nzType="primary" (click)="createNotification()">Open the notification box</button>
     <ng-template let-fruit="data">
       It's a
       <nz-tag [nzColor]="fruit.color">{{ fruit.name }}</nz-tag>
       <button nz-button nzSize="small">Cut It!</button>
     </ng-template>
   `,
-  styles: [
-    `
-      button {
-        margin-top: 8px;
-      }
-    `
-  ]
+  styles: `
+    button {
+      margin-top: 8px;
+    }
+  `
 })
 export class NzDemoNotificationTemplateComponent {
-  @ViewChild(TemplateRef, { static: false }) template?: TemplateRef<{}>;
+  private readonly notificationService = inject(NzNotificationService);
 
-  ninja(): void {
+  @ViewChild(TemplateRef, { static: false }) template?: TemplateRef<{
+    $implicit: NzNotificationComponent;
+    data: Array<{ name: string; color: string }>;
+  }>;
+  createNotification(): void {
     const fruits = [
       { name: 'Apple', color: 'red' },
       { name: 'Orange', color: 'orange' },
@@ -34,6 +39,4 @@ export class NzDemoNotificationTemplateComponent {
       this.notificationService.template(this.template!, { nzData: fruit });
     });
   }
-
-  constructor(private notificationService: NzNotificationService) {}
 }

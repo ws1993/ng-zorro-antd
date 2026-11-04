@@ -1,6 +1,12 @@
-import differenceInCalendarMonths from 'date-fns/differenceInCalendarMonths';
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
+import { differenceInCalendarMonths } from 'date-fns';
 
 import { CandyDate, normalizeRangeValue, SingleValue } from './candy-date';
+import { NzSafeAny } from '../types';
 
 describe('candy-date coverage supplements', () => {
   const date = new CandyDate('2018-5-5 12:12:12');
@@ -37,7 +43,7 @@ describe('candy-date coverage supplements', () => {
 
   it('should throw error while putting invalid date input', () => {
     const errorMessage = 'The input date type is not supported ("Date" is now recommended)';
-    expect(() => new CandyDate({} as any)).toThrowError(errorMessage); // eslint-disable-line @typescript-eslint/no-explicit-any
+    expect(() => new CandyDate({} as NzSafeAny)).toThrow(errorMessage);
   });
 
   it('should normalizeRangeValue work', () => {

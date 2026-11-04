@@ -3,38 +3,42 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Direction, Directionality } from '@angular/cdk/bidi';
-import {
-  CdkConnectedOverlay,
-  CdkOverlayOrigin,
-  ConnectedOverlayPositionChange,
-  ConnectionPositionPair
-} from '@angular/cdk/overlay';
+import { Directionality } from '@angular/cdk/bidi';
+import { CdkConnectedOverlay, ConnectedOverlayPositionChange, ConnectionPositionPair } from '@angular/cdk/overlay';
+import { _getEventTarget } from '@angular/cdk/platform';
+import { isPlatformBrowser } from '@angular/common';
 import {
   AfterViewInit,
   ChangeDetectorRef,
-  ComponentFactory,
-  ComponentFactoryResolver,
+  DestroyRef,
   Directive,
   ElementRef,
   EventEmitter,
   OnChanges,
-  OnDestroy,
-  OnInit,
-  Optional,
+  PLATFORM_ID,
   Renderer2,
   SimpleChanges,
   TemplateRef,
+  Type,
   ViewChild,
-  ViewContainerRef
+  ViewContainerRef,
+  inject
 } from '@angular/core';
-import { Subject } from 'rxjs';
-import { distinctUntilChanged, takeUntil } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject, asapScheduler } from 'rxjs';
+import { delay, distinctUntilChanged, filter } from 'rxjs/operators';
 
+import { NzNoAnimationDirective } from 'ng-zorro-antd/core/animation';
 import { NzConfigService, PopConfirmConfig, PopoverConfig } from 'ng-zorro-antd/core/config';
-import { NzNoAnimationDirective } from 'ng-zorro-antd/core/no-animation';
-import { DEFAULT_TOOLTIP_POSITIONS, getPlacementName, POSITION_MAP, POSITION_TYPE } from 'ng-zorro-antd/core/overlay';
-import { BooleanInput, NgClassInterface, NgStyleInterface, NzSafeAny, NzTSType } from 'ng-zorro-antd/core/types';
+import {
+  DEFAULT_TOOLTIP_POSITIONS,
+  POSITION_MAP,
+  POSITION_TYPE,
+  TOOLTIP_OFFSET_MAP,
+  getPlacementName,
+  setConnectedPositionOffset
+} from 'ng-zorro-antd/core/overlay';
+import { NgClassInterface, NgStyleInterface, NzSafeAny, NzTSType } from 'ng-zorro-antd/core/types';
 import { isNotNil, toBoolean } from 'ng-zorro-antd/core/util';
 
 export interface PropertyMapping {
@@ -44,27 +48,31 @@ export interface PropertyMapping {
 export type NzTooltipTrigger = 'click' | 'focus' | 'hover' | null;
 
 @Directive()
-export abstract class NzTooltipBaseDirective implements OnChanges, OnDestroy, AfterViewInit {
-  arrowPointAtCenter?: boolean;
-  config?: Required<PopoverConfig | PopConfirmConfig>;
-  directiveTitle?: NzTSType | null;
-  directiveContent?: NzTSType | null;
-  title?: NzTSType | null;
-  content?: NzTSType | null;
-  trigger?: NzTooltipTrigger;
-  placement?: string | string[];
-  origin?: ElementRef<HTMLElement>;
-  visible?: boolean;
-  mouseEnterDelay?: number;
-  mouseLeaveDelay?: number;
-  overlayClassName?: string;
-  overlayStyle?: NgStyleInterface;
-  visibleChange = new EventEmitter<boolean>();
+export abstract class NzTooltipBaseDirective implements AfterViewInit, OnChanges {
+  readonly elementRef = inject(ElementRef);
+  protected readonly hostView = inject(ViewContainerRef);
+  protected readonly renderer = inject(Renderer2);
+  protected readonly noAnimation = inject(NzNoAnimationDirective, { host: true, optional: true });
+  protected readonly nzConfigService = inject(NzConfigService);
+  protected readonly destroyRef = inject(DestroyRef);
+  protected readonly platformId = inject(PLATFORM_ID);
 
-  /**
-   * For create tooltip dynamically. This should be override for each different component.
-   */
-  protected componentFactory!: ComponentFactory<NzTooltipBaseComponent>;
+  config?: Required<PopoverConfig | PopConfirmConfig>;
+  abstract arrowPointAtCenter?: boolean;
+  abstract directiveTitle?: NzTSType | null;
+  abstract directiveContent?: NzTSType | null;
+  abstract title?: NzTSType | null;
+  abstract content?: NzTSType | null;
+  abstract trigger?: NzTooltipTrigger;
+  abstract placement?: string | string[];
+  abstract origin?: ElementRef<HTMLElement>;
+  abstract visible?: boolean;
+  abstract mouseEnterDelay?: number;
+  abstract mouseLeaveDelay?: number;
+  abstract overlayClassName?: string;
+  abstract overlayStyle?: NgStyleInterface;
+  abstract overlayClickable?: boolean;
+  visibleChange = new EventEmitter<boolean>();
 
   /**
    * This true title that would be used in other parts on this component.
@@ -106,6 +114,10 @@ export abstract class NzTooltipBaseDirective implements OnChanges, OnDestroy, Af
     return this.overlayStyle || null;
   }
 
+  protected get _overlayClickable(): boolean {
+    return this.overlayClickable ?? true;
+  }
+
   private internalVisible = false;
 
   protected getProxyPropertyMap(): PropertyMapping {
@@ -117,18 +129,39 @@ export abstract class NzTooltipBaseDirective implements OnChanges, OnDestroy, Af
   component?: NzTooltipBaseComponent;
 
   protected readonly destroy$ = new Subject<void>();
-  protected readonly triggerDisposables: Array<() => void> = [];
+  protected readonly triggerDisposables: VoidFunction[] = [];
 
-  private delayTimer?: number;
+  private delayTimer?: ReturnType<typeof setTimeout>;
+  /**
+   * Whether the pending {@link delayTimer} will open (rather than close) the overlay.
+   */
+  private delayTimerOpens = false;
+  /**
+   * Timer used to update the value of {@link isTouchTriggered}.
+   */
+  private touchResetTimer?: ReturnType<typeof setTimeout>;
+  /**
+   * Tracks whether the most recent pointer interaction was a touch.
+   */
+  private isTouchTriggered: boolean = false;
 
-  constructor(
-    public elementRef: ElementRef,
-    protected hostView: ViewContainerRef,
-    protected resolver: ComponentFactoryResolver,
-    protected renderer: Renderer2,
-    protected noAnimation?: NzNoAnimationDirective,
-    protected nzConfigService?: NzConfigService
-  ) {}
+  // componentType is supplied by subclasses, not Angular DI.
+  // eslint-disable-next-line @angular-eslint/prefer-inject
+  constructor(protected componentType: Type<NzTooltipBaseComponent>) {
+    this.destroyRef.onDestroy(() => {
+      // Clear toggling timer. Issue #3875 #4317 #4386
+      this.clearTogglingTimer();
+      this.clearTouchResetTimer();
+      this.removeTriggerListeners();
+    });
+  }
+
+  ngAfterViewInit(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      this.createComponent();
+      this.registerTriggers();
+    }
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     const { trigger } = changes;
@@ -140,20 +173,6 @@ export abstract class NzTooltipBaseDirective implements OnChanges, OnDestroy, Af
     if (this.component) {
       this.updatePropertiesByChanges(changes);
     }
-  }
-
-  ngAfterViewInit(): void {
-    this.createComponent();
-    this.registerTriggers();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-
-    // Clear toggling timer. Issue #3875 #4317 #4386
-    this.clearTogglingTimer();
-    this.removeTriggerListeners();
   }
 
   show(): void {
@@ -174,10 +193,10 @@ export abstract class NzTooltipBaseDirective implements OnChanges, OnDestroy, Af
   }
 
   /**
-   * Create a dynamic tooltip component. This method can be override.
+   * Create a dynamic tooltip component. This method can be overridden.
    */
   protected createComponent(): void {
-    const componentRef = this.hostView.createComponent(this.componentFactory);
+    const componentRef = this.hostView.createComponent(this.componentType);
 
     this.component = componentRef.instance as NzTooltipBaseComponent;
 
@@ -186,20 +205,34 @@ export abstract class NzTooltipBaseDirective implements OnChanges, OnDestroy, Af
       this.renderer.parentNode(this.elementRef.nativeElement),
       componentRef.location.nativeElement
     );
-    this.component.setOverlayOrigin({ elementRef: this.origin || this.elementRef });
+    this.component.setOverlayOrigin(this.origin || this.elementRef);
 
     this.initProperties();
 
-    this.component.nzVisibleChange
-      .pipe(distinctUntilChanged(), takeUntil(this.destroy$))
-      .subscribe((visible: boolean) => {
-        this.internalVisible = visible;
-        this.visibleChange.emit(visible);
+    const visibleChange$ = this.component.nzVisibleChange.pipe(distinctUntilChanged());
+
+    visibleChange$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(visible => {
+      this.internalVisible = visible;
+      this.visibleChange.emit(visible);
+    });
+
+    // In some cases, the rendering takes into account the height at which the `arrow` is in the wrong place,
+    // so `cdk` sets the container position incorrectly.
+    // To avoid this, after placing the `arrow` in the correct position, we should `re-calculate` the position of the `overlay`.
+    visibleChange$
+      .pipe(
+        filter(Boolean),
+        delay(0, asapScheduler),
+        filter(() => Boolean(this.component?.overlay?.overlayRef)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(() => {
+        this.component?.updatePosition();
       });
   }
 
   protected registerTriggers(): void {
-    // When the method gets invoked, all properties has been synced to the dynamic component.
+    // When the method gets invoked, all properties have been synced to the dynamic component.
     // After removing the old API, we can just check the directive's own `nzTrigger`.
     const el = this.elementRef.nativeElement;
     const trigger = this.trigger;
@@ -208,13 +241,31 @@ export abstract class NzTooltipBaseDirective implements OnChanges, OnDestroy, Af
 
     if (trigger === 'hover') {
       let overlayElement: HTMLElement;
+
+      // Because of Hybrid devices, rather than disabling hover we flag a short window after `touchend` event.
+      // Following W3C Touch Events documented sequence `touchend` should fire before the mouse events.
+      this.triggerDisposables.push(
+        this.renderer.listen(el, 'touchend', () => {
+          // A touch must never result in a delayed hover-open, including one that a
+          // real `mouseenter` scheduled just before the tap.
+          this.cancelPendingOpenTimer();
+          this.isTouchTriggered = true;
+          this.clearTouchResetTimer();
+          this.touchResetTimer = setTimeout(() => {
+            this.isTouchTriggered = false;
+          }, 500);
+        })
+      );
       this.triggerDisposables.push(
         this.renderer.listen(el, 'mouseenter', () => {
+          // Only the compatibility hover-open path is suppressed.
+          if (this.isTouchTriggered) return;
           this.delayEnterLeave(true, true, this._mouseEnterDelay);
         })
       );
       this.triggerDisposables.push(
         this.renderer.listen(el, 'mouseleave', () => {
+          // No touch guard here: closing must always work.
           this.delayEnterLeave(true, false, this._mouseLeaveDelay);
           if (this.component?.overlay.overlayRef && !overlayElement) {
             overlayElement = this.component.overlay.overlayRef.overlayElement;
@@ -263,6 +314,7 @@ export abstract class NzTooltipBaseDirective implements OnChanges, OnDestroy, Af
       mouseLeaveDelay: ['nzMouseLeaveDelay', () => this._mouseLeaveDelay],
       overlayClassName: ['nzOverlayClassName', () => this._overlayClassName],
       overlayStyle: ['nzOverlayStyle', () => this._overlayStyle],
+      overlayClickable: ['nzOverlayClickable', () => this._overlayClickable],
       arrowPointAtCenter: ['nzArrowPointAtCenter', () => this.arrowPointAtCenter],
       ...this.getProxyPropertyMap()
     };
@@ -294,13 +346,15 @@ export abstract class NzTooltipBaseDirective implements OnChanges, OnDestroy, Af
     if (this.delayTimer) {
       this.clearTogglingTimer();
     } else if (delay > 0) {
+      this.delayTimerOpens = isEnter;
       this.delayTimer = setTimeout(() => {
         this.delayTimer = undefined;
+        this.delayTimerOpens = false;
         isEnter ? this.show() : this.hide();
       }, delay * 1000);
     } else {
       // `isOrigin` is used due to the tooltip will not hide immediately
-      // (may caused by the fade-out animation).
+      // (maybe caused by the fade-out animation).
       isEnter && isOrigin ? this.show() : this.hide();
     }
   }
@@ -315,14 +369,33 @@ export abstract class NzTooltipBaseDirective implements OnChanges, OnDestroy, Af
       clearTimeout(this.delayTimer);
       this.delayTimer = undefined;
     }
+    this.delayTimerOpens = false;
+  }
+
+  private clearTouchResetTimer(): void {
+    if (this.touchResetTimer) {
+      clearTimeout(this.touchResetTimer);
+      this.touchResetTimer = undefined;
+    }
+  }
+
+  /**
+   * Cancels a scheduled show, but leaves a scheduled hide untouched.
+   */
+  private cancelPendingOpenTimer(): void {
+    if (this.delayTimer && this.delayTimerOpens) {
+      this.clearTogglingTimer();
+    }
   }
 }
 
 @Directive()
-// eslint-disable-next-line @angular-eslint/directive-class-suffix
-export abstract class NzTooltipBaseComponent implements OnDestroy, OnInit {
-  static ngAcceptInputType_nzVisible: BooleanInput;
-  static ngAcceptInputType_nzArrowPointAtCenter: BooleanInput;
+export abstract class NzTooltipBaseComponent {
+  protected readonly noAnimation = inject(NzNoAnimationDirective, { host: true, optional: true });
+  protected readonly dir = inject(Directionality).valueSignal;
+  protected readonly cdr = inject(ChangeDetectorRef);
+  protected readonly elementRef = inject(ElementRef);
+  protected readonly destroyRef = inject(DestroyRef);
 
   @ViewChild('overlay', { static: false }) overlay!: CdkConnectedOverlay;
 
@@ -331,6 +404,7 @@ export abstract class NzTooltipBaseComponent implements OnDestroy, OnInit {
   nzArrowPointAtCenter: boolean = false;
   nzOverlayClassName!: string;
   nzOverlayStyle: NgStyleInterface = {};
+  nzOverlayClickable: boolean = true;
   nzBackdrop = false;
   nzMouseEnterDelay?: number;
   nzMouseLeaveDelay?: number;
@@ -362,15 +436,15 @@ export abstract class NzTooltipBaseComponent implements OnDestroy, OnInit {
   protected _trigger: NzTooltipTrigger = 'hover';
 
   set nzPlacement(value: POSITION_TYPE[]) {
-    const preferredPosition = value.map(placement => POSITION_MAP[placement]);
+    const preferredPosition = value.map(placement =>
+      setConnectedPositionOffset(POSITION_MAP[placement], TOOLTIP_OFFSET_MAP[placement])
+    );
     this._positions = [...preferredPosition, ...DEFAULT_TOOLTIP_POSITIONS];
   }
 
   preferredPlacement: string = 'top';
 
-  origin!: CdkOverlayOrigin;
-
-  public dir: Direction = 'ltr';
+  origin!: ElementRef<NzSafeAny>;
 
   _classMap: NgClassInterface = {};
 
@@ -378,27 +452,10 @@ export abstract class NzTooltipBaseComponent implements OnDestroy, OnInit {
 
   _positions: ConnectionPositionPair[] = [...DEFAULT_TOOLTIP_POSITIONS];
 
-  protected destroy$ = new Subject<void>();
-
-  constructor(
-    public cdr: ChangeDetectorRef,
-    @Optional() private directionality: Directionality,
-    public noAnimation?: NzNoAnimationDirective
-  ) {}
-
-  ngOnInit(): void {
-    this.directionality.change?.pipe(takeUntil(this.destroy$)).subscribe((direction: Direction) => {
-      this.dir = direction;
-      this.cdr.detectChanges();
+  constructor() {
+    this.destroyRef.onDestroy(() => {
+      this.nzVisibleChange.complete();
     });
-
-    this.dir = this.directionality.value;
-  }
-
-  ngOnDestroy(): void {
-    this.nzVisibleChange.complete();
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 
   show(): void {
@@ -455,13 +512,17 @@ export abstract class NzTooltipBaseComponent implements OnDestroy, OnInit {
     this.cdr.detectChanges();
   }
 
-  setOverlayOrigin(origin: CdkOverlayOrigin): void {
+  setOverlayOrigin(origin: ElementRef<HTMLElement>): void {
     this.origin = origin;
     this.cdr.markForCheck();
   }
 
   onClickOutside(event: MouseEvent): void {
-    if (!this.origin.elementRef.nativeElement.contains(event.target) && this.nzTrigger !== null) {
+    if (!this.nzOverlayClickable) {
+      return;
+    }
+    const target = _getEventTarget(event);
+    if (!this.origin.nativeElement.contains(target) && this.nzTrigger !== null) {
       this.hide();
     }
   }
@@ -477,9 +538,19 @@ export abstract class NzTooltipBaseComponent implements OnDestroy, OnInit {
 
   protected updateStyles(): void {
     this._classMap = {
-      [this.nzOverlayClassName]: true,
+      ...this.transformClassListToMap(this.nzOverlayClassName),
       [`${this._prefix}-placement-${this.preferredPlacement}`]: true
     };
+  }
+
+  protected transformClassListToMap(klass: string): Record<string, boolean> {
+    const result: Record<string, boolean> = {};
+    /**
+     * @see https://github.com/angular/angular/blob/f6e97763cfab9fa2bea6e6b1303b64f1b499c3ef/packages/common/src/directives/ng_class.ts#L92
+     */
+    const classes = klass !== null ? klass.split(/\s+/) : [];
+    classes.forEach(className => (result[className] = true));
+    return result;
   }
 
   /**

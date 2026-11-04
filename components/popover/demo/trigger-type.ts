@@ -1,7 +1,11 @@
 import { Component } from '@angular/core';
 
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzPopoverModule } from 'ng-zorro-antd/popover';
+
 @Component({
   selector: 'nz-demo-popover-trigger-type',
+  imports: [NzButtonModule, NzPopoverModule],
   template: `
     <ng-template #contentTemplate>
       <div>
@@ -19,12 +23,10 @@ import { Component } from '@angular/core';
       Focus me
     </button>
   `,
-  styles: [
-    `
-      button {
-        margin-right: 8px;
-      }
-    `
-  ]
+  styles: `
+    button {
+      margin-right: 8px;
+    }
+  `
 })
 export class NzDemoPopoverTriggerTypeComponent {}

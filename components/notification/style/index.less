@@ -1,6 +1,7 @@
 @import '../../style/themes/index';
 @import '../../style/mixins/index';
-@import './customize.less';
+
+.popover-customize-bg(@notification-prefix-cls, @popover-background);
 
 @notification-prefix-cls: ~'@{ant-prefix}-notification';
 @notification-width: 384px;
@@ -13,17 +14,10 @@
 
   position: fixed;
   z-index: @zindex-notification;
-  margin-right: @notification-margin-edge;
+  margin-inline-end: @notification-margin-edge;
 
-  &-topLeft,
-  &-bottomLeft {
-    margin-right: 0;
-    margin-left: @notification-margin-edge;
-
-    .@{notification-prefix-cls}-fade-enter.@{notification-prefix-cls}-fade-enter-active,
-    .@{notification-prefix-cls}-fade-appear.@{notification-prefix-cls}-fade-appear-active {
-      animation-name: NotificationLeftFadeIn;
-    }
+  &-rtl {
+    direction: rtl;
   }
 
   &-close-icon {
@@ -39,15 +33,20 @@
     position: relative;
     width: @notification-width;
     max-width: ~'calc(100vw - @{notification-margin-edge} * 2)';
-    margin-bottom: @notification-margin-bottom;
-    margin-left: auto;
+    margin-block-end: @notification-margin-bottom;
+    margin-inline-start: auto;
     padding: @notification-padding;
     overflow: hidden;
     line-height: @line-height-base;
-    word-wrap: break-word;
+    overflow-wrap: break-word;
     background: @notification-bg;
     border-radius: @border-radius-base;
     box-shadow: @shadow-2;
+
+    .@{notification-prefix-cls}-top &,
+    .@{notification-prefix-cls}-bottom & {
+      margin-inline: auto;
+    }
 
     .@{notification-prefix-cls}-topLeft &,
     .@{notification-prefix-cls}-bottomLeft & {
@@ -56,7 +55,7 @@
     }
 
     &-message {
-      margin-bottom: 8px;
+      margin-block-end: 8px;
       color: @heading-color;
       font-size: @font-size-lg;
       line-height: 24px;
@@ -68,6 +67,7 @@
         max-width: 4px;
         background-color: transparent;
         pointer-events: none;
+
         &::before {
           display: block;
           content: '';
@@ -80,17 +80,17 @@
     }
 
     &-closable &-message {
-      padding-right: 24px;
+      padding-inline-end: 24px;
     }
 
     &-with-icon &-message {
-      margin-bottom: 4px;
-      margin-left: 48px;
+      margin-block-end: 4px;
+      margin-inline-start: 48px;
       font-size: @font-size-lg;
     }
 
     &-with-icon &-description {
-      margin-left: 48px;
+      margin-inline-start: 48px;
       font-size: @font-size-base;
     }
 
@@ -99,7 +99,7 @@
     // https://github.com/ant-design/ant-design/issues/15512
     &-icon {
       position: absolute;
-      margin-left: 4px;
+      margin-inline-start: 4px;
       font-size: 24px;
       line-height: 24px;
     }
@@ -108,12 +108,15 @@
       &-success {
         color: @success-color;
       }
+
       &-info {
         color: @info-color;
       }
+
       &-warning {
         color: @warning-color;
       }
+
       &-error {
         color: @error-color;
       }
@@ -122,7 +125,7 @@
     &-close {
       position: absolute;
       top: 16px;
-      right: 22px;
+      inset-inline-end: 22px;
       color: @text-color-secondary;
       outline: none;
 
@@ -137,79 +140,10 @@
     }
 
     &-btn {
-      float: right;
+      float: inline-end;
       margin-top: 16px;
     }
   }
-
-  .notification-fade-effect {
-    animation-duration: 0.24s;
-    animation-timing-function: @ease-in-out;
-    animation-fill-mode: both;
-  }
-
-  &-fade-enter,
-  &-fade-appear {
-    .notification-fade-effect();
-
-    opacity: 0;
-    animation-play-state: paused;
-  }
-
-  &-fade-leave {
-    .notification-fade-effect();
-
-    animation-duration: 0.2s;
-    animation-play-state: paused;
-  }
-
-  &-fade-enter&-fade-enter-active,
-  &-fade-appear&-fade-appear-active {
-    animation-name: NotificationFadeIn;
-    animation-play-state: running;
-  }
-
-  &-fade-leave&-fade-leave-active {
-    animation-name: NotificationFadeOut;
-    animation-play-state: running;
-  }
 }
 
-@keyframes NotificationFadeIn {
-  0% {
-    left: @notification-width;
-    opacity: 0;
-  }
-  100% {
-    left: 0;
-    opacity: 1;
-  }
-}
-
-@keyframes NotificationLeftFadeIn {
-  0% {
-    right: @notification-width;
-    opacity: 0;
-  }
-  100% {
-    right: 0;
-    opacity: 1;
-  }
-}
-
-@keyframes NotificationFadeOut {
-  0% {
-    max-height: 150px;
-    margin-bottom: @notification-margin-bottom;
-    opacity: 1;
-  }
-  100% {
-    max-height: 0;
-    margin-bottom: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    opacity: 0;
-  }
-}
-
-@import './rtl';
+@import './placement';

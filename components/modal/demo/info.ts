@@ -1,28 +1,28 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 
-import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 
 @Component({
   selector: 'nz-demo-modal-info',
+  imports: [NzButtonModule, NzModalModule],
   template: `
     <button nz-button (click)="info()">Info</button>
     <button nz-button (click)="success()">Success</button>
     <button nz-button (click)="error()">Error</button>
     <button nz-button (click)="warning()">Warning</button>
   `,
-  styles: [
-    `
-      button {
-        margin-right: 8px;
-      }
-    `
-  ]
+  styles: `
+    button {
+      margin-right: 8px;
+    }
+  `
 })
 export class NzDemoModalInfoComponent {
-  constructor(private modal: NzModalService) {}
+  private readonly modalService = inject(NzModalService);
 
   info(): void {
-    this.modal.info({
+    this.modalService.info({
       nzTitle: 'This is a notification message',
       nzContent: '<p>some messages...some messages...</p><p>some messages...some messages...</p>',
       nzOnOk: () => console.log('Info OK')
@@ -30,21 +30,21 @@ export class NzDemoModalInfoComponent {
   }
 
   success(): void {
-    this.modal.success({
+    this.modalService.success({
       nzTitle: 'This is a success message',
       nzContent: 'some messages...some messages...'
     });
   }
 
   error(): void {
-    this.modal.error({
+    this.modalService.error({
       nzTitle: 'This is an error message',
       nzContent: 'some messages...some messages...'
     });
   }
 
   warning(): void {
-    this.modal.warning({
+    this.modalService.warning({
       nzTitle: 'This is an warning message',
       nzContent: 'some messages...some messages...'
     });

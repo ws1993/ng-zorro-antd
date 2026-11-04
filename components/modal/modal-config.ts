@@ -3,7 +3,9 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { NzConfigKey } from 'ng-zorro-antd/core/config';
+import { InjectionToken } from '@angular/core';
+
+import { NzSafeAny } from 'ng-zorro-antd/core/types';
 
 export const ZOOM_CLASS_NAME_MAP = {
   enter: 'ant-zoom-enter',
@@ -20,4 +22,7 @@ export const FADE_CLASS_NAME_MAP = {
 };
 
 export const MODAL_MASK_CLASS_NAME = 'ant-modal-mask';
-export const NZ_CONFIG_MODULE_NAME: NzConfigKey = 'modal';
+export const NZ_CONFIG_MODULE_NAME = 'modal';
+export const NZ_MODAL_DATA = new InjectionToken<NzSafeAny>(
+  typeof ngDevMode !== 'undefined' && ngDevMode ? 'nz-modal-data' : ''
+);

@@ -3,28 +3,25 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Direction, Directionality } from '@angular/cdk/bidi';
+import { Directionality } from '@angular/cdk/bidi';
+import { NgTemplateOutlet } from '@angular/common';
 import {
-  ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
   ContentChild,
   ContentChildren,
-  ElementRef,
   Input,
-  OnDestroy,
-  OnInit,
-  Optional,
   QueryList,
   TemplateRef,
-  ViewEncapsulation
+  ViewEncapsulation,
+  booleanAttribute,
+  inject
 } from '@angular/core';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
 
-import { NzConfigKey, NzConfigService, WithConfig } from 'ng-zorro-antd/core/config';
-import { BooleanInput, NgStyleInterface, NzSizeDSType } from 'ng-zorro-antd/core/types';
-import { InputBoolean } from 'ng-zorro-antd/core/util';
+import { NzConfigKey, onConfigChangeEventForComponent, WithConfig } from 'ng-zorro-antd/core/config';
+import { NzOutletModule } from 'ng-zorro-antd/core/outlet';
+import { NgStyleInterface, NzSizeDSType } from 'ng-zorro-antd/core/types';
+import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 
 import { NzCardGridDirective } from './card-grid.directive';
 import { NzCardTabComponent } from './card-tab.component';
@@ -34,62 +31,73 @@ const NZ_CONFIG_MODULE_NAME: NzConfigKey = 'card';
 @Component({
   selector: 'nz-card',
   exportAs: 'nzCard',
-  preserveWhitespaces: false,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   template: `
-    <div class="ant-card-head" *ngIf="nzTitle || nzExtra || listOfNzCardTabComponent">
-      <div class="ant-card-head-wrapper">
-        <div class="ant-card-head-title" *ngIf="nzTitle">
-          <ng-container *nzStringTemplateOutlet="nzTitle">{{ nzTitle }}</ng-container>
+    @if (nzTitle || nzExtra || listOfNzCardTabComponent) {
+      <div class="ant-card-head">
+        <div class="ant-card-head-wrapper">
+          @if (nzTitle) {
+            <div class="ant-card-head-title">
+              <ng-container *nzStringTemplateOutlet="nzTitle">{{ nzTitle }}</ng-container>
+            </div>
+          }
+          @if (nzExtra) {
+            <div class="ant-card-extra">
+              <ng-container *nzStringTemplateOutlet="nzExtra">{{ nzExtra }}</ng-container>
+            </div>
+          }
         </div>
-        <div class="ant-card-extra" *ngIf="nzExtra">
-          <ng-container *nzStringTemplateOutlet="nzExtra">{{ nzExtra }}</ng-container>
-        </div>
+        @if (listOfNzCardTabComponent) {
+          <ng-template [ngTemplateOutlet]="listOfNzCardTabComponent.template" />
+        }
       </div>
-      <ng-container *ngIf="listOfNzCardTabComponent">
-        <ng-template [ngTemplateOutlet]="listOfNzCardTabComponent.template"></ng-template>
-      </ng-container>
+    }
+
+    @if (nzCover) {
+      <div class="ant-card-cover">
+        <ng-template [ngTemplateOutlet]="nzCover" />
+      </div>
+    }
+
+    <div class="ant-card-body" [style]="nzBodyStyle">
+      @if (nzLoading) {
+        <nz-skeleton [nzActive]="true" [nzTitle]="false" [nzParagraph]="{ rows: 4 }" />
+      } @else {
+        <ng-content />
+      }
     </div>
-    <div class="ant-card-cover" *ngIf="nzCover">
-      <ng-template [ngTemplateOutlet]="nzCover"></ng-template>
-    </div>
-    <div class="ant-card-body" [ngStyle]="nzBodyStyle">
-      <ng-container *ngIf="!nzLoading; else loadingTemplate">
-        <ng-content></ng-content>
-      </ng-container>
-      <ng-template #loadingTemplate>
-        <nz-card-loading></nz-card-loading>
-      </ng-template>
-    </div>
-    <ul class="ant-card-actions" *ngIf="nzActions.length">
-      <li *ngFor="let action of nzActions" [style.width.%]="100 / nzActions.length">
-        <span><ng-template [ngTemplateOutlet]="action"></ng-template></span>
-      </li>
-    </ul>
+    @if (nzActions.length) {
+      <ul class="ant-card-actions">
+        @for (action of nzActions; track $index) {
+          <li [style.width.%]="100 / $count">
+            <span><ng-template [ngTemplateOutlet]="action" /></span>
+          </li>
+        }
+      </ul>
+    }
   `,
   host: {
+    class: 'ant-card',
     '[class.ant-card-loading]': 'nzLoading',
-    '[class.ant-card-bordered]': 'nzBorderless === false && nzBordered',
+    '[class.ant-card-bordered]': 'nzBordered',
     '[class.ant-card-hoverable]': 'nzHoverable',
     '[class.ant-card-small]': 'nzSize === "small"',
     '[class.ant-card-contain-grid]': 'listOfNzCardGridDirective && listOfNzCardGridDirective.length',
     '[class.ant-card-type-inner]': 'nzType === "inner"',
     '[class.ant-card-contain-tabs]': '!!listOfNzCardTabComponent',
-    '[class.ant-card-rtl]': `dir === 'rtl'`
-  }
+    '[class.ant-card-rtl]': `dir() === 'rtl'`
+  },
+  imports: [NzOutletModule, NgTemplateOutlet, NzSkeletonModule]
 })
-export class NzCardComponent implements OnDestroy, OnInit {
-  readonly _nzModuleName: NzConfigKey = NZ_CONFIG_MODULE_NAME;
-  static ngAcceptInputType_nzBordered: BooleanInput;
-  static ngAcceptInputType_nzBorderless: BooleanInput;
-  static ngAcceptInputType_nzLoading: BooleanInput;
-  static ngAcceptInputType_nzHoverable: BooleanInput;
+export class NzCardComponent {
+  private readonly cdr = inject(ChangeDetectorRef);
+  protected readonly dir = inject(Directionality).valueSignal;
 
-  @Input() @WithConfig() @InputBoolean() nzBordered: boolean = true;
-  @Input() @WithConfig() @InputBoolean() nzBorderless: boolean = false;
-  @Input() @InputBoolean() nzLoading = false;
-  @Input() @WithConfig() @InputBoolean() nzHoverable: boolean = false;
+  readonly _nzModuleName: NzConfigKey = NZ_CONFIG_MODULE_NAME;
+
+  @Input({ transform: booleanAttribute }) @WithConfig() nzBordered: boolean = true;
+  @Input({ transform: booleanAttribute }) nzLoading = false;
+  @Input({ transform: booleanAttribute }) @WithConfig() nzHoverable: boolean = false;
   @Input() nzBodyStyle: NgStyleInterface | null = null;
   @Input() nzCover?: TemplateRef<void>;
   @Input() nzActions: Array<TemplateRef<void>> = [];
@@ -99,37 +107,8 @@ export class NzCardComponent implements OnDestroy, OnInit {
   @Input() nzExtra?: string | TemplateRef<void>;
   @ContentChild(NzCardTabComponent, { static: false }) listOfNzCardTabComponent?: NzCardTabComponent;
   @ContentChildren(NzCardGridDirective) listOfNzCardGridDirective!: QueryList<NzCardGridDirective>;
-  dir: Direction = 'ltr';
 
-  private destroy$ = new Subject();
-
-  constructor(
-    public nzConfigService: NzConfigService,
-    private cdr: ChangeDetectorRef,
-    private elementRef: ElementRef,
-    @Optional() private directionality: Directionality
-  ) {
-    // TODO: move to host after View Engine deprecation
-    this.elementRef.nativeElement.classList.add('ant-card');
-
-    this.nzConfigService
-      .getConfigChangeEventForComponent(NZ_CONFIG_MODULE_NAME)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(() => {
-        this.cdr.markForCheck();
-      });
-  }
-
-  ngOnInit(): void {
-    this.directionality.change?.pipe(takeUntil(this.destroy$)).subscribe((direction: Direction) => {
-      this.dir = direction;
-      this.cdr.detectChanges();
-    });
-
-    this.dir = this.directionality.value;
-  }
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+  constructor() {
+    onConfigChangeEventForComponent(NZ_CONFIG_MODULE_NAME, () => this.cdr.markForCheck());
   }
 }

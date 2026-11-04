@@ -3,83 +3,60 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Direction, Directionality } from '@angular/cdk/bidi';
+import { Directionality } from '@angular/cdk/bidi';
 import {
-  ChangeDetectionStrategy,
-  ChangeDetectorRef,
+  booleanAttribute,
   Component,
   ElementRef,
   EventEmitter,
+  inject,
   Input,
   OnChanges,
-  OnDestroy,
-  OnInit,
-  Optional,
   Output,
   Renderer2,
   SimpleChanges,
   ViewEncapsulation
 } from '@angular/core';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
 
-import {
-  isPresetColor,
-  isStatusColor,
-  NzPresetColor,
-  NzStatusColor,
-  presetColors,
-  statusColors
-} from 'ng-zorro-antd/core/color';
-import { BooleanInput } from 'ng-zorro-antd/core/types';
-import { InputBoolean } from 'ng-zorro-antd/core/util';
+import { isPresetColor, isStatusColor, presetColors, statusColors } from 'ng-zorro-antd/core/color';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+
+import { NzTagColor } from './typings';
 
 @Component({
   selector: 'nz-tag',
   exportAs: 'nzTag',
-  preserveWhitespaces: false,
   template: `
-    <ng-content></ng-content>
-    <i
-      nz-icon
-      nzType="close"
-      class="ant-tag-close-icon"
-      *ngIf="nzMode === 'closeable'"
-      tabindex="-1"
-      (click)="closeTag($event)"
-    ></i>
+    <ng-content />
+    @if (nzMode === 'closeable') {
+      <nz-icon nzType="close" class="ant-tag-close-icon" tabindex="-1" (click)="closeTag($event)" />
+    }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   host: {
+    class: 'ant-tag',
     '[style.background-color]': `isPresetColor ? '' : nzColor`,
     '[class.ant-tag-has-color]': `nzColor && !isPresetColor`,
     '[class.ant-tag-checkable]': `nzMode === 'checkable'`,
     '[class.ant-tag-checkable-checked]': `nzChecked`,
-    '[class.ant-tag-rtl]': `dir === 'rtl'`,
+    '[class.ant-tag-rtl]': `dir() === 'rtl'`,
+    '[class.ant-tag-borderless]': `!nzBordered`,
     '(click)': 'updateCheckedStatus()'
-  }
+  },
+  imports: [NzIconModule]
 })
-export class NzTagComponent implements OnChanges, OnDestroy, OnInit {
-  static ngAcceptInputType_nzChecked: BooleanInput;
-  isPresetColor = false;
+export class NzTagComponent implements OnChanges {
+  private renderer = inject(Renderer2);
+  private el: HTMLElement = inject(ElementRef<HTMLElement>).nativeElement;
+  protected readonly dir = inject(Directionality).valueSignal;
+
   @Input() nzMode: 'default' | 'closeable' | 'checkable' = 'default';
-  @Input() nzColor?: string | NzStatusColor | NzPresetColor;
-  @Input() @InputBoolean() nzChecked = false;
+  @Input() nzColor?: NzTagColor;
+  @Input({ transform: booleanAttribute }) nzChecked = false;
+  @Input({ transform: booleanAttribute }) nzBordered = true;
   @Output() readonly nzOnClose = new EventEmitter<MouseEvent>();
   @Output() readonly nzCheckedChange = new EventEmitter<boolean>();
-  dir: Direction = 'ltr';
-  private destroy$ = new Subject<void>();
-
-  constructor(
-    private cdr: ChangeDetectorRef,
-    private renderer: Renderer2,
-    private elementRef: ElementRef,
-    @Optional() private directionality: Directionality
-  ) {
-    // TODO: move to host after View Engine deprecation
-    this.elementRef.nativeElement.classList.add('ant-tag');
-  }
+  isPresetColor = false;
 
   updateCheckedStatus(): void {
     if (this.nzMode === 'checkable') {
@@ -91,40 +68,24 @@ export class NzTagComponent implements OnChanges, OnDestroy, OnInit {
   closeTag(e: MouseEvent): void {
     this.nzOnClose.emit(e);
     if (!e.defaultPrevented) {
-      this.renderer.removeChild(this.renderer.parentNode(this.elementRef.nativeElement), this.elementRef.nativeElement);
+      this.renderer.removeChild(this.renderer.parentNode(this.el), this.el);
     }
   }
 
-  /**
-   * @deprecated
-   * move to host after View Engine deprecation
-   * host: {
-   *   '[class]': `isPresetColor ? ('ant-tag-' + nzColor) : ''`
-   * }
-   */
   private clearPresetColor(): void {
-    const hostElement = this.elementRef.nativeElement as HTMLElement;
     // /(ant-tag-(?:pink|red|...))/g
     const regexp = new RegExp(`(ant-tag-(?:${[...presetColors, ...statusColors].join('|')}))`, 'g');
-    const classname = hostElement.classList.toString();
+    const classname = this.el.classList.toString();
     const matches: string[] = [];
     let match: RegExpExecArray | null = regexp.exec(classname);
     while (match !== null) {
       matches.push(match[1]);
       match = regexp.exec(classname);
     }
-    hostElement.classList.remove(...matches);
+    this.el.classList.remove(...matches);
   }
 
-  /**
-   * @deprecated
-   * move to host after View Engine deprecation
-   * host: {
-   *   '[class]': `isPresetColor ? ('ant-tag-' + nzColor) : ''`
-   * }
-   */
   private setPresetColor(): void {
-    const hostElement = this.elementRef.nativeElement as HTMLElement;
     this.clearPresetColor();
     if (!this.nzColor) {
       this.isPresetColor = false;
@@ -132,17 +93,8 @@ export class NzTagComponent implements OnChanges, OnDestroy, OnInit {
       this.isPresetColor = isPresetColor(this.nzColor) || isStatusColor(this.nzColor);
     }
     if (this.isPresetColor) {
-      hostElement.classList.add(`ant-tag-${this.nzColor}`);
+      this.el.classList.add(`ant-tag-${this.nzColor}`);
     }
-  }
-
-  ngOnInit(): void {
-    this.directionality.change?.pipe(takeUntil(this.destroy$)).subscribe((direction: Direction) => {
-      this.dir = direction;
-      this.cdr.detectChanges();
-    });
-
-    this.dir = this.directionality.value;
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -150,10 +102,5 @@ export class NzTagComponent implements OnChanges, OnDestroy, OnInit {
     if (nzColor) {
       this.setPresetColor();
     }
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 }

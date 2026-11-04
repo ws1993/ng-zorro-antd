@@ -3,19 +3,20 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
+import { NgTemplateOutlet } from '@angular/common';
 import {
-  ChangeDetectionStrategy,
-  ChangeDetectorRef,
   Component,
   ElementRef,
+  Injector,
   Input,
-  NgZone,
   OnChanges,
   OnInit,
   SimpleChanges,
-  TemplateRef
+  TemplateRef,
+  afterNextRender,
+  inject,
+  ChangeDetectorRef
 } from '@angular/core';
-import { take } from 'rxjs/operators';
 
 import { curveBasis, curveLinear, line } from 'd3-shape';
 
@@ -24,21 +25,24 @@ import { NzGraphEdge, NzGraphEdgeType } from './interface';
 @Component({
   selector: '[nz-graph-edge]',
   template: `
-    <ng-container
-      *ngIf="customTemplate"
-      [ngTemplateOutlet]="customTemplate"
-      [ngTemplateOutletContext]="{ $implicit: edge }"
-    ></ng-container>
-    <svg:g *ngIf="!customTemplate">
-      <path class="nz-graph-edge-line" [attr.marker-end]="'url(#edge-end-arrow)'"></path>
-      <svg:text class="nz-graph-edge-text" text-anchor="middle" dy="10" *ngIf="edge.label">
-        <textPath [attr.href]="'#' + id" startOffset="50%">{{ edge.label }}</textPath>
-      </svg:text>
-    </svg:g>
+    @if (customTemplate) {
+      <ng-container [ngTemplateOutlet]="customTemplate" [ngTemplateOutletContext]="{ $implicit: edge }" />
+    } @else {
+      <svg:g>
+        <path class="nz-graph-edge-line" [attr.marker-end]="'url(#edge-end-arrow)'" />
+        @if (edge.label) {
+          <svg:text class="nz-graph-edge-text" text-anchor="middle" dy="10">
+            <textPath [attr.href]="'#' + id" startOffset="50%">{{ edge.label }}</textPath>
+          </svg:text>
+        }
+      </svg:g>
+    }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush
+  imports: [NgTemplateOutlet]
 })
 export class NzGraphEdgeComponent implements OnInit, OnChanges {
+  private injector = inject(Injector);
+  private cdr = inject(ChangeDetectorRef);
   @Input() edge!: NzGraphEdge;
   @Input() edgeType?: NzGraphEdgeType | string;
 
@@ -49,7 +53,7 @@ export class NzGraphEdgeComponent implements OnInit, OnChanges {
   public get id(): string {
     return this.edge?.id || `${this.edge.v}--${this.edge.w}`;
   }
-  private el!: SVGGElement;
+  private el: SVGGElement = inject(ElementRef<SVGGElement>).nativeElement;
   private path!: SVGPathElement;
 
   private line = line<{ x: number; y: number }>()
@@ -57,27 +61,28 @@ export class NzGraphEdgeComponent implements OnInit, OnChanges {
     .y(d => d.y)
     .curve(curveLinear);
 
-  constructor(private elementRef: ElementRef<SVGGElement>, private ngZone: NgZone, private cdr: ChangeDetectorRef) {
-    this.el = this.elementRef.nativeElement;
-  }
-
   ngOnInit(): void {
     this.initElementStyle();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     const { edge, customTemplate, edgeType } = changes;
-    if (edge) {
-      this.ngZone.onStable.pipe(take(1)).subscribe(() => {
-        // Update path element if customTemplate set
-        if (customTemplate) {
-          this.initElementStyle();
-        }
 
-        this.setLine();
-        this.cdr.markForCheck();
-      });
+    if (edge) {
+      afterNextRender(
+        () => {
+          // Update path element if customTemplate set
+          if (customTemplate) {
+            this.initElementStyle();
+          }
+
+          this.setLine();
+          this.cdr.markForCheck();
+        },
+        { injector: this.injector }
+      );
     }
+
     if (edgeType) {
       const type = this.edgeType === NzGraphEdgeType.LINE ? curveLinear : curveBasis;
       this.line = line<{ x: number; y: number }>()

@@ -1,7 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Component } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
-const options = [
+import { NzCascaderModule, NzCascaderOption } from 'ng-zorro-antd/cascader';
+
+const options: NzCascaderOption[] = [
   {
     label: 'Ant Design',
     value: 'antd',
@@ -28,21 +30,22 @@ const options = [
 
 @Component({
   selector: 'nz-demo-cascader-custom-template',
+  imports: [FormsModule, NzCascaderModule],
   template: `
     <nz-cascader
       [nzOptionRender]="renderTpl"
       [nzOptions]="nzOptions"
       [(ngModel)]="values"
       (ngModelChange)="onChanges($event)"
-    ></nz-cascader>
+    />
     <ng-template #renderTpl let-option let-index="index">{{ index + 1 }}. {{ option.label }}</ng-template>
   `
 })
 export class NzDemoCascaderCustomTemplateComponent {
-  nzOptions = options;
-  values: any[] | null = null;
+  readonly nzOptions = options;
+  values: string[] | null = null;
 
-  onChanges(values: any): void {
+  onChanges(values: string): void {
     console.log(values, this.values);
   }
 }

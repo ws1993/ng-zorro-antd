@@ -41,13 +41,14 @@ export type Locale =
   | 'zh_CN'
   | 'zh_TW';
 
-// eslint-disable-next-line no-shadow
 export enum ProjectTemplate {
-  Blank    = 'blank',
+  Blank = 'blank',
   Sidemenu = 'sidemenu',
-  Topnav   = 'topnav',
-  None     = 'none'
+  Topnav = 'topnav',
+  None = 'none'
 }
+
+export type DateAdapterChoice = 'date-fns' | 'native' | 'none';
 
 export interface Schema {
   /** Name of the project to target. */
@@ -62,4 +63,6 @@ export interface Schema {
   locale?: Locale;
   i18n?: Locale;
   template?: ProjectTemplate;
+  /** Which date adapter to use for date/time components. */
+  dateAdapter?: DateAdapterChoice;
 }

@@ -6,29 +6,29 @@ title: Ant Design of Angular
 An enterprise-class Angular UI component library based on Ant Design, all components are open source and free to use under MIT license.
 
 <div class="pic-plus">
-  <img alt="Ant Design" width="150" height="150" src="https://img.alicdn.com/tfs/TB1g.mWZAL0gK0jSZFtXXXQCXXa-200-200.svg">
+  <img alt="Ant Design" style="margin-right: 24px" width="150" height="150" src="https://img.alicdn.com/tfs/TB1g.mWZAL0gK0jSZFtXXXQCXXa-200-200.svg">
   <span>+</span>
-  <img alt="Angular" width="140" height="150" src="https://img.alicdn.com/tfs/TB1Z0PywTtYBeNjy1XdXXXXyVXa-186-200.svg">
+  <img alt="Angular" width="180" height="180" src="https://img.alicdn.com/imgextra/i1/O1CN01RSfkps1J0vtVaKr0U_!!6000000000967-49-tps-1920-1920.webp">
 </div>
 
 ## Features
 
 - An enterprise-class UI design language for Angular applications.
-- 60+ high-quality Angular components out of the box.
+- 70+ high-quality Angular components out of the box.
 - Written in TypeScript with complete defined types.
-- Support OnPush mode, high performance.
+- Support Zoneless and OnPush mode, high performance.
 - Powerful theme customization in every detail.
 - Internationalization support for dozens of languages.
 
 ## Environment Support
 
-- Modern browsers and Internet Explorer 11+ (with [polyfills](https://angular.io/guide/browser-support))
+- Modern browsers, [Browser support](https://angular.dev/reference/versions#browser-support)
 - Server-side Rendering
-- [Electron](https://electron.atom.io/)
+- [Electron](https://www.electronjs.org/)
 
-| [<img src="https://img.alicdn.com/tfs/TB1G5ewZuL2gK0jSZPhXXahvXXa-48-48.png" alt="IE / Edge" width="24px" height="24px" />](https://godban.github.io/browsers-support-badges//)<br>IE / Edge | [<img src="https://img.alicdn.com/tfs/TB1Dx73o79l0K4jSZFKXXXFjpXa-48-48.png" alt="Firefox" width="24px" height="24px" />](https://godban.github.io/browsers-support-badges/)<br>Firefox | [<img src="https://img.alicdn.com/tfs/TB1mY9FZrr1gK0jSZFDXXb9yVXa-48-48.png" alt="Chrome" width="24px" height="24px" />](https://godban.github.io/browsers-support-badges/)<br>Chrome | [<img src="https://img.alicdn.com/tfs/TB1Vas5o79l0K4jSZFKXXXFjpXa-48-48.png" alt="Safari" width="24px" height="24px" />](https://godban.github.io/browsers-support-badges/)<br>Safari | [<img src="https://img.alicdn.com/tfs/TB12EmNZET1gK0jSZFrXXcNCXXa-48-48.png" alt="Opera" width="24px" height="24px" />](https://godban.github.io/browsers-support-badges/)<br>Opera | [<img src="https://img.alicdn.com/tfs/TB1TMW8paNj0u4jSZFyXXXgMVXa-48-48.png" alt="Electron" width="24px" height="24px" />](https://godban.github.io/browsers-support-badges/)<br>Electron |
-| --- | --- | --- | --- | --- | --- |
-| IE11, Edge | last 2 versions | last 2 versions | last 2 versions | last 2 versions | last 2 versions |
+| [<img src="https://img.alicdn.com/tfs/TB1G5ewZuL2gK0jSZPhXXahvXXa-48-48.png" alt="Edge" width="24px" height="24px" />](https://godban.github.io/browsers-support-badges//)<br>Edge | [<img src="https://img.alicdn.com/tfs/TB1Dx73o79l0K4jSZFKXXXFjpXa-48-48.png" alt="Firefox" width="24px" height="24px" />](https://godban.github.io/browsers-support-badges/)<br>Firefox | [<img src="https://img.alicdn.com/tfs/TB1mY9FZrr1gK0jSZFDXXb9yVXa-48-48.png" alt="Chrome" width="24px" height="24px" />](https://godban.github.io/browsers-support-badges/)<br>Chrome | [<img src="https://img.alicdn.com/tfs/TB1Vas5o79l0K4jSZFKXXXFjpXa-48-48.png" alt="Safari" width="24px" height="24px" />](https://godban.github.io/browsers-support-badges/)<br>Safari | [<img src="https://img.alicdn.com/tfs/TB12EmNZET1gK0jSZFrXXcNCXXa-48-48.png" alt="Opera" width="24px" height="24px" />](https://godban.github.io/browsers-support-badges/)<br>Opera | [<img src="https://img.alicdn.com/tfs/TB1TMW8paNj0u4jSZFyXXXgMVXa-48-48.png" alt="Electron" width="24px" height="24px" />](https://godban.github.io/browsers-support-badges/)<br>Electron |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| last 2 versions                                                                                                                                                                    | last 2 versions                                                                                                                                                                         | last 2 versions                                                                                                                                                                       | last 2 versions                                                                                                                                                                       | last 2 versions                                                                                                                                                                     | last 2 versions                                                                                                                                                                           |
 
 ## Version
 
@@ -36,12 +36,11 @@ An enterprise-class Angular UI component library based on Ant Design, all compon
 
 ## Angular Support
 
-`ng-zorro-antd` keeps the same major version with `@angular/core`, now supports Angular `^12.0.0`.
+`ng-zorro-antd` keeps the same major version with `@angular/core`, now supports Angular `^22.0.0`.
 
 ## Design Specification
 
 `ng-zorro-antd` synchronizes design specification with [Ant Design](https://ant.design/docs/spec/introduce) on a regular basis, you can check the [log](https://github.com/NG-ZORRO/ng-zorro-antd/actions?query=workflow:"styles-sync") online.
-
 
 ## Installation
 
@@ -90,7 +89,7 @@ Please read our [CONTRIBUTING.md](https://github.com/NG-ZORRO/ng-zorro-antd/blob
 
 If you'd like to help us improve ng-zorro-antd, just create a [Pull Request](https://github.com/NG-ZORRO/ng-zorro-antd/pulls). Feel free to report bugs and issues [here](https://ng.ant.design/issue-helper/#/en).
 
-> If you're new to posting issues, we ask that you read [*How To Ask Questions The Smart Way*](https://www.catb.org/~esr/faqs/smart-questions.html)(This guide does not provide actual support services for this project!) and [How to Ask a Question in Open Source Community](https://github.com/seajs/seajs/issues/545) and [How to Report Bugs Effectively](https://www.chiark.greenend.org.uk/~sgtatham/bugs.html) prior to posting. Well written bug reports help us help you!
+> If you're new to posting issues, we ask that you read [_How To Ask Questions The Smart Way_](https://www.catb.org/~esr/faqs/smart-questions.html)(This guide does not provide actual support services for this project!) and [How to Ask a Question in Open Source Community](https://github.com/seajs/seajs/issues/545) and [How to Report Bugs Effectively](https://www.chiark.greenend.org.uk/~sgtatham/bugs.html) prior to posting. Well written bug reports help us help you!
 
 ## Need Help?
 

@@ -7,10 +7,10 @@ title: 全局配置项
 
 ## 如何使用
 
-想要为某些组件提供默认配置项，请在根注入器中根据注入令牌 `NZ_CONFIG` 提供一个符合 `NzConfig` 接口的对象，例如：
+想要为某些组件提供默认配置项, 可以使用 `provideNzConfig` 函数，传入一个符合 `NzConfig` 接口的对象。例如：
 
 ```typescript
-import { NzConfig, NZ_CONFIG } from 'ng-zorro-antd/core/config';
+import { NzConfig, provideNzConfig } from 'ng-zorro-antd/core/config';
 
 const ngZorroConfig: NzConfig = {
   // 注意组件名称没有 nz 前缀
@@ -18,17 +18,9 @@ const ngZorroConfig: NzConfig = {
   notification: { nzTop: 240 }
 };
 
-@NgModule({
-  declarations: [AppComponent],
-  imports: [
-    CommonModule
-  ],
-  providers: [
-    { provide: NZ_CONFIG, useValue:  ngZorroConfig  }
-  ],
-  bootstrap: [AppComponent]
-})
-export class AppModule {}
+export const appConfig: ApplicationConfig = {
+  providers: [provideNzConfig(ngZorroConfig)]
+};
 ```
 
 这些全局配置项将会被注入 `NzConfigService` 当中并保存。
@@ -40,11 +32,13 @@ export class AppModule {}
 最简单的方式是在应用的根组件中调用 `NzConfigService` 的相关方法：
 
 ```typescript
+import { NzConfigService } from 'ng-zorro-antd/core/config';
+
 export class AppComponent implements OnInit {
+  private nzConfigService = inject(NzConfigService);
+
   @ViewChild('nzIndicatorTpl', { static: true })
   nzIndicator!: TemplateRef<void>;
-
-  constructor(private readonly nzConfigService: NzConfigService) {}
 
   ngOnInit(): void {
     this.nzConfigService.set('spin', { nzIndicator: this.nzIndicator });
@@ -63,7 +57,7 @@ export class AppComponent implements OnInit {
   template: `
     <ng-template #nzIndicatorTpl>
       <span class="ant-spin-dot">
-        <i nz-icon [nzType]="'loading'"></i>
+        <nz-icon nzType="loading" />
       </span>
     </ng-template>
   `
@@ -74,12 +68,9 @@ export class GlobalTemplatesComponent {
 }
 
 // The Factory function
-const nzConfigFactory = (
-  injector: Injector,
-  resolver: ComponentFactoryResolver
-): NzConfig => {
-  const factory = resolver.resolveComponentFactory(GlobalTemplatesComponent);
-  const { nzIndicator } = factory.create(injector).instance;
+const nzConfigFactory = (): NzConfig => {
+  const environmentInjector = inject(EnvironmentInjector);
+  const { nzIndicator } = createComponent(component, { environmentInjector }).instance;
   return {
     spin: {
       nzIndicator
@@ -87,23 +78,16 @@ const nzConfigFactory = (
   };
 };
 
-@NgModule({
-  imports: [...],
-  declarations: [
-    AppComponent,
-    GlobalTemplatesComponent
-  ],
+export const appConfig: ApplicationConfig = {
   providers: [
-    { // The FactoryProvider
+    {
+      // The FactoryProvider
       provide: NZ_CONFIG,
-      useFactory: nzConfigFactory,
-      deps: [Injector, ComponentFactoryResolver]
+      useFactory: nzConfigFactory
     }
   ]
-})
-export class AppModule {}
+};
 ```
-
 
 ## 局部生效
 
@@ -137,11 +121,12 @@ export class AppModule {}
     NzConfigService,
     {
       provide: NZ_CONFIG,
-      useFactory: (nzConfigService: NzConfigService) => {
-        const globalConfig = nzConfigService.getConfig();
+      useFactory: () => {
+        // 获取全局 NzConfigService
+        const globalConfig = inject(NzConfigService, { skipSelf: true }).getConfig();
         const localConfig = {
           select: {
-            nzBorderless: true
+            nzVariant: 'borderless'
           }
         };
         // 合并全局配置与本地配置
@@ -151,8 +136,6 @@ export class AppModule {}
         };
         return mergedConfig;
       },
-      // 获取全局 NzConfigService
-      deps: [[new SkipSelf(), NzConfigService]]
     }
   ]
 })
@@ -165,14 +148,12 @@ export class AppModule {}
 ```typescript
 import { NzConfigService } from 'ng-zorro-antd/core/config';
 
-@Component({
-  selector: 'app-change-zorro-config'
-})
+@Component({})
 export class ChangeZorroConfigComponent {
-  constructor(private nzConfigService: NzConfigService) {}
+  private nzConfigService = inject(NzConfigService);
 
   onChangeConfig() {
-    this.nzConfigService.set('button', { nzSize: 'large' })
+    this.nzConfigService.set('button', { nzSize: 'large' });
   }
 }
 ```
@@ -183,7 +164,7 @@ export class ChangeZorroConfigComponent {
 
 对于任何一个属性来说，各个来源的值的优先级如下：
 
-**为组件的某个实例单独设置的值（通过模板或类似于 `service.create` 的方法）> 通过 `NZ_CONFIG` 提供的全局默认值（包括 `set` 方法）  > NG-ZORRO 内置的默认值。**
+**为组件的某个实例单独设置的值（通过模板或类似于 `service.create` 的方法）> 通过 `NZ_CONFIG` 提供的全局默认值（包括 `set` 方法） > NG-ZORRO 内置的默认值。**
 
 例如，你想创建一个 NzNotification 组件：
 

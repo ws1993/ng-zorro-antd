@@ -3,8 +3,7 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Direction } from '@angular/cdk/bidi';
-import { InjectionToken, QueryList } from '@angular/core';
+import { InjectionToken, NgZone, QueryList } from '@angular/core';
 
 import { NzCarouselContentDirective } from './carousel-content.directive';
 import { NzCarouselBaseStrategy } from './strategies/base-strategy';
@@ -20,7 +19,7 @@ export interface NzCarouselComponentAsSource {
   slickListEl: HTMLElement;
   slickTrackEl: HTMLElement;
   activeIndex: number;
-  dir: Direction;
+  ngZone: NgZone;
 }
 
 export interface NzCarouselStrategyRegistryItem {
@@ -29,7 +28,7 @@ export interface NzCarouselStrategyRegistryItem {
 }
 
 export const NZ_CAROUSEL_CUSTOM_STRATEGIES = new InjectionToken<NzCarouselStrategyRegistryItem[]>(
-  'nz-carousel-custom-strategies'
+  typeof ngDevMode !== 'undefined' && ngDevMode ? 'nz-carousel-custom-strategies' : ''
 );
 
 export interface PointerVector {

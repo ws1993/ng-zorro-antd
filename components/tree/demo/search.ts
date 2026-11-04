@@ -1,36 +1,30 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
-import { NzFormatEmitEvent } from 'ng-zorro-antd/tree';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzFormatEmitEvent, NzTreeModule } from 'ng-zorro-antd/tree';
 
 @Component({
   selector: 'nz-demo-tree-search',
+  imports: [FormsModule, NzInputModule, NzTreeModule],
   template: `
-    <nz-input-group [nzSuffix]="suffixIcon">
+    <nz-input-search>
       <input type="text" nz-input placeholder="Search" [(ngModel)]="searchValue" />
-    </nz-input-group>
-    <ng-template #suffixIcon>
-      <i nz-icon nzType="search"></i>
-    </ng-template>
+    </nz-input-search>
+    <br />
     <nz-tree
       [nzData]="nodes"
-      [nzSearchValue]="searchValue"
-      (nzClick)="nzEvent($event)"
-      (nzExpandChange)="nzEvent($event)"
-      (nzSearchValueChange)="nzEvent($event)"
-    ></nz-tree>
-  `,
-  styles: [
-    `
-      nz-input-group {
-        margin-bottom: 12px;
-      }
-    `
-  ]
+      [nzSearchValue]="searchValue()"
+      (nzClick)="log($event)"
+      (nzExpandChange)="log($event)"
+      (nzSearchValueChange)="log($event)"
+    />
+  `
 })
 export class NzDemoTreeSearchComponent {
-  searchValue = '';
+  readonly searchValue = signal('');
 
-  nodes = [
+  readonly nodes = [
     {
       title: '0-0',
       key: '0-0',
@@ -76,7 +70,7 @@ export class NzDemoTreeSearchComponent {
     }
   ];
 
-  nzEvent(event: NzFormatEmitEvent): void {
+  log(event: NzFormatEmitEvent): void {
     console.log(event);
   }
 }

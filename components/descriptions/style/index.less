@@ -4,6 +4,10 @@
 @descriptions-prefix-cls: ~'@{ant-prefix}-descriptions';
 
 .@{descriptions-prefix-cls} {
+  &-rtl {
+    direction: rtl;
+  }
+
   &-header {
     display: flex;
     align-items: center;
@@ -22,15 +26,15 @@
   }
 
   &-extra {
-    margin-left: auto;
+    margin-inline-start: auto;
     color: @descriptions-extra-color;
     font-size: @font-size-base;
   }
 
   &-view {
     width: 100%;
-    overflow: hidden;
     border-radius: @border-radius-base;
+
     table {
       width: 100%;
       table-layout: fixed;
@@ -41,9 +45,21 @@
     > th,
     > td {
       padding-bottom: @descriptions-item-padding-bottom;
+      padding-inline-end: @padding-md;
     }
+
+    > th:last-child,
+    > td:last-child {
+      padding-inline-end: 0;
+    }
+
     &:last-child {
       border-bottom: none;
+
+      > th,
+      > td {
+        padding-bottom: 0;
+      }
     }
   }
 
@@ -64,8 +80,9 @@
 
       position: relative;
       top: -0.5px;
-      margin: 0 @descriptions-item-label-colon-margin-right 0
-        @descriptions-item-label-colon-margin-left;
+      margin-block: 0;
+      margin-inline: @descriptions-item-label-colon-margin-left
+        @descriptions-item-label-colon-margin-right;
     }
 
     &.@{descriptions-prefix-cls}-item-no-colon::after {
@@ -86,7 +103,6 @@
     color: @text-color;
     font-size: @font-size-base;
     line-height: @line-height-base;
-    word-break: break-word;
     overflow-wrap: break-word;
   }
 
@@ -126,50 +142,51 @@
   &-bordered {
     .@{descriptions-prefix-cls}-view {
       border: 1px solid @border-color-split;
+
       > table {
         table-layout: auto;
         border-collapse: collapse;
       }
-    }
 
-    .@{descriptions-prefix-cls}-item-label,
-    .@{descriptions-prefix-cls}-item-content {
-      padding: @descriptions-default-padding;
-      border-right: 1px solid @border-color-split;
+      .@{descriptions-prefix-cls}-row {
+        border-bottom: 1px solid @border-color-split;
 
-      &:last-child {
-        border-right: none;
+        &:last-child {
+          border-bottom: none;
+        }
+
+        > .@{descriptions-prefix-cls}-item-label,
+        > .@{descriptions-prefix-cls}-item-content {
+          padding: @descriptions-default-padding;
+          border-inline-end: 1px solid @border-color-split;
+
+          &:last-child {
+            border-inline-end: none;
+          }
+        }
       }
     }
 
     .@{descriptions-prefix-cls}-item-label {
       background-color: @descriptions-bg;
+
       &::after {
         display: none;
       }
     }
 
-    .@{descriptions-prefix-cls}-row {
-      border-bottom: 1px solid @border-color-split;
-      &:last-child {
-        border-bottom: none;
-      }
-    }
-
     &.@{descriptions-prefix-cls}-middle {
-      .@{descriptions-prefix-cls}-item-label,
-      .@{descriptions-prefix-cls}-item-content {
+      .@{descriptions-prefix-cls}-view .@{descriptions-prefix-cls}-row > .@{descriptions-prefix-cls}-item-label,
+      .@{descriptions-prefix-cls}-view .@{descriptions-prefix-cls}-row > .@{descriptions-prefix-cls}-item-content {
         padding: @descriptions-middle-padding;
       }
     }
 
     &.@{descriptions-prefix-cls}-small {
-      .@{descriptions-prefix-cls}-item-label,
-      .@{descriptions-prefix-cls}-item-content {
+      .@{descriptions-prefix-cls}-view .@{descriptions-prefix-cls}-row > .@{descriptions-prefix-cls}-item-label,
+      .@{descriptions-prefix-cls}-view .@{descriptions-prefix-cls}-row > .@{descriptions-prefix-cls}-item-content {
         padding: @descriptions-small-padding;
       }
     }
   }
 }
-
-@import './rtl';

@@ -15,7 +15,8 @@ export default {
     prev_5: '向前 5 頁',
     next_5: '向後 5 頁',
     prev_3: '向前 3 頁',
-    next_3: '向後 3 頁'
+    next_3: '向後 3 頁',
+    page_size: '頁碼'
   },
   DatePicker: {
     lang: {
@@ -46,14 +47,24 @@ export default {
       previousDecade: '上一年代',
       nextDecade: '下一年代',
       previousCentury: '上一世紀',
-      nextCentury: '下一世紀'
+      nextCentury: '下一世紀',
+      yearPlaceholder: '請選擇年份',
+      quarterPlaceholder: '請選擇季度',
+      monthPlaceholder: '請選擇月份',
+      weekPlaceholder: '請選擇周',
+      rangeYearPlaceholder: ['開始年份', '結束年份'],
+      rangeMonthPlaceholder: ['開始月份', '結束月份'],
+      rangeWeekPlaceholder: ['開始周', '結束周'],
+      rangeQuarterPlaceholder: ['開始季度', '結束季度']
     },
     timePickerLocale: {
-      placeholder: '請選擇時間'
+      placeholder: '請選擇時間',
+      rangePlaceholder: ['開始時間', '結束時間']
     }
   },
   TimePicker: {
-    placeholder: '請選擇時間'
+    placeholder: '請選擇時間',
+    rangePlaceholder: ['開始時間', '結束時間']
   },
   Calendar: {
     lang: {
@@ -84,10 +95,18 @@ export default {
       previousDecade: '上一年代',
       nextDecade: '下一年代',
       previousCentury: '上一世紀',
-      nextCentury: '下一世紀'
+      nextCentury: '下一世紀',
+      yearPlaceholder: '請選擇年份',
+      quarterPlaceholder: '請選擇季度',
+      monthPlaceholder: '請選擇月份',
+      weekPlaceholder: '請選擇周',
+      rangeYearPlaceholder: ['開始年份', '結束年份'],
+      rangeMonthPlaceholder: ['開始月份', '結束月份'],
+      rangeWeekPlaceholder: ['開始周', '結束周']
     },
     timePickerLocale: {
-      placeholder: '請選擇時間'
+      placeholder: '請選擇時間',
+      rangePlaceholder: ['開始時間', '結束時間']
     }
   },
   global: {
@@ -106,7 +125,10 @@ export default {
     collapse: '關閉行',
     triggerDesc: '點擊降序',
     triggerAsc: '點擊升序',
-    cancelSort: '取消排序'
+    cancelSort: '取消排序',
+    filterCheckall: '全選',
+    filterSearchPlaceholder: '在篩選項中搜尋',
+    selectNone: '清空所有'
   },
   Modal: {
     okText: '確定',
@@ -120,14 +142,20 @@ export default {
   Transfer: {
     searchPlaceholder: '搜尋資料',
     itemUnit: '項目',
-    itemsUnit: '項目'
+    itemsUnit: '項目',
+    remove: '删除',
+    selectCurrent: '全選當頁',
+    removeCurrent: '删除當頁',
+    selectAll: '全選所有',
+    removeAll: '删除全部',
+    selectInvert: '反選當頁'
   },
   Upload: {
     uploading: '正在上傳...',
     removeFile: '刪除檔案',
     uploadError: '上傳失敗',
     previewFile: '檔案預覽',
-    downloadFile: '下载文件'
+    downloadFile: '下載文件'
   },
   Empty: {
     description: '無此資料'
@@ -143,5 +171,25 @@ export default {
   },
   PageHeader: {
     back: '返回'
+  },
+  Image: {
+    preview: '預覽'
+  },
+  CronExpression: {
+    cronError: 'cron 表達式不合法',
+    second: '秒',
+    minute: '分',
+    hour: '時',
+    day: '日',
+    month: '月',
+    week: '週'
+  },
+  QRCode: {
+    expired: '二維條碼已過期',
+    refresh: '點擊刷新',
+    scanned: '已掃描'
+  },
+  Form: {
+    optional: '(可選)'
   }
 };

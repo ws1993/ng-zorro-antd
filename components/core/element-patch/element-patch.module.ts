@@ -3,14 +3,15 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 
 import { NzElementPatchDirective } from './element-patch.directive';
 
+/**
+ * @deprecated Will be removed in v23, please use {@link NzElementPatchDirective} instead.
+ */
 @NgModule({
-  imports: [CommonModule],
-  declarations: [NzElementPatchDirective],
+  imports: [NzElementPatchDirective],
   exports: [NzElementPatchDirective]
 })
 export class NzElementPatchModule {}

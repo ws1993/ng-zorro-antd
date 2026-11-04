@@ -1,9 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 
-import { NzContextMenuService, NzDropdownMenuComponent } from 'ng-zorro-antd/dropdown';
+import { NzContextMenuService, NzDropdownMenuComponent, NzDropdownModule } from 'ng-zorro-antd/dropdown';
 
 @Component({
   selector: 'nz-demo-dropdown-context-menu',
+  imports: [NzDropdownModule],
   template: `
     <div class="context-area" (contextmenu)="contextMenu($event, menu)">Right Click on here</div>
     <nz-dropdown-menu #menu="nzDropdownMenu">
@@ -26,26 +27,20 @@ import { NzContextMenuService, NzDropdownMenuComponent } from 'ng-zorro-antd/dro
       </ul>
     </nz-dropdown-menu>
   `,
-  styles: [
-    `
-      .context-area {
-        background: #f7f7f7;
-        color: #777;
-        text-align: center;
-        height: 200px;
-        line-height: 200px;
-      }
-    `
-  ]
+  styles: `
+    .context-area {
+      background: #f7f7f7;
+      color: #777;
+      text-align: center;
+      height: 200px;
+      line-height: 200px;
+    }
+  `
 })
 export class NzDemoDropdownContextMenuComponent {
+  private readonly nzContextMenuService = inject(NzContextMenuService);
+
   contextMenu($event: MouseEvent, menu: NzDropdownMenuComponent): void {
     this.nzContextMenuService.create($event, menu);
   }
-
-  closeMenu(): void {
-    this.nzContextMenuService.close();
-  }
-
-  constructor(private nzContextMenuService: NzContextMenuService) {}
 }

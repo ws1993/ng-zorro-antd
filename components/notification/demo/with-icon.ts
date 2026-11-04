@@ -1,24 +1,26 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 
+import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 
 @Component({
   selector: 'nz-demo-notification-with-icon',
+  imports: [NzButtonModule],
   template: `
     <button nz-button (click)="createNotification('success')">Success</button>
     <button nz-button (click)="createNotification('info')">Info</button>
     <button nz-button (click)="createNotification('warning')">Warning</button>
     <button nz-button (click)="createNotification('error')">Error</button>
   `,
-  styles: [
-    `
-      button {
-        margin-right: 1em;
-      }
-    `
-  ]
+  styles: `
+    button {
+      margin-inline-end: 1em;
+    }
+  `
 })
 export class NzDemoNotificationWithIconComponent {
+  private readonly notification = inject(NzNotificationService);
+
   createNotification(type: string): void {
     this.notification.create(
       type,
@@ -26,6 +28,4 @@ export class NzDemoNotificationWithIconComponent {
       'This is the content of the notification. This is the content of the notification. This is the content of the notification.'
     );
   }
-
-  constructor(private notification: NzNotificationService) {}
 }

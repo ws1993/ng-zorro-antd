@@ -1,4 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
+
+import { NzBadgeModule } from 'ng-zorro-antd/badge';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzTableModule } from 'ng-zorro-antd/table';
 
 interface ParentItemData {
   key: number;
@@ -20,6 +26,7 @@ interface ChildrenItemData {
 
 @Component({
   selector: 'nz-demo-table-nested-table',
+  imports: [NzBadgeModule, NzDividerModule, NzDropdownModule, NzIconModule, NzTableModule],
   template: `
     <nz-table #nestedTable [nzData]="listOfParentData" [nzPageSize]="10">
       <thead>
@@ -35,7 +42,7 @@ interface ChildrenItemData {
         </tr>
       </thead>
       <tbody>
-        <ng-template ngFor let-data [ngForOf]="nestedTable.data">
+        @for (data of nestedTable.data; track data.key) {
           <tr>
             <td [(nzExpand)]="data.expand"></td>
             <td>{{ data.name }}</td>
@@ -60,68 +67,61 @@ interface ChildrenItemData {
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let data of innerTable.data">
-                  <td>{{ data.date }}</td>
-                  <td>{{ data.name }}</td>
-                  <td>
-                    <nz-badge [nzStatus]="'success'" [nzText]="'Finished'"></nz-badge>
-                  </td>
-                  <td>{{ data.upgradeNum }}</td>
-                  <td>
-                    <span class="table-operation">
-                      <a nz-dropdown class="operation" [nzDropdownMenu]="menu">
-                        Pause
-                        <i nz-icon nzType="down"></i>
-                      </a>
-                      <nz-dropdown-menu #menu="nzDropdownMenu">
-                        <ul nz-menu>
-                          <li nz-menu-item>
-                            <a>Action 1</a>
-                          </li>
-                          <li nz-menu-item>
-                            <a>Action 2</a>
-                          </li>
-                        </ul>
-                      </nz-dropdown-menu>
-                      <nz-divider nzType="vertical"></nz-divider>
-                      <a class="operation">Stop</a>
-                      <nz-divider nzType="vertical"></nz-divider>
-                      <a>More</a>
-                    </span>
-                  </td>
-                </tr>
+                @for (data of innerTable.data; track data.key) {
+                  <tr>
+                    <td>{{ data.date }}</td>
+                    <td>{{ data.name }}</td>
+                    <td>
+                      <nz-badge nzStatus="success" nzText="Finished" />
+                    </td>
+                    <td>{{ data.upgradeNum }}</td>
+                    <td>
+                      <span class="table-operation">
+                        <a nz-dropdown class="operation" [nzDropdownMenu]="menu">
+                          Pause
+                          <nz-icon nzType="down" />
+                        </a>
+                        <nz-dropdown-menu #menu="nzDropdownMenu">
+                          <ul nz-menu>
+                            <li nz-menu-item>
+                              <a>Action 1</a>
+                            </li>
+                            <li nz-menu-item>
+                              <a>Action 2</a>
+                            </li>
+                          </ul>
+                        </nz-dropdown-menu>
+                        <nz-divider nzType="vertical" />
+                        <a class="operation">Stop</a>
+                        <nz-divider nzType="vertical" />
+                        <a>More</a>
+                      </span>
+                    </td>
+                  </tr>
+                }
               </tbody>
             </nz-table>
           </tr>
-        </ng-template>
+        }
       </tbody>
     </nz-table>
   `
 })
-export class NzDemoTableNestedTableComponent implements OnInit {
-  listOfParentData: ParentItemData[] = [];
-  listOfChildrenData: ChildrenItemData[] = [];
-
-  ngOnInit(): void {
-    for (let i = 0; i < 3; ++i) {
-      this.listOfParentData.push({
-        key: i,
-        name: 'Screem',
-        platform: 'iOS',
-        version: '10.3.4.5654',
-        upgradeNum: 500,
-        creator: 'Jack',
-        createdAt: '2014-12-24 23:12:00',
-        expand: false
-      });
-    }
-    for (let i = 0; i < 3; ++i) {
-      this.listOfChildrenData.push({
-        key: i,
-        date: '2014-12-24 23:12:00',
-        name: 'This is production name',
-        upgradeNum: 'Upgraded: 56'
-      });
-    }
-  }
+export class NzDemoTableNestedTableComponent {
+  readonly listOfParentData: ParentItemData[] = Array.from({ length: 3 }).map((_, i) => ({
+    key: i,
+    name: 'Screen',
+    platform: 'iOS',
+    version: '10.3.4.5654',
+    upgradeNum: 500,
+    creator: 'Jack',
+    createdAt: '2014-12-24 23:12:00',
+    expand: false
+  }));
+  readonly listOfChildrenData: ChildrenItemData[] = Array.from({ length: 3 }).map((_, i) => ({
+    key: i,
+    date: '2014-12-24 23:12:00',
+    name: 'This is production name',
+    upgradeNum: 'Upgraded: 56'
+  }));
 }

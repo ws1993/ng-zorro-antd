@@ -4,59 +4,77 @@
  */
 
 import {
-  ChangeDetectionStrategy,
-  ChangeDetectorRef,
   Component,
+  ElementRef,
   EventEmitter,
   Input,
-  OnDestroy,
   OnInit,
   Output,
+  viewChild,
   ViewEncapsulation
 } from '@angular/core';
 
-import { moveUpMotion } from 'ng-zorro-antd/core/animation';
+import { NzOutletModule } from 'ng-zorro-antd/core/outlet';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 
 import { NzMNComponent } from './base';
 import { NzMessageData } from './typings';
 
 @Component({
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  encapsulation: ViewEncapsulation.None,
   selector: 'nz-message',
   exportAs: 'nzMessage',
-  preserveWhitespaces: false,
-  animations: [moveUpMotion],
+  imports: [NzIconModule, NzOutletModule],
   template: `
     <div
+      #animationElement
       class="ant-message-notice"
-      [@moveUpMotion]="instance.state"
-      (@moveUpMotion.done)="animationStateChanged.next($event)"
+      [class]="instance.options?.nzClass"
+      [style]="instance.options?.nzStyle"
       (mouseenter)="onEnter()"
       (mouseleave)="onLeave()"
     >
       <div class="ant-message-notice-content">
-        <div class="ant-message-custom-content" [ngClass]="'ant-message-' + instance.type">
-          <ng-container [ngSwitch]="instance.type">
-            <i *ngSwitchCase="'success'" nz-icon nzType="check-circle"></i>
-            <i *ngSwitchCase="'info'" nz-icon nzType="info-circle"></i>
-            <i *ngSwitchCase="'warning'" nz-icon nzType="exclamation-circle"></i>
-            <i *ngSwitchCase="'error'" nz-icon nzType="close-circle"></i>
-            <i *ngSwitchCase="'loading'" nz-icon nzType="loading"></i>
-          </ng-container>
-          <ng-container *nzStringTemplateOutlet="instance.content">
+        <div class="ant-message-custom-content" [class]="'ant-message-' + instance.type">
+          @switch (instance.type) {
+            @case ('success') {
+              <nz-icon nzType="check-circle" />
+            }
+            @case ('info') {
+              <nz-icon nzType="info-circle" />
+            }
+            @case ('warning') {
+              <nz-icon nzType="exclamation-circle" />
+            }
+            @case ('error') {
+              <nz-icon nzType="close-circle" />
+            }
+            @case ('loading') {
+              <nz-icon nzType="loading" />
+            }
+          }
+          <ng-container
+            *nzStringTemplateOutlet="instance.content; context: { $implicit: this, data: instance.options?.nzData }"
+          >
             <span [innerHTML]="instance.content"></span>
           </ng-container>
         </div>
       </div>
     </div>
-  `
+  `,
+  encapsulation: ViewEncapsulation.None
 })
-export class NzMessageComponent extends NzMNComponent implements OnInit, OnDestroy {
-  @Input() instance!: Required<NzMessageData>;
-  @Output() readonly destroyed = new EventEmitter<{ id: string; userAction: boolean }>();
+export class NzMessageComponent extends NzMNComponent implements OnInit {
+  @Input() override instance!: Required<NzMessageData>;
+  @Output() override readonly destroyed = new EventEmitter<{ id: string; userAction: boolean }>();
+  index?: number;
 
-  constructor(cdr: ChangeDetectorRef) {
-    super(cdr);
-  }
+  readonly animationElement = viewChild.required('animationElement', { read: ElementRef });
+  protected readonly _animationKeyframeMap = {
+    enter: 'MessageMoveIn',
+    leave: 'MessageMoveOut'
+  };
+  protected readonly _animationClassMap = {
+    enter: 'ant-message-move-up-enter',
+    leave: 'ant-message-move-up-leave'
+  };
 }

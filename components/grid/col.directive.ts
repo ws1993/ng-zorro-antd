@@ -3,90 +3,101 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Direction, Directionality } from '@angular/cdk/bidi';
-import {
-  AfterViewInit,
-  Directive,
-  ElementRef,
-  Host,
-  Input,
-  OnChanges,
-  OnDestroy,
-  OnInit,
-  Optional,
-  Renderer2,
-  SimpleChanges
-} from '@angular/core';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { Directionality } from '@angular/cdk/bidi';
+import { coerceCssPixelValue } from '@angular/cdk/coercion';
+import { computed, Directive, inject, input } from '@angular/core';
 
-import { NgClassInterface } from 'ng-zorro-antd/core/types';
-import { isNotNil } from 'ng-zorro-antd/core/util';
+import { responsiveArray, type ResponsiveLike } from 'ng-zorro-antd/core/services';
+import type { NgStyleInterface } from 'ng-zorro-antd/core/types';
+import { generateClassName, isNotNil, isNumber, isPlainObject } from 'ng-zorro-antd/core/util';
 
 import { NzRowDirective } from './row.directive';
 
-export interface EmbeddedProperty {
-  span?: number;
-  pull?: number;
-  push?: number;
-  offset?: number;
-  order?: number;
+export type ColSpanType = number | string;
+
+export interface ColSize {
+  span?: ColSpanType;
+  pull?: ColSpanType;
+  push?: ColSpanType;
+  offset?: ColSpanType;
+  order?: ColSpanType;
 }
+
+const CLASS_NAME = 'ant-col';
 
 @Directive({
   selector: '[nz-col],nz-col,nz-form-control,nz-form-label',
   exportAs: 'nzCol',
   host: {
-    '[style.flex]': 'hostFlexStyle'
+    '[class]': 'hostClass()',
+    '[class.ant-col-rtl]': `dir() === 'rtl'`,
+    '[style]': 'gutterPaddingStyle()',
+    '[style.flex]': 'flexStyle()'
   }
 })
-export class NzColDirective implements OnInit, OnChanges, AfterViewInit, OnDestroy {
-  private classMap: { [key: string]: boolean } = {};
-  private destroy$ = new Subject();
-  hostFlexStyle: string | null = null;
-  dir: Direction = 'ltr';
-  @Input() nzFlex: string | number | null = null;
-  @Input() nzSpan: string | number | null = null;
-  @Input() nzOrder: string | number | null = null;
-  @Input() nzOffset: string | number | null = null;
-  @Input() nzPush: string | number | null = null;
-  @Input() nzPull: string | number | null = null;
-  @Input() nzXs: string | number | EmbeddedProperty | null = null;
-  @Input() nzSm: string | number | EmbeddedProperty | null = null;
-  @Input() nzMd: string | number | EmbeddedProperty | null = null;
-  @Input() nzLg: string | number | EmbeddedProperty | null = null;
-  @Input() nzXl: string | number | EmbeddedProperty | null = null;
-  @Input() nzXXl: string | number | EmbeddedProperty | null = null;
+export class NzColDirective {
+  private readonly nzRowDirective = inject(NzRowDirective, { host: true, optional: true });
+  protected readonly dir = inject(Directionality).valueSignal;
 
-  setHostClassMap(): void {
-    const hostClassMap = {
-      ['ant-col']: true,
-      [`ant-col-${this.nzSpan}`]: isNotNil(this.nzSpan),
-      [`ant-col-order-${this.nzOrder}`]: isNotNil(this.nzOrder),
-      [`ant-col-offset-${this.nzOffset}`]: isNotNil(this.nzOffset),
-      [`ant-col-pull-${this.nzPull}`]: isNotNil(this.nzPull),
-      [`ant-col-push-${this.nzPush}`]: isNotNil(this.nzPush),
-      ['ant-col-rtl']: this.dir === 'rtl',
-      ...this.generateClass()
-    };
-    for (const i in this.classMap) {
-      if (this.classMap.hasOwnProperty(i)) {
-        this.renderer.removeClass(this.elementRef.nativeElement, i);
-      }
+  readonly nzFlex = input<ColSpanType | null>();
+  readonly nzSpan = input<ColSpanType | null>();
+  readonly nzOrder = input<ColSpanType | null>();
+  readonly nzOffset = input<ColSpanType | null>();
+  readonly nzPush = input<ColSpanType | null>();
+  readonly nzPull = input<ColSpanType | null>();
+  readonly nzXs = input<ColSpanType | ColSize | null>();
+  readonly nzSm = input<ColSpanType | ColSize | null>();
+  readonly nzMd = input<ColSpanType | ColSize | null>();
+  readonly nzLg = input<ColSpanType | ColSize | null>();
+  readonly nzXl = input<ColSpanType | ColSize | null>();
+  readonly nzXXl = input<ColSpanType | ColSize | null>();
+  readonly nzXXXl = input<ColSpanType | ColSize | null>();
+
+  protected readonly responsiveClass = computed(() => {
+    const xs = this.nzXs();
+    const sm = this.nzSm();
+    const md = this.nzMd();
+    const lg = this.nzLg();
+    const xl = this.nzXl();
+    const xxl = this.nzXXl();
+    const xxxl = this.nzXXXl();
+    return this.generateClassList({ xs, sm, md, lg, xl, xxl, xxxl });
+  });
+
+  protected readonly hostClass = computed(() => {
+    const span = this.nzSpan();
+    const order = this.nzOrder();
+    const offset = this.nzOffset();
+    const push = this.nzPush();
+    const pull = this.nzPull();
+
+    const classList = [CLASS_NAME];
+
+    if (isNotNil(span)) {
+      classList.push(this.generateClass(`${span}`));
     }
-    this.classMap = { ...hostClassMap };
-    for (const i in this.classMap) {
-      if (this.classMap.hasOwnProperty(i) && this.classMap[i]) {
-        this.renderer.addClass(this.elementRef.nativeElement, i);
-      }
+
+    if (order) {
+      classList.push(this.generateClass(`order-${order}`));
     }
-  }
 
-  setHostFlexStyle(): void {
-    this.hostFlexStyle = this.parseFlex(this.nzFlex);
-  }
+    if (offset) {
+      classList.push(this.generateClass(`offset-${offset}`));
+    }
 
-  parseFlex(flex: number | string | null): string | null {
+    if (push) {
+      classList.push(this.generateClass(`push-${push}`));
+    }
+
+    if (pull) {
+      classList.push(this.generateClass(`pull-${pull}`));
+    }
+
+    return classList.concat(this.responsiveClass());
+  });
+
+  protected readonly flexStyle = computed(() => {
+    const flex = this.nzFlex();
     if (typeof flex === 'number') {
       return `${flex} ${flex} auto`;
     } else if (typeof flex === 'string') {
@@ -95,77 +106,63 @@ export class NzColDirective implements OnInit, OnChanges, AfterViewInit, OnDestr
       }
     }
     return flex;
-  }
+  });
 
-  generateClass(): object {
-    const listOfSizeInputName: Array<keyof NzColDirective> = ['nzXs', 'nzSm', 'nzMd', 'nzLg', 'nzXl', 'nzXXl'];
-    const listClassMap: NgClassInterface = {};
-    listOfSizeInputName.forEach(name => {
-      const sizeName = name.replace('nz', '').toLowerCase();
-      if (isNotNil(this[name])) {
-        if (typeof this[name] === 'number' || typeof this[name] === 'string') {
-          listClassMap[`ant-col-${sizeName}-${this[name]}`] = true;
-        } else {
-          const embedded = this[name] as EmbeddedProperty;
-          const prefixArray: Array<keyof EmbeddedProperty> = ['span', 'pull', 'push', 'offset', 'order'];
-          prefixArray.forEach(prefix => {
-            const prefixClass = prefix === 'span' ? '-' : `-${prefix}-`;
-            listClassMap[`ant-col-${sizeName}${prefixClass}${embedded[prefix]}`] =
-              embedded && isNotNil(embedded[prefix]);
-          });
-        }
+  protected readonly gutterPaddingStyle = computed<NgStyleInterface>(() => {
+    if (!this.nzRowDirective) {
+      return {};
+    }
+    const [gutterH] = this.nzRowDirective.gutter();
+    const style: NgStyleInterface = {};
+
+    // Horizontal gutter use padding
+    if (gutterH) {
+      const horizontalGutter = isNumber(gutterH) ? coerceCssPixelValue(gutterH / 2) : `calc(${gutterH} / 2)`;
+      style['padding-inline'] = horizontalGutter;
+    }
+
+    return style;
+  });
+
+  private generateClassList(props: Partial<ResponsiveLike<ColSpanType | ColSize | null>>): string[] {
+    const classList: string[] = [];
+
+    responsiveArray.forEach(size => {
+      let sizeProps: ColSize = {};
+      const propSize = props[size];
+      if (isNumber(propSize) || typeof propSize === 'string') {
+        sizeProps.span = propSize;
+      } else if (isPlainObject(propSize)) {
+        sizeProps = propSize || {};
+      }
+
+      const { span, pull, push, offset, order } = sizeProps;
+
+      if (isNotNil(span)) {
+        classList.push(this.generateClass(`${size}-${span}`));
+      }
+
+      if (order || order === 0) {
+        classList.push(this.generateClass(`${size}-order-${order}`));
+      }
+
+      if (offset || offset === 0) {
+        classList.push(this.generateClass(`${size}-offset-${offset}`));
+      }
+
+      if (push || push === 0) {
+        classList.push(this.generateClass(`${size}-push-${push}`));
+      }
+
+      if (pull || pull === 0) {
+        classList.push(this.generateClass(`${size}-pull-${pull}`));
       }
     });
-    return listClassMap;
+
+    return classList;
   }
 
-  constructor(
-    private elementRef: ElementRef,
-    @Optional() @Host() public nzRowDirective: NzRowDirective,
-    public renderer: Renderer2,
-    @Optional() private directionality: Directionality
-  ) {}
-
-  ngOnInit(): void {
-    this.dir = this.directionality.value;
-    this.directionality.change.pipe(takeUntil(this.destroy$)).subscribe((direction: Direction) => {
-      this.dir = direction;
-      this.setHostClassMap();
-    });
-
-    this.setHostClassMap();
-    this.setHostFlexStyle();
-  }
-
-  ngOnChanges(changes: SimpleChanges): void {
-    this.setHostClassMap();
-    const { nzFlex } = changes;
-    if (nzFlex) {
-      this.setHostFlexStyle();
-    }
-  }
-
-  ngAfterViewInit(): void {
-    if (this.nzRowDirective) {
-      this.nzRowDirective.actualGutter$
-        .pipe(takeUntil(this.destroy$))
-        .subscribe(([horizontalGutter, verticalGutter]) => {
-          const renderGutter = (name: string, gutter: number | null): void => {
-            const nativeElement = this.elementRef.nativeElement;
-            if (gutter !== null) {
-              this.renderer.setStyle(nativeElement, name, `${gutter / 2}px`);
-            }
-          };
-          renderGutter('padding-left', horizontalGutter);
-          renderGutter('padding-right', horizontalGutter);
-          renderGutter('padding-top', verticalGutter);
-          renderGutter('padding-bottom', verticalGutter);
-        });
-    }
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+  private generateClass(suffix: string): string {
+    return generateClassName(CLASS_NAME, suffix);
   }
 }

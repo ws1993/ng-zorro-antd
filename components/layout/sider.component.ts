@@ -6,81 +6,83 @@
 import { Platform } from '@angular/cdk/platform';
 import {
   AfterContentInit,
-  ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
   ContentChild,
-  ElementRef,
+  DestroyRef,
   EventEmitter,
   Input,
   OnChanges,
-  OnDestroy,
   OnInit,
   Output,
   SimpleChanges,
   TemplateRef,
-  ViewEncapsulation
+  ViewEncapsulation,
+  booleanAttribute,
+  inject
 } from '@angular/core';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
-import { NzBreakpointKey, NzBreakpointService, siderResponsiveMap } from 'ng-zorro-antd/core/services';
-import { BooleanInput } from 'ng-zorro-antd/core/types';
-import { inNextTick, InputBoolean, toCssPixel } from 'ng-zorro-antd/core/util';
+import { Breakpoint, NzBreakpointService, siderResponsiveMap } from 'ng-zorro-antd/core/services';
+import { inNextTick, toCssPixel } from 'ng-zorro-antd/core/util';
 import { NzMenuDirective } from 'ng-zorro-antd/menu';
+
+import { NzSiderTriggerComponent } from './sider-trigger.component';
 
 @Component({
   selector: 'nz-sider',
   exportAs: 'nzSider',
-  preserveWhitespaces: false,
   encapsulation: ViewEncapsulation.None,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="ant-layout-sider-children">
-      <ng-content></ng-content>
+      <ng-content />
     </div>
-    <div
-      *ngIf="nzCollapsible && nzTrigger !== null"
-      nz-sider-trigger
-      [matchBreakPoint]="matchBreakPoint"
-      [nzCollapsedWidth]="nzCollapsedWidth"
-      [nzCollapsed]="nzCollapsed"
-      [nzBreakpoint]="nzBreakpoint"
-      [nzReverseArrow]="nzReverseArrow"
-      [nzTrigger]="nzTrigger"
-      [nzZeroTrigger]="nzZeroTrigger"
-      [siderWidth]="widthSetting"
-      (click)="setCollapsed(!nzCollapsed)"
-    ></div>
+    @if (nzCollapsible && nzTrigger !== null) {
+      <div
+        nz-sider-trigger
+        [matchBreakPoint]="matchBreakPoint"
+        [nzCollapsedWidth]="nzCollapsedWidth"
+        [nzCollapsed]="nzCollapsed"
+        [nzBreakpoint]="nzBreakpoint"
+        [nzReverseArrow]="nzReverseArrow"
+        [nzTrigger]="nzTrigger"
+        [nzZeroTrigger]="nzZeroTrigger"
+        [siderWidth]="widthSetting"
+        (click)="setCollapsed(!nzCollapsed)"
+      ></div>
+    }
   `,
   host: {
+    class: 'ant-layout-sider',
     '[class.ant-layout-sider-zero-width]': `nzCollapsed && nzCollapsedWidth === 0`,
     '[class.ant-layout-sider-light]': `nzTheme === 'light'`,
     '[class.ant-layout-sider-dark]': `nzTheme === 'dark'`,
     '[class.ant-layout-sider-collapsed]': `nzCollapsed`,
+    '[class.ant-layout-sider-has-trigger]': `nzCollapsible && nzTrigger !== null`,
     '[style.flex]': 'flexSetting',
     '[style.maxWidth]': 'widthSetting',
     '[style.minWidth]': 'widthSetting',
     '[style.width]': 'widthSetting'
-  }
+  },
+  imports: [NzSiderTriggerComponent]
 })
-export class NzSiderComponent implements OnInit, OnDestroy, OnChanges, AfterContentInit {
-  static ngAcceptInputType_nzReverseArrow: BooleanInput;
-  static ngAcceptInputType_nzCollapsible: BooleanInput;
-  static ngAcceptInputType_nzCollapsed: BooleanInput;
+export class NzSiderComponent implements OnInit, OnChanges, AfterContentInit {
+  private destroyRef = inject(DestroyRef);
+  private platform = inject(Platform);
+  private cdr = inject(ChangeDetectorRef);
+  private breakpointService = inject(NzBreakpointService);
 
-  private destroy$ = new Subject();
   @ContentChild(NzMenuDirective) nzMenuDirective: NzMenuDirective | null = null;
   @Output() readonly nzCollapsedChange = new EventEmitter();
   @Input() nzWidth: string | number = 200;
   @Input() nzTheme: 'light' | 'dark' = 'dark';
   @Input() nzCollapsedWidth = 80;
-  @Input() nzBreakpoint: NzBreakpointKey | null = null;
+  @Input() nzBreakpoint: Breakpoint | null = null;
   @Input() nzZeroTrigger: TemplateRef<void> | null = null;
   @Input() nzTrigger: TemplateRef<void> | undefined | null = undefined;
-  @Input() @InputBoolean() nzReverseArrow = false;
-  @Input() @InputBoolean() nzCollapsible = false;
-  @Input() @InputBoolean() nzCollapsed = false;
+  @Input({ transform: booleanAttribute }) nzReverseArrow = false;
+  @Input({ transform: booleanAttribute }) nzCollapsible = false;
+  @Input({ transform: booleanAttribute }) nzCollapsed = false;
   matchBreakPoint = false;
   flexSetting: string | null = null;
   widthSetting: string | null = null;
@@ -107,23 +109,13 @@ export class NzSiderComponent implements OnInit, OnDestroy, OnChanges, AfterCont
     }
   }
 
-  constructor(
-    private platform: Platform,
-    private cdr: ChangeDetectorRef,
-    private breakpointService: NzBreakpointService,
-    private elementRef: ElementRef
-  ) {
-    // TODO: move to host after View Engine deprecation
-    this.elementRef.nativeElement.classList.add('ant-layout-sider');
-  }
-
   ngOnInit(): void {
     this.updateStyleMap();
 
     if (this.platform.isBrowser) {
       this.breakpointService
         .subscribe(siderResponsiveMap, true)
-        .pipe(takeUntil(this.destroy$))
+        .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe(map => {
           const breakpoint = this.nzBreakpoint;
           if (breakpoint) {
@@ -149,10 +141,5 @@ export class NzSiderComponent implements OnInit, OnDestroy, OnChanges, AfterCont
 
   ngAfterContentInit(): void {
     this.updateMenuInlineCollapsed();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 }

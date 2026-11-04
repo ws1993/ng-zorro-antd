@@ -6,7 +6,7 @@
 @menu-animation-duration-normal: 0.15s;
 
 .accessibility-focus() {
-  box-shadow: 0 0 0 2px fade(@primary-color, 20%);
+  box-shadow: 0 0 0 2px @primary-2;
 }
 
 // TODO: Should remove icon style compatible in v5
@@ -16,11 +16,10 @@
   .reset-component();
 
   margin-bottom: 0;
-  padding-left: 0; // Override default ul/ol
+  padding-inline-start: 0; // Override default ul/ol
   color: @menu-item-color;
   font-size: @menu-item-font-size;
   line-height: 0; // Fix display inline-block gap
-  text-align: left;
   list-style: none;
   background: @menu-bg;
   outline: none;
@@ -31,6 +30,10 @@
 
   &&-root:focus-visible {
     .accessibility-focus();
+  }
+
+  &&-rtl {
+    direction: rtl;
   }
 
   ul,
@@ -67,6 +70,7 @@
     transition: border-color @animation-duration-slow @ease-in-out,
       background @animation-duration-slow @ease-in-out;
   }
+
   &-submenu,
   &-submenu-inline {
     transition: border-color @animation-duration-slow @ease-in-out,
@@ -95,15 +99,14 @@
 
   &-item a {
     color: @menu-item-color;
+
     &:hover {
       color: @menu-highlight-color;
     }
+
     &::before {
       position: absolute;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      left: 0;
+      inset: 0;
       background-color: transparent;
       content: '';
     }
@@ -112,16 +115,22 @@
   // https://github.com/ant-design/ant-design/issues/19809
   &-item > .@{ant-prefix}-badge a {
     color: @menu-item-color;
+
     &:hover {
       color: @menu-highlight-color;
     }
   }
 
   &-item-divider {
-    height: 1px;
     overflow: hidden;
     line-height: 0;
-    background-color: @border-color-split;
+    border-color: @border-color-split;
+    border-style: solid;
+    border-width: 1px 0 0;
+  }
+
+  &-item-divider-dashed {
+    border-style: dashed;
   }
 
   &-horizontal &-item,
@@ -137,6 +146,7 @@
 
   &-item-selected {
     color: @menu-highlight-color;
+
     a,
     a:hover {
       color: @menu-highlight-color;
@@ -150,11 +160,11 @@
   &-inline,
   &-vertical,
   &-vertical-left {
-    border-right: @border-width-base @border-style-base @border-color-split;
+    border-inline-end: @border-width-base @border-style-base @border-color-split;
   }
 
   &-vertical-right {
-    border-left: @border-width-base @border-style-base @border-color-split;
+    border-inline-start: @border-width-base @border-style-base @border-color-split;
   }
 
   &-vertical&-sub,
@@ -164,7 +174,7 @@
     max-height: calc(100vh - 100px);
     padding: 0;
     overflow: hidden;
-    border-right: 0;
+    border-inline-end: 0;
 
     // https://github.com/ant-design/ant-design/issues/22244
     // https://github.com/ant-design/ant-design/issues/26812
@@ -174,11 +184,12 @@
     }
 
     .@{menu-prefix-cls}-item {
-      left: 0;
-      margin-left: 0;
-      border-right: 0;
+      inset-inline-start: 0;
+      margin-inline-start: 0;
+      border-inline-end: 0;
+
       &::after {
-        border-right: 0;
+        border-inline-end: 0;
       }
     }
     > .@{menu-prefix-cls}-item,
@@ -213,8 +224,9 @@
       font-size: @menu-icon-size;
       transition: font-size @menu-animation-duration-normal @ease-out,
         margin @animation-duration-slow @ease-in-out, color @animation-duration-slow;
+
       + span {
-        margin-left: @menu-icon-margin-right;
+        margin-inline-start: @menu-icon-margin-right;
         opacity: 1;
         transition: opacity @animation-duration-slow @ease-in-out, margin @animation-duration-slow,
           color @animation-duration-slow;
@@ -228,22 +240,18 @@
     &.@{menu-prefix-cls}-item-only-child {
       > .@{iconfont-css-prefix},
       > .@{menu-prefix-cls}-item-icon {
-        margin-right: 0;
+        margin-inline-end: 0;
       }
     }
 
-    &:focus-visible {
+    &:not(.@{menu-prefix-cls}-item-disabled):focus-visible {
       .accessibility-focus();
     }
   }
 
   & > &-item-divider {
-    height: 1px;
     margin: 1px 0;
     padding: 0;
-    overflow: hidden;
-    line-height: 0;
-    background-color: @border-color-split;
   }
 
   &-submenu {
@@ -259,9 +267,8 @@
       &::before {
         position: absolute;
         top: -7px;
-        right: 0;
         bottom: 0;
-        left: 0;
+        inset-inline: 0;
         z-index: -1;
         width: 100%;
         height: 100%;
@@ -273,12 +280,13 @@
     // https://github.com/ant-design/ant-design/issues/13955
     &-placement-rightTop::before {
       top: 0;
-      left: -7px;
+      inset-inline-start: -7px;
     }
 
     > .@{menu-prefix-cls} {
       background-color: @menu-bg;
       border-radius: @border-radius-base;
+
       &-submenu-title::after {
         transition: transform @animation-duration-slow @ease-in-out;
       }
@@ -292,7 +300,7 @@
     &-arrow {
       position: absolute;
       top: 50%;
-      right: 16px;
+      inset-inline-end: 16px;
       width: 10px;
       color: @menu-item-color;
       transform: translateY(-50%);
@@ -306,16 +314,18 @@
         position: absolute;
         width: 6px;
         height: 1.5px;
-        background-color: currentColor;
+        background-color: currentcolor;
         border-radius: 2px;
         transition: background @animation-duration-slow @ease-in-out,
           transform @animation-duration-slow @ease-in-out, top @animation-duration-slow @ease-in-out,
           color @animation-duration-slow @ease-in-out;
         content: '';
       }
+
       &::before {
         transform: rotate(45deg) translateY(-2.5px);
       }
+
       &::after {
         transform: rotate(-45deg) translateY(2.5px);
       }
@@ -332,6 +342,7 @@
       &::before {
         transform: rotate(-45deg) translateX(2.5px);
       }
+
       &::after {
         transform: rotate(45deg) translateX(-2.5px);
       }
@@ -344,9 +355,11 @@
     &-open&-inline > &-title > &-arrow {
       // ↑
       transform: translateY(-2px);
+
       &::after {
         transform: rotate(-45deg) translateX(-2.5px);
       }
+
       &::before {
         transform: rotate(45deg) translateX(2.5px);
       }
@@ -394,9 +407,8 @@
 
       &::after {
         position: absolute;
-        right: @menu-item-padding-horizontal;
         bottom: 0;
-        left: @menu-item-padding-horizontal;
+        inset-inline: @menu-item-padding-horizontal;
         border-bottom: 2px solid transparent;
         transition: border-color @animation-duration-slow @ease-in-out;
         content: '';
@@ -410,13 +422,16 @@
     > .@{menu-prefix-cls}-item {
       a {
         color: @menu-item-color;
+
         &:hover {
           color: @menu-highlight-color;
         }
+
         &::before {
           bottom: -2px;
         }
       }
+
       &-selected a {
         color: @menu-highlight-color;
       }
@@ -436,12 +451,13 @@
   &-inline {
     .@{menu-prefix-cls}-item {
       position: relative;
+
       &::after {
         position: absolute;
         top: 0;
-        right: 0;
         bottom: 0;
-        border-right: @menu-item-active-border-width solid @menu-highlight-color;
+        inset-inline-end: 0;
+        border-inline-end: @menu-item-active-border-width solid @menu-highlight-color;
         transform: scaleY(0.0001);
         opacity: 0;
         transition: transform @menu-animation-duration-normal @ease-out,
@@ -480,7 +496,7 @@
   &-vertical {
     .@{menu-prefix-cls}-item-group-list .@{menu-prefix-cls}-submenu-title,
     .@{menu-prefix-cls}-submenu-title {
-      padding-right: 34px;
+      padding-inline-end: 34px;
     }
   }
 
@@ -503,7 +519,7 @@
 
     .@{menu-prefix-cls}-item-group-list .@{menu-prefix-cls}-submenu-title,
     .@{menu-prefix-cls}-submenu-title {
-      padding-right: 34px;
+      padding-inline-end: 34px;
     }
 
     // Motion enhance for first level
@@ -541,7 +557,7 @@
       > .@{menu-prefix-cls}-submenu
       > .@{menu-prefix-cls}-submenu-title,
     > .@{menu-prefix-cls}-submenu > .@{menu-prefix-cls}-submenu-title {
-      left: 0;
+      inset-inline-start: 0;
       padding: 0 ~'calc(50% - @{menu-icon-size-lg} / 2)';
       text-overflow: clip;
 
@@ -554,6 +570,7 @@
         margin: 0;
         font-size: @menu-icon-size-lg;
         line-height: @menu-item-height;
+
         + span {
           display: inline-block;
           opacity: 0;
@@ -573,14 +590,14 @@
       .@{iconfont-css-prefix} {
         display: none;
       }
+
       a {
         color: @text-color-dark;
       }
     }
 
     .@{menu-prefix-cls}-item-group-title {
-      padding-right: 4px;
-      padding-left: 4px;
+      padding-inline: 4px;
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
@@ -628,7 +645,7 @@
     }
 
     & .@{menu-prefix-cls}-item-group-title {
-      padding-left: 32px;
+      padding-inline-start: 32px;
     }
   }
 
@@ -647,6 +664,7 @@
       color: @disabled-color !important;
       pointer-events: none;
     }
+
     > .@{menu-prefix-cls}-submenu-title {
       color: @disabled-color !important;
       cursor: not-allowed;
@@ -667,6 +685,13 @@
   }
 }
 
+// https://github.com/ant-design/ant-design/issues/32950
+.@{ant-prefix}-menu-inline-collapsed-tooltip {
+  a,
+  a:hover {
+    color: @white;
+  }
+}
+
 @import './light';
 @import './dark';
-@import './rtl';

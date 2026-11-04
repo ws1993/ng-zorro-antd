@@ -1,9 +1,11 @@
-import { Component } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 
-import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 
 @Component({
   selector: 'nz-demo-modal-locale',
+  imports: [NzButtonModule, NzModalModule],
   template: `
     <div>
       <button nz-button nzType="primary" (click)="showModal()">Modal</button>
@@ -27,20 +29,20 @@ import { NzModalService } from 'ng-zorro-antd/modal';
   `
 })
 export class NzDemoModalLocaleComponent {
-  isVisible = false;
+  private readonly modalService = inject(NzModalService);
 
-  constructor(private modalService: NzModalService) {}
+  readonly isVisible = signal(false);
 
   showModal(): void {
-    this.isVisible = true;
+    this.isVisible.set(true);
   }
 
   handleOk(): void {
-    this.isVisible = false;
+    this.isVisible.set(false);
   }
 
   handleCancel(): void {
-    this.isVisible = false;
+    this.isVisible.set(false);
   }
 
   showConfirm(): void {

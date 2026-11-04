@@ -1,0 +1,99 @@
+.compact-item-border-radius(@prefix-cls, @bordered-item-cls: null) {
+  & when (@bordered-item-cls = null) {
+    // border-radius
+    &-item:not(&-first-item):not(&-last-item).@{prefix-cls} {
+      border-radius: 0;
+    }
+
+    &-item.@{prefix-cls}&-first-item:not(&-last-item) {
+      border-start-end-radius: 0;
+      border-end-end-radius: 0;
+    }
+
+    &-item.@{prefix-cls}&-last-item:not(&-first-item) {
+      border-start-start-radius: 0;
+      border-end-start-radius: 0;
+    }
+  }
+
+  & when (not (@bordered-item-cls = null)) {
+    // border-radius
+    &-item:not(&-first-item):not(&-last-item).@{prefix-cls} .@{bordered-item-cls} {
+      border-radius: 0;
+    }
+
+    &-item&-first-item.@{prefix-cls}:not(&-last-item) .@{bordered-item-cls} {
+      border-start-end-radius: 0;
+      border-end-end-radius: 0;
+    }
+
+    &-item&-last-item.@{prefix-cls}:not(&-first-item) .@{bordered-item-cls} {
+      border-start-start-radius: 0;
+      border-end-start-radius: 0;
+    }
+  }
+}
+
+.compact-item-border(@prefix-cls, @bordered-item-cls: null, @special-open-cls) {
+  & when (@bordered-item-cls = null) {
+    // border collapse
+    &-item:not(&-last-item) {
+      margin-inline-end: -@border-width-base;
+    }
+
+    &-item {
+      &:hover,
+      &:focus,
+      &:active {
+        z-index: 2;
+      }
+
+      // Select has an extra focus className
+      & when (not (@special-item-cls = null)) {
+        &.@{special-item-cls} {
+          z-index: 2;
+        }
+      }
+
+      &[disabled] {
+        z-index: 0;
+      }
+    }
+  }
+
+  & when (not (@bordered-item-cls = null)) {
+    // border collapse
+    &-item:not(&-last-item) {
+      margin-inline-end: -@border-width-base;
+    }
+
+    &-item {
+      &:hover,
+      &:focus,
+      &:active {
+        > * {
+          z-index: 2;
+        }
+      }
+
+      // Select has an special focus-item
+      & when (not (@special-item-cls = null)) {
+        &.@{special-item-cls} > * {
+          z-index: 2;
+        }
+      }
+
+      &[disabled] > * {
+        z-index: 0;
+      }
+    }
+  }
+}
+
+.compact-item(@prefix-cls, @bordered-item-cls: null, @special-item-cls: null) {
+  &-compact {
+    .compact-item-border(@prefix-cls, @bordered-item-cls, @special-item-cls);
+
+    .compact-item-border-radius(@prefix-cls, @bordered-item-cls);
+  }
+}

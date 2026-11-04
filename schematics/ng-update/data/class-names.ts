@@ -6,31 +6,62 @@
 import { ClassNameUpgradeData, TargetVersion, VersionChanges } from '@angular/cdk/schematics';
 
 export const classNames: VersionChanges<ClassNameUpgradeData> = {
-  [TargetVersion.V10]: [
+  [TargetVersion.V22]: [
     {
-      pr: 'https://github.com/NG-ZORRO/ng-zorro-antd/pull/5774',
+      pr: 'https://github.com/NG-ZORRO/ng-zorro-antd/pull/9238',
       changes: [
-        {replace: 'UploadType', replaceWith: 'NzUploadType'},
-        {replace: 'UploadListType', replaceWith: 'NzUploadListType'},
-        {replace: 'UploadFile', replaceWith: 'NzUploadFile'},
-        {replace: 'UploadChangeParam', replaceWith: 'NzUploadChangeParam'},
-        {replace: 'ShowUploadListInterface', replaceWith: 'NzShowUploadList'},
-        {replace: 'UploadTransformFileType', replaceWith: 'NzUploadTransformFileType'},
-        {replace: 'UploadXHRArgs', replaceWith: 'NzUploadXHRArgs'}
+        {
+          replace: 'NzTabsetComponent',
+          replaceWith: 'NzTabsComponent'
+        }
       ]
     },
     {
-      pr: 'https://github.com/NG-ZORRO/ng-zorro-antd/pull/5779',
+      pr: 'https://github.com/NG-ZORRO/ng-zorro-antd/pull/9285',
       changes: [
-        {replace: 'NzNotificationDataFilled', replaceWith: 'NzNotificationRef'},
-        {replace: 'NzMessageDataFilled', replaceWith: 'NzMessageRef'}
+        {
+          replace: 'NzToolTipComponent',
+          replaceWith: 'NzTooltipComponent'
+        },
+        {
+          replace: 'NzToolTipModule',
+          replaceWith: 'NzTooltipModule'
+        }
       ]
     },
     {
-      pr: 'https://github.com/NG-ZORRO/ng-zorro-antd/pull/5778',
+      pr: 'https://github.com/NG-ZORRO/ng-zorro-antd/pull/9330',
       changes: [
-        {replace: 'CascaderOption', replaceWith: 'NzCascaderOption'},
-        {replace: 'CascaderSearchOption', replaceWith: 'NzCascaderSearchOption'}
+        {
+          replace: 'NzStatisticNumberComponent',
+          replaceWith: 'NzStatisticContentValueComponent'
+        }
+      ]
+    },
+    {
+      pr: 'https://github.com/NG-ZORRO/ng-zorro-antd/pull/9527',
+      changes: [
+        {
+          replace: 'NzDropDownModule',
+          replaceWith: 'NzDropdownModule'
+        },
+        {
+          replace: 'NzDropDownADirective',
+          replaceWith: 'NzDropdownADirective'
+        }
+      ]
+    },
+    {
+      pr: 'https://github.com/NG-ZORRO/ng-zorro-antd/pull/9528',
+      changes: [
+        {
+          replace: 'NzWaterMarkModule',
+          replaceWith: 'NzWatermarkModule'
+        },
+        {
+          replace: 'NzWaterMarkComponent',
+          replaceWith: 'NzWatermarkComponent'
+        }
       ]
     }
   ]

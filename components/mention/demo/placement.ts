@@ -1,21 +1,19 @@
-import { Component, ViewEncapsulation } from '@angular/core';
+import { Component } from '@angular/core';
+
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzMentionModule } from 'ng-zorro-antd/mention';
 
 @Component({
   selector: 'nz-demo-mention-placement',
-  encapsulation: ViewEncapsulation.None,
+  imports: [NzInputModule, NzMentionModule],
   template: `
     <nz-mention nzPlacement="top" [nzSuggestions]="suggestions" (nzOnSelect)="onSelect($event)">
-      <input nzMentionTrigger nz-input [(ngModel)]="inputValue" (ngModelChange)="onChange($event)" />
+      <textarea rows="1" nzMentionTrigger nz-input></textarea>
     </nz-mention>
   `
 })
 export class NzDemoMentionPlacementComponent {
-  inputValue?: string;
-  suggestions = ['afc163', 'benjycui', 'yiminghe', 'RaoHai', '中文', 'にほんご'];
-
-  onChange(value: string): void {
-    console.log(value);
-  }
+  readonly suggestions = ['afc163', 'benjycui', 'yiminghe', 'RaoHai', '中文', 'にほんご'];
 
   onSelect(suggestion: string): void {
     console.log(`onSelect ${suggestion}`);

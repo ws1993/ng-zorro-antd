@@ -1,26 +1,26 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 
-import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 
 @Component({
   selector: 'nz-demo-modal-confirm',
+  imports: [NzButtonModule, NzModalModule],
   template: `
     <button nz-button nzType="primary" (click)="showConfirm()">Confirm</button>
     <button nz-button nzType="dashed" (click)="showDeleteConfirm()">Delete</button>
   `,
-  styles: [
-    `
-      button {
-        margin-right: 8px;
-      }
-    `
-  ]
+  styles: `
+    button {
+      margin-right: 8px;
+    }
+  `
 })
 export class NzDemoModalConfirmComponent {
-  constructor(private modal: NzModalService) {}
+  private readonly modalService = inject(NzModalService);
 
   showConfirm(): void {
-    this.modal.confirm({
+    this.modalService.confirm({
       nzTitle: '<i>Do you Want to delete these items?</i>',
       nzContent: '<b>Some descriptions</b>',
       nzOnOk: () => console.log('OK')
@@ -28,7 +28,7 @@ export class NzDemoModalConfirmComponent {
   }
 
   showDeleteConfirm(): void {
-    this.modal.confirm({
+    this.modalService.confirm({
       nzTitle: 'Are you sure delete this task?',
       nzContent: '<b style="color: red;">Some descriptions</b>',
       nzOkText: 'Yes',

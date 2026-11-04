@@ -1,7 +1,13 @@
 import { Component } from '@angular/core';
 
+import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzLayoutModule } from 'ng-zorro-antd/layout';
+import { NzMenuModule } from 'ng-zorro-antd/menu';
+
 @Component({
   selector: 'nz-demo-layout-top-side',
+  imports: [NzBreadCrumbModule, NzIconModule, NzMenuModule, NzLayoutModule],
   template: `
     <nz-layout>
       <nz-header>
@@ -49,50 +55,51 @@ import { Component } from '@angular/core';
           </nz-sider>
           <nz-content class="inner-content">Content</nz-content>
         </nz-layout>
-        <nz-footer>Ant Design ©2020 Implement By Angular</nz-footer>
+        <nz-footer>Ant Design ©{{ date.getFullYear() }} Implement By Angular</nz-footer>
       </nz-content>
     </nz-layout>
   `,
-  styles: [
-    `
-      .logo {
-        width: 120px;
-        height: 31px;
-        background: rgba(255, 255, 255, 0.2);
-        margin: 16px 28px 16px 0;
-        float: left;
-      }
+  styles: `
+    .logo {
+      width: 120px;
+      height: 31px;
+      background: rgba(255, 255, 255, 0.2);
+      margin-block: 16px;
+      margin-inline-end: 24px;
+      float: inline-start;
+    }
 
-      .header-menu {
-        line-height: 64px;
-      }
+    .header-menu {
+      line-height: 64px;
+    }
 
-      .outer-content {
-        padding: 0 50px;
-      }
+    .outer-content {
+      padding: 0 50px;
+    }
 
-      nz-breadcrumb {
-        margin: 16px 0;
-      }
+    nz-breadcrumb {
+      margin: 16px 0;
+    }
 
-      .inner-layout {
-        padding: 24px 0;
-        background: #fff;
-      }
+    .inner-layout {
+      padding: 24px 0;
+      background: #fff;
+    }
 
-      .sider-menu {
-        height: 100%;
-      }
+    .sider-menu {
+      height: 100%;
+    }
 
-      .inner-content {
-        padding: 0 24px;
-        min-height: 280px;
-      }
+    .inner-content {
+      padding: 0 24px;
+      min-height: 280px;
+    }
 
-      nz-footer {
-        text-align: center;
-      }
-    `
-  ]
+    nz-footer {
+      text-align: center;
+    }
+  `
 })
-export class NzDemoLayoutTopSideComponent {}
+export class NzDemoLayoutTopSideComponent {
+  protected readonly date = new Date();
+}

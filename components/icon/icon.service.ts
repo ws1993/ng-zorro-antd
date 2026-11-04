@@ -3,17 +3,14 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { DOCUMENT } from '@angular/common';
-import { HttpBackend } from '@angular/common/http';
-import { Inject, Injectable, InjectionToken, OnDestroy, Optional, RendererFactory2, Self } from '@angular/core';
-import { DomSanitizer } from '@angular/platform-browser';
-import { Subject, Subscription } from 'rxjs';
+import { Platform } from '@angular/cdk/platform';
+import { inject, Injectable, InjectionToken } from '@angular/core';
+import { Subject } from 'rxjs';
 
 import { IconDefinition, IconService } from '@ant-design/icons-angular';
 
-import { IconConfig, NzConfigService } from 'ng-zorro-antd/core/config';
+import { IconConfig, NzConfigService, onConfigChangeEventForComponent } from 'ng-zorro-antd/core/config';
 import { warn } from 'ng-zorro-antd/core/logger';
-import { NzSafeAny } from 'ng-zorro-antd/core/types';
 
 import { NZ_ICONS_USED_BY_ZORRO } from './icons';
 
@@ -21,8 +18,12 @@ export interface NzIconfontOption {
   scriptUrl: string;
 }
 
-export const NZ_ICONS = new InjectionToken('nz_icons');
-export const NZ_ICON_DEFAULT_TWOTONE_COLOR = new InjectionToken('nz_icon_default_twotone_color');
+export const NZ_ICONS = new InjectionToken<IconDefinition[]>(
+  typeof ngDevMode !== 'undefined' && ngDevMode ? 'nz-icons' : ''
+);
+export const NZ_ICON_DEFAULT_TWOTONE_COLOR = new InjectionToken(
+  typeof ngDevMode !== 'undefined' && ngDevMode ? 'nz-icon-default-twotone-color' : ''
+);
 export const DEFAULT_TWOTONE_COLOR = '#1890ff';
 
 /**
@@ -31,39 +32,37 @@ export const DEFAULT_TWOTONE_COLOR = '#1890ff';
 @Injectable({
   providedIn: 'root'
 })
-export class NzIconService extends IconService implements OnDestroy {
+export class NzIconService extends IconService {
+  protected readonly nzConfigService = inject(NzConfigService);
+  private readonly platform = inject(Platform);
   configUpdated$ = new Subject<void>();
 
-  private iconfontCache = new Set<string>();
-  private subscription: Subscription | null = null;
-
-  ngOnDestroy(): void {
-    if (this.subscription) {
-      this.subscription.unsubscribe();
-      this.subscription = null;
-    }
+  protected override get _disableDynamicLoading(): boolean {
+    return !this.platform.isBrowser;
   }
+
+  private iconfontCache = new Set<string>();
 
   normalizeSvgElement(svg: SVGElement): void {
     if (!svg.getAttribute('viewBox')) {
-      this._renderer.setAttribute(svg, 'viewBox', '0 0 1024 1024');
+      this.renderer.setAttribute(svg, 'viewBox', '0 0 1024 1024');
     }
     if (!svg.getAttribute('width') || !svg.getAttribute('height')) {
-      this._renderer.setAttribute(svg, 'width', '1em');
-      this._renderer.setAttribute(svg, 'height', '1em');
+      this.renderer.setAttribute(svg, 'width', '1em');
+      this.renderer.setAttribute(svg, 'height', '1em');
     }
     if (!svg.getAttribute('fill')) {
-      this._renderer.setAttribute(svg, 'fill', 'currentColor');
+      this.renderer.setAttribute(svg, 'fill', 'currentColor');
     }
   }
 
   fetchFromIconfont(opt: NzIconfontOption): void {
     const { scriptUrl } = opt;
-    if (this._document && !this.iconfontCache.has(scriptUrl)) {
-      const script = this._renderer.createElement('script');
-      this._renderer.setAttribute(script, 'src', scriptUrl);
-      this._renderer.setAttribute(script, 'data-namespace', scriptUrl.replace(/^(https?|http):/g, ''));
-      this._renderer.appendChild(this._document.body, script);
+    if (this.document && !this.iconfontCache.has(scriptUrl)) {
+      const script = this.renderer.createElement('script');
+      this.renderer.setAttribute(script, 'src', scriptUrl);
+      this.renderer.setAttribute(script, 'data-namespace', scriptUrl.replace(/^(https?|http):/g, ''));
+      this.renderer.appendChild(this.document.body, script);
       this.iconfontCache.add(scriptUrl);
     }
   }
@@ -72,24 +71,17 @@ export class NzIconService extends IconService implements OnDestroy {
     return this._createSVGElementFromString(`<svg><use xlink:href="${type}"></svg>`);
   }
 
-  constructor(
-    rendererFactory: RendererFactory2,
-    sanitizer: DomSanitizer,
-    protected nzConfigService: NzConfigService,
-    @Optional() handler: HttpBackend,
-    @Optional() @Inject(DOCUMENT) _document: NzSafeAny,
-    @Optional() @Inject(NZ_ICONS) icons?: IconDefinition[]
-  ) {
-    super(rendererFactory, handler, _document, sanitizer);
+  constructor() {
+    super();
+    this.addIcon(...NZ_ICONS_USED_BY_ZORRO, ...(inject(NZ_ICONS, { optional: true }) || []));
 
     this.onConfigChange();
-    this.addIcon(...NZ_ICONS_USED_BY_ZORRO, ...(icons || []));
     this.configDefaultTwotoneColor();
     this.configDefaultTheme();
   }
 
   private onConfigChange(): void {
-    this.subscription = this.nzConfigService.getConfigChangeEventForComponent('icon').subscribe(() => {
+    onConfigChangeEventForComponent('icon', () => {
       this.configDefaultTwotoneColor();
       this.configDefaultTheme();
       this.configUpdated$.next();
@@ -123,16 +115,13 @@ export class NzIconService extends IconService implements OnDestroy {
   }
 }
 
-export const NZ_ICONS_PATCH = new InjectionToken('nz_icons_patch');
+export const NZ_ICONS_PATCH = new InjectionToken<IconDefinition[]>('nz_icons_patch');
 
 @Injectable()
 export class NzIconPatchService {
+  private readonly extraIcons = inject(NZ_ICONS_PATCH, { self: true });
+  private readonly rootIconService = inject(NzIconService);
   patched = false;
-
-  constructor(
-    @Self() @Inject(NZ_ICONS_PATCH) private extraIcons: IconDefinition[],
-    private rootIconService: NzIconService
-  ) {}
 
   doPatch(): void {
     if (this.patched) {

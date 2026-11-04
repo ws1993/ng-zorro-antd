@@ -1,20 +1,22 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
 
 @Component({
   selector: 'nz-demo-input-number-size',
+  imports: [FormsModule, NzInputNumberModule],
   template: `
-    <nz-input-number [(ngModel)]="demoValue" [nzSize]="'large'" [nzMin]="1" [nzMax]="10" [nzStep]="1"></nz-input-number>
-    <nz-input-number [(ngModel)]="demoValue" [nzMin]="1" [nzMax]="10" [nzStep]="1"></nz-input-number>
-    <nz-input-number [(ngModel)]="demoValue" [nzSize]="'small'" [nzMin]="1" [nzMax]="10" [nzStep]="1"></nz-input-number>
+    <nz-input-number [(ngModel)]="value" nzSize="large" nzMin="1" nzMax="10" />
+    <nz-input-number [(ngModel)]="value" nzMin="1" nzMax="10" />
+    <nz-input-number [(ngModel)]="value" nzSize="small" nzMin="1" nzMax="10" />
   `,
-  styles: [
-    `
-      nz-input-number {
-        margin-right: 8px;
-      }
-    `
-  ]
+  styles: `
+    nz-input-number {
+      margin-inline-end: 8px;
+    }
+  `
 })
 export class NzDemoInputNumberSizeComponent {
-  demoValue = 3;
+  readonly value = signal(3);
 }

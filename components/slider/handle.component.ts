@@ -5,38 +5,37 @@
 
 import { Direction } from '@angular/cdk/bidi';
 import {
-  ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
   ElementRef,
   Input,
   OnChanges,
   SimpleChanges,
+  TemplateRef,
   ViewChild,
-  ViewEncapsulation
+  ViewEncapsulation,
+  booleanAttribute,
+  inject
 } from '@angular/core';
 
-import { BooleanInput, NgStyleInterface } from 'ng-zorro-antd/core/types';
-import { InputBoolean } from 'ng-zorro-antd/core/util';
-import { NzTooltipDirective } from 'ng-zorro-antd/tooltip';
+import { NgStyleInterface, NzTSType } from 'ng-zorro-antd/core/types';
+import { numberAttributeWithZeroFallback } from 'ng-zorro-antd/core/util';
+import { NzTooltipDirective, NzTooltipModule } from 'ng-zorro-antd/tooltip';
 
-import { NzSliderService } from './slider.service';
 import { NzSliderShowTooltip } from './typings';
 
 @Component({
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  encapsulation: ViewEncapsulation.None,
   selector: 'nz-slider-handle',
   exportAs: 'nzSliderHandle',
-  preserveWhitespaces: false,
   template: `
     <div
       #handle
       class="ant-slider-handle"
       tabindex="0"
       nz-tooltip
-      [ngStyle]="style"
+      [style]="style"
       [nzTooltipTitle]="tooltipFormatter === null || tooltipVisible === 'never' ? null : tooltipTitle"
+      [nzTooltipTitleContext]="{ $implicit: value }"
       [nzTooltipTrigger]="null"
       [nzTooltipPlacement]="tooltipPlacement"
     ></div>
@@ -44,28 +43,29 @@ import { NzSliderShowTooltip } from './typings';
   host: {
     '(mouseenter)': 'enterHandle()',
     '(mouseleave)': 'leaveHandle()'
-  }
+  },
+  imports: [NzTooltipModule],
+  encapsulation: ViewEncapsulation.None
 })
 export class NzSliderHandleComponent implements OnChanges {
-  static ngAcceptInputType_active: BooleanInput;
+  private cdr = inject(ChangeDetectorRef);
 
   @ViewChild('handle', { static: false }) handleEl?: ElementRef;
   @ViewChild(NzTooltipDirective, { static: false }) tooltip?: NzTooltipDirective;
 
-  @Input() vertical?: boolean;
-  @Input() reverse?: boolean;
-  @Input() offset?: number;
-  @Input() value?: number;
+  @Input({ transform: booleanAttribute }) vertical?: boolean;
+  @Input({ transform: booleanAttribute }) reverse?: boolean;
+  @Input({ transform: numberAttributeWithZeroFallback }) offset?: number;
+  @Input({ transform: numberAttributeWithZeroFallback }) value?: number;
   @Input() tooltipVisible: NzSliderShowTooltip = 'default';
   @Input() tooltipPlacement?: string;
-  @Input() tooltipFormatter?: null | ((value: number) => string);
-  @Input() @InputBoolean() active = false;
+  @Input() tooltipFormatter?: null | ((value: number) => string) | TemplateRef<void>;
+  @Input({ transform: booleanAttribute }) active = false;
   @Input() dir: Direction = 'ltr';
+  @Input() dragging?: boolean;
 
-  tooltipTitle?: string;
+  tooltipTitle?: NzTSType;
   style: NgStyleInterface = {};
-
-  constructor(private sliderService: NzSliderService, private cdr: ChangeDetectorRef) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     const { offset, value, active, tooltipVisible, reverse, dir } = changes;
@@ -93,7 +93,7 @@ export class NzSliderHandleComponent implements OnChanges {
   }
 
   enterHandle = (): void => {
-    if (!this.sliderService.isDragging) {
+    if (!this.dragging) {
       this.toggleTooltip(true);
       this.updateTooltipPosition();
       this.cdr.detectChanges();
@@ -101,7 +101,7 @@ export class NzSliderHandleComponent implements OnChanges {
   };
 
   leaveHandle = (): void => {
-    if (!this.sliderService.isDragging) {
+    if (!this.dragging) {
       this.toggleTooltip(false);
       this.cdr.detectChanges();
     }
@@ -124,7 +124,12 @@ export class NzSliderHandleComponent implements OnChanges {
   }
 
   private updateTooltipTitle(): void {
-    this.tooltipTitle = this.tooltipFormatter ? this.tooltipFormatter(this.value!) : `${this.value}`;
+    if (this.tooltipFormatter) {
+      this.tooltipTitle =
+        typeof this.tooltipFormatter === 'function' ? this.tooltipFormatter(this.value!) : this.tooltipFormatter;
+    } else {
+      this.tooltipTitle = `${this.value}`;
+    }
   }
 
   private updateTooltipPosition(): void {
@@ -134,22 +139,18 @@ export class NzSliderHandleComponent implements OnChanges {
   }
 
   private updateStyle(): void {
-    const vertical = this.vertical;
-    const reverse = this.reverse;
-    const offset = this.offset;
-
-    const positionStyle = vertical
-      ? {
-          [reverse ? 'top' : 'bottom']: `${offset}%`,
-          [reverse ? 'bottom' : 'top']: 'auto',
-          transform: reverse ? null : `translateY(+50%)`
-        }
-      : {
-          ...this.getHorizontalStylePosition(),
-          transform: `translateX(${reverse ? (this.dir === 'rtl' ? '-' : '+') : this.dir === 'rtl' ? '+' : '-'}50%)`
-        };
-
-    this.style = positionStyle;
+    if (this.vertical) {
+      this.style = {
+        [this.reverse ? 'top' : 'bottom']: `${this.offset}%`,
+        [this.reverse ? 'bottom' : 'top']: 'auto',
+        transform: this.reverse ? null : `translateY(+50%)`
+      };
+    } else {
+      this.style = {
+        ...this.getHorizontalStylePosition(),
+        transform: `translateX(${this.reverse ? (this.dir === 'rtl' ? '-' : '+') : this.dir === 'rtl' ? '+' : '-'}50%)`
+      };
+    }
     this.cdr.markForCheck();
   }
 
@@ -157,9 +158,7 @@ export class NzSliderHandleComponent implements OnChanges {
     let left = this.reverse ? 'auto' : `${this.offset}%`;
     let right = this.reverse ? `${this.offset}%` : 'auto';
     if (this.dir === 'rtl') {
-      const tmp = left;
-      left = right;
-      right = tmp;
+      [left, right] = [right, left];
     }
     return { left, right };
   }

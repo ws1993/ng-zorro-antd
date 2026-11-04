@@ -3,32 +3,32 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { ChangeDetectionStrategy, Component, Input, OnChanges, OnInit, ViewEncapsulation } from '@angular/core';
-import { CandyDate } from 'ng-zorro-antd/core/time';
-import { valueFunctionProp } from 'ng-zorro-antd/core/util';
+import { Component, inject, Input, OnChanges, OnInit, ViewEncapsulation } from '@angular/core';
 
-import { DateHelperService, NzCalendarI18nInterface, NzI18nService } from 'ng-zorro-antd/i18n';
+import { NzStringTemplateOutletDirective } from 'ng-zorro-antd/core/outlet';
+import { CandyDate, NzDateAdapter, WeekDayIndex } from 'ng-zorro-antd/core/time';
+import { valueFunctionProp } from 'ng-zorro-antd/core/util';
+import { NzI18nService } from 'ng-zorro-antd/i18n';
+
 import { AbstractTable } from './abstract-table';
 import { DateBodyRow, DateCell } from './interface';
 import { transCompatFormat } from './util';
 
 @Component({
-  encapsulation: ViewEncapsulation.None,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   // eslint-disable-next-line @angular-eslint/component-selector
   selector: 'date-table',
-  exportAs: 'dateTable',
-  templateUrl: './abstract-table.html'
+  templateUrl: './abstract-table.html',
+  imports: [NzStringTemplateOutletDirective],
+  encapsulation: ViewEncapsulation.None
 })
 export class DateTableComponent extends AbstractTable implements OnChanges, OnInit {
-  @Input() locale!: NzCalendarI18nInterface;
+  private readonly i18n = inject(NzI18nService);
+  private readonly dateAdapter = inject(NzDateAdapter);
 
-  constructor(private i18n: NzI18nService, private dateHelper: DateHelperService) {
-    super();
-  }
+  @Input() format?: string;
 
   private changeValueFromInside(value: CandyDate): void {
-    // Only change date not change time
+    // Only change date, does not change time
     this.activeDate = this.activeDate.setYear(value.getYear()).setMonth(value.getMonth()).setDate(value.getDate());
     this.valueChange.emit(this.activeDate);
 
@@ -39,14 +39,14 @@ export class DateTableComponent extends AbstractTable implements OnChanges, OnIn
 
   makeHeadRow(): DateCell[] {
     const weekDays: DateCell[] = [];
-    const start = this.activeDate.calendarStart({ weekStartsOn: this.dateHelper.getFirstDayOfWeek() });
+    const start = this.activeDate.calendarStart({ weekStartsOn: this.dateAdapter.getFirstDayOfWeek() as WeekDayIndex });
     for (let colIndex = 0; colIndex < this.MAX_COL; colIndex++) {
       const day = start.addDays(colIndex);
       weekDays.push({
         trackByIndex: null,
         value: day.nativeDate,
-        title: this.dateHelper.format(day.nativeDate, 'E'), // eg. Tue
-        content: this.dateHelper.format(day.nativeDate, this.getVeryShortWeekFormat()), // eg. Tu,
+        title: this.dateAdapter.format(day.nativeDate, 'E'), // eg. Tue
+        content: this.dateAdapter.format(day.nativeDate, this.getVeryShortWeekFormat()), // eg. Tu,
         isSelected: false,
         isDisabled: false,
         onClick(): void {},
@@ -62,7 +62,9 @@ export class DateTableComponent extends AbstractTable implements OnChanges, OnIn
 
   makeBodyRows(): DateBodyRow[] {
     const weekRows: DateBodyRow[] = [];
-    const firstDayOfMonth = this.activeDate.calendarStart({ weekStartsOn: this.dateHelper.getFirstDayOfWeek() });
+    const firstDayOfMonth = this.activeDate.calendarStart({
+      weekStartsOn: this.dateAdapter.getFirstDayOfWeek() as WeekDayIndex
+    });
 
     for (let week = 0; week < this.MAX_ROW; week++) {
       const weekStart = firstDayOfMonth.addDays(week * 7);
@@ -74,9 +76,11 @@ export class DateTableComponent extends AbstractTable implements OnChanges, OnIn
 
       for (let day = 0; day < 7; day++) {
         const date = weekStart.addDays(day);
-        const dateFormat = transCompatFormat(this.i18n.getLocaleData('DatePicker.lang.dateFormat', 'YYYY-MM-DD'));
-        const title = this.dateHelper.format(date.nativeDate, dateFormat);
-        const label = this.dateHelper.format(date.nativeDate, 'dd');
+        const dateFormat = transCompatFormat(
+          this.format ?? this.i18n.getLocaleData('DatePicker.lang.dateFormat', 'YYYY-MM-DD')
+        );
+        const title = this.dateAdapter.format(date.nativeDate, dateFormat);
+        const label = this.dateAdapter.format(date.nativeDate, 'dd');
         const cell: DateCell = {
           trackByIndex: day,
           value: date.nativeDate,
@@ -95,7 +99,7 @@ export class DateTableComponent extends AbstractTable implements OnChanges, OnIn
         this.addCellProperty(cell, date);
 
         if (this.showWeek && !row.weekNum) {
-          row.weekNum = this.dateHelper.getISOWeek(date.nativeDate);
+          row.weekNum = this.dateAdapter.getISOWeek(date.nativeDate);
         }
         if (date.isSameDay(this.value)) {
           row.isActive = date.isSameDay(this.value);
@@ -103,8 +107,8 @@ export class DateTableComponent extends AbstractTable implements OnChanges, OnIn
         row.dateCells.push(cell);
       }
       row.classMap = {
-        [`ant-picker-week-panel-row`]: this.showWeek,
-        [`ant-picker-week-panel-row-selected`]: this.showWeek && row.isActive
+        [`ant-picker-week-panel-row`]: this.canSelectWeek,
+        [`ant-picker-week-panel-row-selected`]: this.canSelectWeek && row.isActive
       };
       weekRows.push(row);
     }
@@ -112,7 +116,7 @@ export class DateTableComponent extends AbstractTable implements OnChanges, OnIn
   }
 
   addCellProperty(cell: DateCell, date: CandyDate): void {
-    if (this.hasRangeValue() && !this.showWeek) {
+    if (this.hasRangeValue() && !this.canSelectWeek) {
       const [startHover, endHover] = this.hoverValue;
       const [startSelected, endSelected] = this.selectedValue;
       // Selected
@@ -146,7 +150,7 @@ export class DateTableComponent extends AbstractTable implements OnChanges, OnIn
     cell.classMap = this.getClassMap(cell);
   }
 
-  getClassMap(cell: DateCell): { [key: string]: boolean } {
+  override getClassMap(cell: DateCell): Record<string, boolean> {
     const date = new CandyDate(cell.value);
     return {
       ...super.getClassMap(cell),

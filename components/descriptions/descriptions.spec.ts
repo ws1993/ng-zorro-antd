@@ -1,32 +1,34 @@
-import { BidiModule, Dir } from '@angular/cdk/bidi';
-import { Component, ViewChild } from '@angular/core';
-import { ComponentFixture, fakeAsync, tick } from '@angular/core/testing';
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
+import { Directionality } from '@angular/cdk/bidi';
+import { Component, signal } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 
-import { ComponentBed, createComponentBed } from 'ng-zorro-antd/core/testing/component-bed';
+import { vi } from 'vitest';
+
+import { provideMockDirectionality, updateNonSignalsInput } from 'ng-zorro-antd/core/testing';
+import { NzSafeAny } from 'ng-zorro-antd/core/types';
 
 import { NzDescriptionsComponent } from './descriptions.component';
 import { NzDescriptionsModule } from './descriptions.module';
 
-// eslint-disable-next-line  @typescript-eslint/no-explicit-any
-declare const viewport: any;
+declare const viewport: NzSafeAny;
 
-describe('nz descriptions', () => {
+describe('descriptions', () => {
   describe('with different spans', () => {
-    let testBed: ComponentBed<NzTestDescriptionsComponent>;
     let testComponent: NzTestDescriptionsComponent;
     let componentElement: HTMLElement;
     let fixture: ComponentFixture<NzTestDescriptionsComponent>;
     let rows;
 
     beforeEach(() => {
-      testBed = createComponentBed(NzTestDescriptionsComponent, {
-        imports: [NzDescriptionsModule]
-      });
-      fixture = testBed.fixture;
+      fixture = TestBed.createComponent(NzTestDescriptionsComponent);
       testComponent = fixture.componentInstance;
       componentElement = fixture.debugElement.nativeElement;
-
       fixture.detectChanges();
     });
 
@@ -37,19 +39,19 @@ describe('nz descriptions', () => {
       expect(title).toBeTruthy();
       expect(view).toBeTruthy();
 
-      testComponent.title = '';
+      testComponent.title.set('');
       fixture.detectChanges();
       title = componentElement.querySelector('.ant-descriptions-title');
       expect(title).toBeFalsy();
     });
 
     it('should render spans correctly', () => {
-      const spyOnWarn = spyOn(console, 'warn');
-      spyOnWarn.calls.reset();
+      const spyOnWarn = vi.spyOn(console, 'warn');
+      spyOnWarn.mockClear();
       rows = componentElement.querySelectorAll('.ant-descriptions-row');
       expect(rows.length).toBe(1);
 
-      testComponent.colspanArray = [1, 1, 1, 2, 3, 1, 5];
+      testComponent.colspanArray.set([1, 1, 1, 2, 3, 1, 5]);
       fixture.detectChanges();
       rows = componentElement.querySelectorAll('.ant-descriptions-row');
       expect(rows.length).toBe(3);
@@ -57,44 +59,44 @@ describe('nz descriptions', () => {
       expect(spyOnWarn).toHaveBeenCalledWith('[NG-ZORRO]:', '"nzColumn" is 3 but we have row length 5');
       expect(spyOnWarn).toHaveBeenCalledWith('[NG-ZORRO]:', '"nzColumn" is 3 but we have row length 6');
 
-      testComponent.column = 5;
-      testComponent.colspanArray = [1, 2, 3];
+      testComponent.column.set(5);
+      testComponent.colspanArray.set([1, 2, 3]);
       fixture.detectChanges();
       rows = componentElement.querySelectorAll('.ant-descriptions-row');
       expect(rows.length).toBe(1);
       expect(spyOnWarn).toHaveBeenCalledTimes(4);
       expect(spyOnWarn).toHaveBeenCalledWith('[NG-ZORRO]:', '"nzColumn" is 5 but we have row length 6');
 
-      testComponent.colspanArray = [1, 2, 2];
+      testComponent.colspanArray.set([1, 2, 2]);
       fixture.detectChanges();
       rows = componentElement.querySelectorAll('.ant-descriptions-row');
       expect(rows.length).toBe(1);
 
       // Should the last fill the rest space.
-      testComponent.colspanArray = [1, 1];
+      testComponent.colspanArray.set([1, 1]);
       fixture.detectChanges();
       rows = componentElement.querySelectorAll('.ant-descriptions-row');
       const tds = componentElement.querySelectorAll('.ant-descriptions-item');
       expect(rows.length).toBe(1);
-      expect((tds[1] as HTMLTableDataCellElement).colSpan).toBe(4);
-      spyOnWarn.calls.reset();
+      expect((tds[1] as HTMLTableCellElement).colSpan).toBe(4);
+      spyOnWarn.mockClear();
     });
 
-    it('should responsive work', fakeAsync(() => {
-      testComponent.column = {
+    it('should responsive work', async () => {
+      testComponent.column.set({
         xxl: 3,
         xl: 3,
         lg: 3,
         md: 3,
         sm: 2,
         xs: 1
-      };
-      testComponent.colspanArray = [1, 1, 1, 2, 3, 1, 5];
+      });
+      testComponent.colspanArray.set([1, 1, 1, 2, 3, 1, 5]);
 
       viewport.set(1024, 1024);
       window.dispatchEvent(new Event('resize'));
       fixture.detectChanges();
-      tick(1000);
+      await updateNonSignalsInput(fixture, 1000);
       fixture.detectChanges();
       rows = componentElement.querySelectorAll('.ant-descriptions-row');
       expect(rows.length).toBe(3);
@@ -102,82 +104,125 @@ describe('nz descriptions', () => {
       viewport.set(320, 320);
       window.dispatchEvent(new Event('resize'));
       fixture.detectChanges();
-      tick(1000);
+      await updateNonSignalsInput(fixture, 1000);
       fixture.detectChanges();
 
       rows = componentElement.querySelectorAll('.ant-descriptions-row');
       expect(rows.length).toBe(7);
 
       viewport.reset();
-    }));
+    });
 
     // fix #3795
-    it('should change to use content work', fakeAsync(() => {
+    it('should change to use content work', async () => {
       let firstTitle = componentElement.querySelector('.ant-descriptions-item-label') as HTMLSpanElement;
       expect(firstTitle.innerText).toBe('Item Title 0');
 
-      testComponent.itemTitle = 'Item ';
+      testComponent.itemTitle.set('Item ');
       fixture.detectChanges();
-      tick(16);
+      await updateNonSignalsInput(fixture, 16);
       fixture.detectChanges();
       firstTitle = componentElement.querySelector('.ant-descriptions-item-label') as HTMLSpanElement;
       expect(firstTitle.innerText).toBe('Item 0');
-    }));
+    });
   });
 
   describe('RTL', () => {
-    let testBed: ComponentBed<NzTestDescriptionsRtlComponent>;
-    let fixture: ComponentFixture<NzTestDescriptionsRtlComponent>;
+    let fixture: ComponentFixture<NzTestDescriptionsComponent>;
     let componentElement: HTMLElement;
+    let dir: Directionality;
 
     beforeEach(() => {
-      testBed = createComponentBed(NzTestDescriptionsRtlComponent, {
-        declarations: [NzTestDescriptionsComponent],
-        imports: [NzDescriptionsModule, BidiModule]
+      TestBed.configureTestingModule({
+        providers: [provideMockDirectionality()]
       });
-      componentElement = testBed.debugElement.query(By.directive(NzDescriptionsComponent)).nativeElement;
-      fixture = testBed.fixture;
+      fixture = TestBed.createComponent(NzTestDescriptionsComponent);
+      componentElement = fixture.debugElement.query(By.directive(NzDescriptionsComponent)).nativeElement;
+      dir = fixture.debugElement.injector.get(Directionality);
       fixture.detectChanges();
     });
 
-    it('should className correct on dir change', fakeAsync(() => {
+    it('should className correct on dir change', () => {
+      dir.valueSignal.set('rtl');
+      fixture.detectChanges();
       expect(componentElement.classList).toContain('ant-descriptions-rtl');
-      fixture.componentInstance.direction = 'ltr';
+
+      dir.valueSignal.set('ltr');
       fixture.detectChanges();
       expect(componentElement.classList).not.toContain('ant-descriptions-rtl');
-    }));
+    });
+  });
+
+  // fix #9927
+  describe('resize', () => {
+    let fixture: ComponentFixture<NzTestDescriptionsResponsiveContentComponent>;
+    let componentElement: HTMLElement;
+
+    beforeEach(() => {
+      fixture = TestBed.createComponent(NzTestDescriptionsResponsiveContentComponent);
+      componentElement = fixture.debugElement.nativeElement;
+      fixture.detectChanges();
+    });
+
+    it('should keep item content after resizing down and back up', async () => {
+      const getContents = (): Array<string | undefined> =>
+        Array.from(componentElement.querySelectorAll('.ant-descriptions-item-content')).map(item =>
+          item.textContent?.trim()
+        );
+
+      viewport.set(1200, 1000);
+      window.dispatchEvent(new Event('resize'));
+      fixture.detectChanges();
+      await updateNonSignalsInput(fixture, 1000);
+      fixture.detectChanges();
+
+      viewport.set(320, 600);
+      window.dispatchEvent(new Event('resize'));
+      fixture.detectChanges();
+      await updateNonSignalsInput(fixture, 1000);
+      fixture.detectChanges();
+
+      viewport.set(1200, 1000);
+      window.dispatchEvent(new Event('resize'));
+      fixture.detectChanges();
+      await updateNonSignalsInput(fixture, 1000);
+      fixture.detectChanges();
+
+      viewport.reset();
+
+      expect(getContents()).toEqual(['UserName content', 'Telephone content', 'Live content']);
+    });
   });
 });
 
 @Component({
-  // eslint-disable-next-line
+  imports: [NzDescriptionsModule],
   selector: 'nz-test-descriptions',
   template: `
-    <nz-descriptions [nzTitle]="title" [nzBordered]="bordered" [nzColumn]="column">
-      <nz-descriptions-item
-        *ngFor="let col of colspanArray; let i = index"
-        [nzTitle]="itemTitle + i"
-        [nzSpan]="col"
-      ></nz-descriptions-item>
+    <nz-descriptions [nzTitle]="title()" [nzBordered]="bordered()" [nzColumn]="column()">
+      @for (col of colspanArray(); track $index) {
+        <nz-descriptions-item [nzTitle]="itemTitle() + $index" [nzSpan]="col" />
+      }
     </nz-descriptions>
   `
 })
 export class NzTestDescriptionsComponent {
-  bordered = false;
-  colspanArray: number[] = [1, 1, 1];
-  column: number | { [key: string]: number } = 3;
-  title = 'Title';
-  itemTitle = 'Item Title ';
+  readonly bordered = signal(false);
+  readonly colspanArray = signal<number[]>([1, 1, 1]);
+  readonly column = signal<NzDescriptionsComponent['nzColumn']>(3);
+  readonly title = signal('Title');
+  readonly itemTitle = signal('Item Title ');
 }
 
 @Component({
+  imports: [NzDescriptionsModule],
+  selector: 'nz-test-descriptions-responsive-content',
   template: `
-    <div [dir]="direction">
-      <nz-test-descriptions></nz-test-descriptions>
-    </div>
+    <nz-descriptions>
+      <nz-descriptions-item nzTitle="UserName">UserName content</nz-descriptions-item>
+      <nz-descriptions-item nzTitle="Telephone">Telephone content</nz-descriptions-item>
+      <nz-descriptions-item nzTitle="Live">Live content</nz-descriptions-item>
+    </nz-descriptions>
   `
 })
-export class NzTestDescriptionsRtlComponent {
-  @ViewChild(Dir) dir!: Dir;
-  direction = 'rtl';
-}
+export class NzTestDescriptionsResponsiveContentComponent {}

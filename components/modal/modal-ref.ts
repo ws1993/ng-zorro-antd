@@ -5,36 +5,41 @@
 
 import { ESCAPE, hasModifierKey } from '@angular/cdk/keycodes';
 import { OverlayRef } from '@angular/cdk/overlay';
-import { EventEmitter } from '@angular/core';
+import { ComponentRef, EventEmitter } from '@angular/core';
 import { Subject } from 'rxjs';
-import { filter, take } from 'rxjs/operators';
+import { filter, take, takeUntil } from 'rxjs/operators';
 
 import { NzSafeAny } from 'ng-zorro-antd/core/types';
 import { isPromise } from 'ng-zorro-antd/core/util';
 
-import { BaseModalContainerComponent } from './modal-container';
+import { BaseModalContainerComponent } from './modal-container.directive';
 import { NzModalLegacyAPI } from './modal-legacy-api';
 import { ModalOptions } from './modal-types';
 
-export const enum NzModalState {
-  OPEN,
-  CLOSING,
-  CLOSED
-}
+export const NzModalState = {
+  OPEN: 0,
+  CLOSING: 1,
+  CLOSED: 2
+} as const;
 
-export const enum NzTriggerAction {
-  CANCEL = 'cancel',
-  OK = 'ok'
-}
+export type NzModalState = (typeof NzModalState)[keyof typeof NzModalState];
+
+export const NzTriggerAction = {
+  CANCEL: 'cancel',
+  OK: 'ok'
+} as const;
+
+export type NzTriggerAction = (typeof NzTriggerAction)[keyof typeof NzTriggerAction];
 
 export class NzModalRef<T = NzSafeAny, R = NzSafeAny> implements NzModalLegacyAPI<T, R> {
   componentInstance: T | null = null;
+  componentRef: ComponentRef<T> | null = null;
   result?: R;
   state: NzModalState = NzModalState.OPEN;
-  afterClose: Subject<R> = new Subject();
-  afterOpen: Subject<void> = new Subject();
+  afterClose = new Subject<R | undefined>();
+  afterOpen = new Subject<void>();
 
-  private closeTimeout?: number;
+  private destroy$ = new Subject<void>();
 
   constructor(
     private overlayRef: OverlayRef,
@@ -43,7 +48,7 @@ export class NzModalRef<T = NzSafeAny, R = NzSafeAny> implements NzModalLegacyAP
   ) {
     containerInstance.animationStateChanged
       .pipe(
-        filter(event => event.phaseName === 'done' && event.toState === 'enter'),
+        filter(event => event === 'enter-active'),
         take(1)
       )
       .subscribe(() => {
@@ -56,15 +61,12 @@ export class NzModalRef<T = NzSafeAny, R = NzSafeAny> implements NzModalLegacyAP
 
     containerInstance.animationStateChanged
       .pipe(
-        filter(event => event.phaseName === 'done' && event.toState === 'exit'),
+        filter(event => event === 'leave-active'),
         take(1)
       )
-      .subscribe(() => {
-        clearTimeout(this.closeTimeout);
-        this._finishDialogClose();
-      });
+      .subscribe(() => this._finishDialogClose());
 
-    containerInstance.containerClick.pipe(take(1)).subscribe(() => {
+    containerInstance.containerClick.pipe(takeUntil(this.destroy$)).subscribe(() => {
       const cancelable = !this.config.nzCancelLoading && !this.config.nzOkLoading;
       if (cancelable) {
         this.trigger(NzTriggerAction.CANCEL);
@@ -74,23 +76,19 @@ export class NzModalRef<T = NzSafeAny, R = NzSafeAny> implements NzModalLegacyAP
     overlayRef
       .keydownEvents()
       .pipe(
-        filter(
-          event =>
-            (this.config.nzKeyboard as boolean) &&
-            !this.config.nzCancelLoading &&
-            !this.config.nzOkLoading &&
-            event.keyCode === ESCAPE &&
-            !hasModifierKey(event)
-        )
+        filter(() => (this.config.nzKeyboard as boolean) && !this.config.nzCancelLoading && !this.config.nzOkLoading),
+        filter(event => event.keyCode === ESCAPE && !hasModifierKey(event))
       )
       .subscribe(event => {
         event.preventDefault();
         this.trigger(NzTriggerAction.CANCEL);
       });
 
-    containerInstance.cancelTriggered.subscribe(() => this.trigger(NzTriggerAction.CANCEL));
+    containerInstance.cancelTriggered
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.trigger(NzTriggerAction.CANCEL));
 
-    containerInstance.okTriggered.subscribe(() => this.trigger(NzTriggerAction.OK));
+    containerInstance.okTriggered.pipe(takeUntil(this.destroy$)).subscribe(() => this.trigger(NzTriggerAction.OK));
 
     overlayRef.detachments().subscribe(() => {
       this.afterClose.next(this.result);
@@ -99,12 +97,17 @@ export class NzModalRef<T = NzSafeAny, R = NzSafeAny> implements NzModalLegacyAP
         config.nzAfterClose.emit(this.result);
       }
       this.componentInstance = null;
+      this.componentRef = null;
       this.overlayRef.dispose();
     });
   }
 
   getContentComponent(): T {
     return this.componentInstance as T;
+  }
+
+  getContentComponentRef(): Readonly<ComponentRef<T> | null> {
+    return this.componentRef as Readonly<ComponentRef<T> | null>;
   }
 
   getElement(): HTMLElement {
@@ -128,26 +131,16 @@ export class NzModalRef<T = NzSafeAny, R = NzSafeAny> implements NzModalLegacyAP
       return;
     }
     this.result = result;
-    this.containerInstance.animationStateChanged
-      .pipe(
-        filter(event => event.phaseName === 'start'),
-        take(1)
-      )
-      .subscribe(event => {
-        this.overlayRef.detachBackdrop();
-        this.closeTimeout = setTimeout(() => {
-          this._finishDialogClose();
-        }, event.totalTime + 100);
-      });
-
-    this.containerInstance.startExitAnimation();
     this.state = NzModalState.CLOSING;
+    const backdropElement = this.overlayRef.backdropElement;
+    this.overlayRef.detachBackdrop();
+    this.containerInstance._startLeaveAnimation(backdropElement);
   }
 
   updateConfig(config: ModalOptions): void {
     Object.assign(this.config, config);
     this.containerInstance.bindBackdropStyle();
-    this.containerInstance.cdr.markForCheck();
+    this.containerInstance.markForCheck();
   }
 
   getState(): NzModalState {
@@ -163,10 +156,15 @@ export class NzModalRef<T = NzSafeAny, R = NzSafeAny> implements NzModalLegacyAP
   }
 
   private async trigger(action: NzTriggerAction): Promise<void> {
-    const trigger = { ok: this.config.nzOnOk, cancel: this.config.nzOnCancel }[action];
-    const loadingKey = { ok: 'nzOkLoading', cancel: 'nzCancelLoading' }[action] as 'nzOkLoading' | 'nzCancelLoading';
-    const loading = this.config[loadingKey];
-    if (loading) {
+    if (this.state === NzModalState.CLOSING) {
+      return;
+    }
+    const actionMap = {
+      [NzTriggerAction.OK]: { trigger: this.config.nzOnOk, loadingKey: 'nzOkLoading' },
+      [NzTriggerAction.CANCEL]: { trigger: this.config.nzOnCancel, loadingKey: 'nzCancelLoading' }
+    } as const;
+    const { trigger, loadingKey } = actionMap[action];
+    if (this.config[loadingKey]) {
       return;
     }
     if (trigger instanceof EventEmitter) {
@@ -175,11 +173,13 @@ export class NzModalRef<T = NzSafeAny, R = NzSafeAny> implements NzModalLegacyAP
       const result = trigger(this.getContentComponent());
       if (isPromise(result)) {
         this.config[loadingKey] = true;
+        this.updateConfig(this.config);
         let doClose: boolean | void | {} = false;
         try {
-          doClose = await result;
+          doClose = (await result) as typeof result;
         } finally {
           this.config[loadingKey] = false;
+          this.updateConfig(this.config);
           this.closeWhitResult(doClose);
         }
       } else {
@@ -197,5 +197,6 @@ export class NzModalRef<T = NzSafeAny, R = NzSafeAny> implements NzModalLegacyAP
   _finishDialogClose(): void {
     this.state = NzModalState.CLOSED;
     this.overlayRef.dispose();
+    this.destroy$.next();
   }
 }

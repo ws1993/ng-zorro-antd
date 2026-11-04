@@ -3,17 +3,10 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Directive, Host, Optional } from '@angular/core';
-
-import { NzDatePickerComponent } from './date-picker.component';
+import { Directive } from '@angular/core';
 
 @Directive({
   selector: 'nz-range-picker',
   exportAs: 'nzRangePicker'
 })
-// eslint-disable-next-line @angular-eslint/directive-class-suffix
-export class NzRangePickerComponent {
-  constructor(@Optional() @Host() public datePicker: NzDatePickerComponent) {
-    this.datePicker.isRange = true;
-  }
-}
+export class NzRangePickerComponent {}

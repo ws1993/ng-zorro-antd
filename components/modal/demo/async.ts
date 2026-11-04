@@ -1,39 +1,43 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 
 @Component({
   selector: 'nz-demo-modal-async',
+  imports: [NzButtonModule, NzModalModule],
   template: `
     <button nz-button nzType="primary" (click)="showModal()">
       <span>Show Modal</span>
     </button>
     <nz-modal
-      [(nzVisible)]="isVisible"
+      [(nzVisible)]="visible"
       nzTitle="Modal Title"
       (nzOnCancel)="handleCancel()"
       (nzOnOk)="handleOk()"
-      [nzOkLoading]="isOkLoading"
+      [nzOkLoading]="loading()"
     >
       <p *nzModalContent>Modal Content</p>
     </nz-modal>
   `
 })
 export class NzDemoModalAsyncComponent {
-  isVisible = false;
-  isOkLoading = false;
+  readonly visible = signal(false);
+  readonly loading = signal(false);
 
   showModal(): void {
-    this.isVisible = true;
+    this.visible.set(true);
   }
 
   handleOk(): void {
-    this.isOkLoading = true;
+    this.loading.set(true);
     setTimeout(() => {
-      this.isVisible = false;
-      this.isOkLoading = false;
+      this.visible.set(false);
+      this.loading.set(false);
     }, 3000);
   }
 
   handleCancel(): void {
-    this.isVisible = false;
+    this.visible.set(false);
   }
 }

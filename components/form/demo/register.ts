@@ -1,10 +1,23 @@
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
+import { Component, inject, OnDestroy, OnInit } from '@angular/core';
+import {
+  AbstractControl,
+  NonNullableFormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators
+} from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
-import { NzFormTooltipIcon } from 'ng-zorro-antd/form';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
+import { NzFormModule, NzFormTooltipIcon } from 'ng-zorro-antd/form';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSelectModule } from 'ng-zorro-antd/select';
 
 @Component({
   selector: 'nz-demo-form-register',
+  imports: [ReactiveFormsModule, NzButtonModule, NzCheckboxModule, NzFormModule, NzInputModule, NzSelectModule],
   template: `
     <form nz-form [formGroup]="validateForm" (ngSubmit)="submitForm()">
       <nz-form-item>
@@ -16,13 +29,7 @@ import { NzFormTooltipIcon } from 'ng-zorro-antd/form';
       <nz-form-item>
         <nz-form-label [nzSm]="6" [nzXs]="24" nzFor="password" nzRequired>Password</nz-form-label>
         <nz-form-control [nzSm]="14" [nzXs]="24" nzErrorTip="Please input your password!">
-          <input
-            nz-input
-            type="password"
-            id="password"
-            formControlName="password"
-            (ngModelChange)="updateConfirmValidator()"
-          />
+          <input nz-input type="password" id="password" formControlName="password" />
         </nz-form-control>
       </nz-form-item>
       <nz-form-item>
@@ -30,10 +37,12 @@ import { NzFormTooltipIcon } from 'ng-zorro-antd/form';
         <nz-form-control [nzSm]="14" [nzXs]="24" [nzErrorTip]="errorTpl">
           <input nz-input type="password" formControlName="checkPassword" id="checkPassword" />
           <ng-template #errorTpl let-control>
-            <ng-container *ngIf="control.hasError('required')">Please confirm your password!</ng-container>
-            <ng-container *ngIf="control.hasError('confirm')">
+            @if (control.errors?.['required']) {
+              Please confirm your password!
+            }
+            @if (control.errors?.['confirm']) {
               Two passwords that you enter is inconsistent!
-            </ng-container>
+            }
           </ng-template>
         </nz-form-control>
       </nz-form-item>
@@ -59,15 +68,13 @@ import { NzFormTooltipIcon } from 'ng-zorro-antd/form';
           [nzValidateStatus]="validateForm.controls['phoneNumber']"
           nzErrorTip="Please input your phone number!"
         >
-          <nz-input-group [nzAddOnBefore]="addOnBeforeTemplate">
-            <ng-template #addOnBeforeTemplate>
-              <nz-select formControlName="phoneNumberPrefix" class="phone-select">
-                <nz-option nzLabel="+86" nzValue="+86"></nz-option>
-                <nz-option nzLabel="+87" nzValue="+87"></nz-option>
-              </nz-select>
-            </ng-template>
+          <nz-input-wrapper>
+            <nz-select nzInputAddonBefore formControlName="phoneNumberPrefix" class="phone-select">
+              <nz-option nzLabel="+86" nzValue="+86" />
+              <nz-option nzLabel="+87" nzValue="+87" />
+            </nz-select>
             <input formControlName="phoneNumber" id="'phoneNumber'" nz-input />
-          </nz-input-group>
+          </nz-input-wrapper>
         </nz-form-control>
       </nz-form-item>
       <nz-form-item>
@@ -120,29 +127,49 @@ import { NzFormTooltipIcon } from 'ng-zorro-antd/form';
       </nz-form-item>
     </form>
   `,
+  styles: `
+    [nz-form] {
+      max-width: 600px;
+    }
 
-  styles: [
-    `
-      [nz-form] {
-        max-width: 600px;
-      }
+    .ant-select.ant-select-in-form-item.phone-select {
+      width: 80px;
+    }
 
-      .phone-select {
-        width: 70px;
-      }
-
-      .register-are {
-        margin-bottom: 8px;
-      }
-    `
-  ]
+    .register-area {
+      margin-bottom: 8px;
+    }
+  `
 })
-export class NzDemoFormRegisterComponent implements OnInit {
-  validateForm!: FormGroup;
+export class NzDemoFormRegisterComponent implements OnInit, OnDestroy {
+  private fb = inject(NonNullableFormBuilder);
+  private destroy$ = new Subject<void>();
+  validateForm = this.fb.group({
+    email: this.fb.control('', [Validators.email, Validators.required]),
+    password: this.fb.control('', [Validators.required]),
+    checkPassword: this.fb.control('', [Validators.required, this.confirmationValidator]),
+    nickname: this.fb.control('', [Validators.required]),
+    phoneNumberPrefix: this.fb.control<'+86' | '+87'>('+86'),
+    phoneNumber: this.fb.control('', [Validators.required]),
+    website: this.fb.control('', [Validators.required]),
+    captcha: this.fb.control('', [Validators.required]),
+    agree: this.fb.control(false)
+  });
   captchaTooltipIcon: NzFormTooltipIcon = {
     type: 'info-circle',
     theme: 'twotone'
   };
+
+  ngOnInit(): void {
+    this.validateForm.controls.password.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.validateForm.controls.checkPassword.updateValueAndValidity();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
 
   submitForm(): void {
     if (this.validateForm.valid) {
@@ -157,37 +184,16 @@ export class NzDemoFormRegisterComponent implements OnInit {
     }
   }
 
-  updateConfirmValidator(): void {
-    /** wait for refresh value */
-    Promise.resolve().then(() => this.validateForm.controls.checkPassword.updateValueAndValidity());
-  }
-
-  confirmationValidator = (control: FormControl): { [s: string]: boolean } => {
+  confirmationValidator(control: AbstractControl): ValidationErrors | null {
     if (!control.value) {
       return { required: true };
-    } else if (control.value !== this.validateForm.controls.password.value) {
+    } else if (control.value !== control.parent!.value.password) {
       return { confirm: true, error: true };
     }
     return {};
-  };
+  }
 
   getCaptcha(e: MouseEvent): void {
     e.preventDefault();
-  }
-
-  constructor(private fb: FormBuilder) {}
-
-  ngOnInit(): void {
-    this.validateForm = this.fb.group({
-      email: [null, [Validators.email, Validators.required]],
-      password: [null, [Validators.required]],
-      checkPassword: [null, [Validators.required, this.confirmationValidator]],
-      nickname: [null, [Validators.required]],
-      phoneNumberPrefix: ['+86'],
-      phoneNumber: [null, [Validators.required]],
-      website: [null, [Validators.required]],
-      captcha: [null, [Validators.required]],
-      agree: [false]
-    });
   }
 }

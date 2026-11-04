@@ -4,53 +4,59 @@
  */
 
 import { Platform } from '@angular/cdk/platform';
+import { NgTemplateOutlet } from '@angular/common';
 import {
   AfterViewInit,
-  ChangeDetectionStrategy,
+  booleanAttribute,
   Component,
+  DestroyRef,
   ElementRef,
   EventEmitter,
   forwardRef,
+  inject,
   Input,
   NgZone,
-  OnDestroy,
   Output,
   TemplateRef,
   ViewEncapsulation
 } from '@angular/core';
-import { NG_VALUE_ACCESSOR } from '@angular/forms';
-import { BehaviorSubject, combineLatest, fromEvent, Subject } from 'rxjs';
-import { debounceTime, distinctUntilChanged, filter, map, takeUntil } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { BehaviorSubject, combineLatest, Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, filter, map } from 'rxjs/operators';
 
-import { editor, IDisposable } from 'monaco-editor';
+import type { editor, IDisposable } from 'monaco-editor';
 
 import { warn } from 'ng-zorro-antd/core/logger';
-import { BooleanInput, NzSafeAny, OnChangeType, OnTouchedType } from 'ng-zorro-antd/core/types';
-import { inNextTick, InputBoolean } from 'ng-zorro-antd/core/util';
+import { NzSafeAny, OnChangeType, OnTouchedType } from 'ng-zorro-antd/core/types';
+import { fromEventOutsideAngular, inNextTick } from 'ng-zorro-antd/core/util';
+import { NzSpinComponent } from 'ng-zorro-antd/spin';
 
 import { NzCodeEditorService } from './code-editor.service';
 import { DiffEditorOptions, EditorOptions, JoinedEditorOptions, NzEditorMode } from './typings';
 
 // Import types from monaco editor.
-import ITextModel = editor.ITextModel;
-import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
-import IStandaloneDiffEditor = editor.IStandaloneDiffEditor;
+type ITextModel = editor.ITextModel;
+type IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
+type IStandaloneDiffEditor = editor.IStandaloneDiffEditor;
 
 declare const monaco: NzSafeAny;
 
 @Component({
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  encapsulation: ViewEncapsulation.None,
   selector: 'nz-code-editor',
   exportAs: 'nzCodeEditor',
+  encapsulation: ViewEncapsulation.None,
   template: `
-    <div class="ant-code-editor-loading" *ngIf="nzLoading">
-      <nz-spin></nz-spin>
-    </div>
-
-    <div class="ant-code-editor-toolkit" *ngIf="nzToolkit">
-      <ng-template [ngTemplateOutlet]="nzToolkit"></ng-template>
-    </div>
+    @if (nzLoading) {
+      <div class="ant-code-editor-loading">
+        <nz-spin />
+      </div>
+    }
+    @if (nzToolkit) {
+      <div class="ant-code-editor-toolkit">
+        <ng-template [ngTemplateOutlet]="nzToolkit" />
+      </div>
+    }
   `,
   providers: [
     {
@@ -58,16 +64,19 @@ declare const monaco: NzSafeAny;
       useExisting: forwardRef(() => NzCodeEditorComponent),
       multi: true
     }
-  ]
+  ],
+  imports: [NzSpinComponent, NgTemplateOutlet]
 })
-export class NzCodeEditorComponent implements OnDestroy, AfterViewInit {
-  static ngAcceptInputType_nzLoading: BooleanInput;
-  static ngAcceptInputType_nzFullControl: BooleanInput;
+export class NzCodeEditorComponent implements AfterViewInit, ControlValueAccessor {
+  private nzCodeEditorService = inject(NzCodeEditorService);
+  private ngZone = inject(NgZone);
+  private platform = inject(Platform);
+  private destroyRef = inject(DestroyRef);
 
   @Input() nzEditorMode: NzEditorMode = 'normal';
   @Input() nzOriginalText = '';
-  @Input() @InputBoolean() nzLoading = false;
-  @Input() @InputBoolean() nzFullControl = false;
+  @Input({ transform: booleanAttribute }) nzLoading = false;
+  @Input({ transform: booleanAttribute }) nzFullControl = false;
   @Input() nzToolkit?: TemplateRef<void>;
 
   @Input() set nzEditorOption(value: JoinedEditorOptions) {
@@ -78,8 +87,7 @@ export class NzCodeEditorComponent implements OnDestroy, AfterViewInit {
 
   editorOptionCached: JoinedEditorOptions = {};
 
-  private readonly el: HTMLElement;
-  private destroy$ = new Subject<void>();
+  private readonly el: HTMLElement = inject(ElementRef<HTMLElement>).nativeElement;
   private resize$ = new Subject<void>();
   private editorOption$ = new BehaviorSubject<JoinedEditorOptions>({});
   private editorInstance: IStandaloneCodeEditor | IStandaloneDiffEditor | null = null;
@@ -87,14 +95,19 @@ export class NzCodeEditorComponent implements OnDestroy, AfterViewInit {
   private modelSet = false;
   private onDidChangeContentDisposable: IDisposable | null = null;
 
-  constructor(
-    private nzCodeEditorService: NzCodeEditorService,
-    private ngZone: NgZone,
-    elementRef: ElementRef,
-    private platform: Platform
-  ) {
-    this.el = elementRef.nativeElement;
+  constructor() {
     this.el.classList.add('ant-code-editor');
+    this.destroyRef.onDestroy(() => {
+      if (this.onDidChangeContentDisposable) {
+        this.onDidChangeContentDisposable.dispose();
+        this.onDidChangeContentDisposable = null;
+      }
+
+      if (this.editorInstance) {
+        this.editorInstance.dispose();
+        this.editorInstance = null;
+      }
+    });
   }
 
   /**
@@ -104,22 +117,11 @@ export class NzCodeEditorComponent implements OnDestroy, AfterViewInit {
     if (!this.platform.isBrowser) {
       return;
     }
-    this.nzCodeEditorService.requestToInit().subscribe(option => this.setup(option));
-  }
 
-  ngOnDestroy(): void {
-    if (this.onDidChangeContentDisposable) {
-      this.onDidChangeContentDisposable.dispose();
-      this.onDidChangeContentDisposable = null;
-    }
-
-    if (this.editorInstance) {
-      this.editorInstance.dispose();
-      this.editorInstance = null;
-    }
-
-    this.destroy$.next();
-    this.destroy$.complete();
+    this.nzCodeEditorService
+      .requestToInit()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(option => this.setup(option));
   }
 
   writeValue(value: string): void {
@@ -144,24 +146,35 @@ export class NzCodeEditorComponent implements OnDestroy, AfterViewInit {
   }
 
   private setup(option: JoinedEditorOptions): void {
-    inNextTick().subscribe(() => {
-      this.editorOptionCached = option;
-      this.registerOptionChanges();
-      this.initMonacoEditorInstance();
-      this.registerResizeChange();
-      this.setValue();
+    // The `setup()` is invoked when the Monaco editor is loaded. This may happen asynchronously for the first
+    // time, and it'll always happen synchronously afterwards. The first `setup()` invokation is outside the Angular
+    // zone, but further invokations will happen within the Angular zone. We call the `setModel()` on the editor
+    // instance, which tells Monaco to add event listeners lazily internally (`mousemove`, `mouseout`, etc.).
+    // We should avoid adding them within the Angular zone since this will drastically affect the performance.
+    this.ngZone.runOutsideAngular(() =>
+      inNextTick()
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(() => {
+          this.editorOptionCached = option;
+          this.registerOptionChanges();
+          this.initMonacoEditorInstance();
+          this.registerResizeChange();
+          this.setValue();
 
-      if (!this.nzFullControl) {
-        this.setValueEmitter();
-      }
+          if (!this.nzFullControl) {
+            this.setValueEmitter();
+          }
 
-      this.nzEditorInitialized.emit(this.editorInstance!);
-    });
+          if (this.nzEditorInitialized.observers.length) {
+            this.ngZone.run(() => this.nzEditorInitialized.emit(this.editorInstance!));
+          }
+        })
+    );
   }
 
   private registerOptionChanges(): void {
     combineLatest([this.editorOption$, this.nzCodeEditorService.option$])
-      .pipe(takeUntil(this.destroy$))
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(([selfOpt, defaultOpt]) => {
         this.editorOptionCached = {
           ...this.editorOptionCached,
@@ -184,28 +197,26 @@ export class NzCodeEditorComponent implements OnDestroy, AfterViewInit {
   }
 
   private registerResizeChange(): void {
-    this.ngZone.runOutsideAngular(() => {
-      fromEvent(window, 'resize')
-        .pipe(debounceTime(300), takeUntil(this.destroy$))
-        .subscribe(() => {
-          this.layout();
-        });
+    fromEventOutsideAngular(window, 'resize')
+      .pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.layout();
+      });
 
-      this.resize$
-        .pipe(
-          takeUntil(this.destroy$),
-          filter(() => !!this.editorInstance),
-          map(() => ({
-            width: this.el.clientWidth,
-            height: this.el.clientHeight
-          })),
-          distinctUntilChanged((a, b) => a.width === b.width && a.height === b.height),
-          debounceTime(50)
-        )
-        .subscribe(() => {
-          this.editorInstance!.layout();
-        });
-    });
+    this.resize$
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        filter(() => !!this.editorInstance),
+        map(() => ({
+          width: this.el.clientWidth,
+          height: this.el.clientHeight
+        })),
+        distinctUntilChanged((a, b) => a.width === b.width && a.height === b.height),
+        debounceTime(50)
+      )
+      .subscribe(() => {
+        this.editorInstance!.layout();
+      });
   }
 
   private setValue(): void {

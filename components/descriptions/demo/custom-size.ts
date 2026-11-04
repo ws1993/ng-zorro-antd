@@ -1,9 +1,13 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
-import { NzDescriptionsSize } from 'ng-zorro-antd/descriptions';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzDescriptionsModule, NzDescriptionsSize } from 'ng-zorro-antd/descriptions';
+import { NzRadioModule } from 'ng-zorro-antd/radio';
 
 @Component({
   selector: 'nz-demo-descriptions-custom-size',
+  imports: [FormsModule, NzButtonModule, NzDescriptionsModule, NzRadioModule],
   template: `
     <nz-radio-group [(ngModel)]="size">
       <label nz-radio nzValue="default">default</label>
@@ -12,7 +16,7 @@ import { NzDescriptionsSize } from 'ng-zorro-antd/descriptions';
     </nz-radio-group>
     <br />
     <br />
-    <nz-descriptions nzTitle="Custom Size" [nzExtra]="extraTpl" nzBordered [nzSize]="size">
+    <nz-descriptions nzTitle="Custom Size" [nzExtra]="extraTpl" nzBordered [nzSize]="size()">
       <nz-descriptions-item nzTitle="Product">Cloud Database</nz-descriptions-item>
       <nz-descriptions-item nzTitle="Billing">Prepaid</nz-descriptions-item>
       <nz-descriptions-item nzTitle="time">18:00:00</nz-descriptions-item>
@@ -36,7 +40,7 @@ import { NzDescriptionsSize } from 'ng-zorro-antd/descriptions';
     </nz-descriptions>
     <br />
     <br />
-    <nz-descriptions nzTitle="Custom Size" [nzSize]="size" [nzExtra]="extraTpl">
+    <nz-descriptions nzTitle="Custom Size" [nzSize]="size()" [nzExtra]="extraTpl">
       <nz-descriptions-item nzTitle="Product">Cloud Database</nz-descriptions-item>
       <nz-descriptions-item nzTitle="Billing">Prepaid</nz-descriptions-item>
       <nz-descriptions-item nzTitle="Time">18:00:00</nz-descriptions-item>
@@ -50,5 +54,5 @@ import { NzDescriptionsSize } from 'ng-zorro-antd/descriptions';
   `
 })
 export class NzDemoDescriptionsCustomSizeComponent {
-  size: NzDescriptionsSize = 'default';
+  readonly size = signal<NzDescriptionsSize>('default');
 }

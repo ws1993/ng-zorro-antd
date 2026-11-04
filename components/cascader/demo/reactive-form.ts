@@ -1,10 +1,11 @@
-import { Component, OnDestroy } from '@angular/core';
-import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
-import { Subscription } from 'rxjs';
+import { Component, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
-import { NzCascaderOption } from 'ng-zorro-antd/cascader';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCascaderModule, NzCascaderOption } from 'ng-zorro-antd/cascader';
 
-const options = [
+const options: NzCascaderOption[] = [
   {
     value: 'zhejiang',
     label: 'Zhejiang',
@@ -48,37 +49,31 @@ const options = [
 
 @Component({
   selector: 'nz-demo-cascader-reactive-form',
+  imports: [ReactiveFormsModule, NzButtonModule, NzCascaderModule],
   template: `
     <form [formGroup]="form" novalidate>
-      <nz-cascader [nzOptions]="nzOptions" [formControlName]="'name'"></nz-cascader>
+      <nz-cascader [nzOptions]="nzOptions" formControlName="name" />
     </form>
     <br />
     <button nz-button (click)="reset()">Reset</button>
     <button nz-button (click)="submit()">Submit</button>
   `,
-  styles: [
-    `
-      button {
-        margin-right: 8px;
-      }
-    `
-  ]
+  styles: `
+    button {
+      margin-right: 8px;
+    }
+  `
 })
-export class NzDemoCascaderReactiveFormComponent implements OnDestroy {
-  form!: FormGroup;
-  nzOptions: NzCascaderOption[] = options;
-  changeSubscription: Subscription;
-  constructor(private fb: FormBuilder) {
-    this.createForm();
-    const control = this.form.get('name') as FormControl;
-    this.changeSubscription = control.valueChanges.subscribe(data => {
-      this.onChanges(data);
-    });
-  }
+export class NzDemoCascaderReactiveFormComponent {
+  private fb = inject(FormBuilder);
+  form = this.fb.group({
+    name: this.fb.control<string[] | null>(null, Validators.required)
+  });
+  readonly nzOptions: NzCascaderOption[] = options;
 
-  private createForm(): void {
-    this.form = this.fb.group({
-      name: [null, Validators.required]
+  constructor() {
+    this.form.controls.name.valueChanges.pipe(takeUntilDestroyed()).subscribe(data => {
+      this.onChanges(data);
     });
   }
 
@@ -91,11 +86,7 @@ export class NzDemoCascaderReactiveFormComponent implements OnDestroy {
     console.log(this.form.value);
   }
 
-  onChanges(values: string[]): void {
+  onChanges(values: string[] | null): void {
     console.log(values);
-  }
-
-  ngOnDestroy(): void {
-    this.changeSubscription.unsubscribe();
   }
 }

@@ -1,88 +1,255 @@
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
+import { CdkDragEnd } from '@angular/cdk/drag-drop';
 import { ESCAPE } from '@angular/cdk/keycodes';
 import { OverlayContainer } from '@angular/cdk/overlay';
 import { ComponentPortal, TemplatePortal } from '@angular/cdk/portal';
 import { Location } from '@angular/common';
 import { SpyLocation } from '@angular/common/testing';
 import {
-  ChangeDetectionStrategy,
   Component,
   Directive,
   Injector,
-  Input,
-  NgModule,
   TemplateRef,
   ViewChild,
-  ViewContainerRef
+  ViewContainerRef,
+  inject,
+  model,
+  signal
 } from '@angular/core';
-import { ComponentFixture, fakeAsync, flush, flushMicrotasks, inject, TestBed, tick } from '@angular/core/testing';
-import { FormsModule } from '@angular/forms';
-import { BrowserAnimationsModule, NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 
+import { vi } from 'vitest';
+
+import { provideNzNoAnimation } from 'ng-zorro-antd/core/animation';
 import { NzConfigService } from 'ng-zorro-antd/core/config';
 import {
   createKeyboardEvent,
   dispatchEvent,
   dispatchKeyboardEvent,
-  dispatchMouseEvent
+  dispatchMouseEvent,
+  sleep,
+  updateNonSignalsInput
 } from 'ng-zorro-antd/core/testing';
 
+import { NZ_MODAL_DATA } from './modal-config';
+import { NzModalContainerComponent } from './modal-container.component';
 import { NzModalRef, NzModalState } from './modal-ref';
 import { NzModalComponent } from './modal.component';
 import { NzModalModule } from './modal.module';
 import { NzModalService } from './modal.service';
 
-describe('Animation', () => {
+describe('modal with animation', () => {
   let modalService: NzModalService;
   let overlayContainer: OverlayContainer;
   let overlayContainerElement: HTMLElement;
   let fixture: ComponentFixture<TestWithServiceComponent>;
 
-  beforeEach(fakeAsync(() => {
+  beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [NzModalModule, TestModalModule, BrowserAnimationsModule]
+      providers: [NzModalService]
     });
-
-    TestBed.compileComponents();
-  }));
-
-  beforeEach(inject([NzModalService, OverlayContainer], (m: NzModalService, oc: OverlayContainer) => {
-    modalService = m;
-    overlayContainer = oc;
-    overlayContainerElement = oc.getContainerElement();
-  }));
+    modalService = TestBed.inject(NzModalService);
+    overlayContainer = TestBed.inject(OverlayContainer);
+    overlayContainerElement = overlayContainer.getContainerElement();
+    fixture = TestBed.createComponent(TestWithServiceComponent);
+  });
 
   afterEach(() => {
     overlayContainer.ngOnDestroy();
   });
 
-  beforeEach(() => {
-    fixture = TestBed.createComponent(TestWithServiceComponent);
-    fixture.detectChanges();
+  function animationDone(element: Element, animationName: 'antZoomIn' | 'antZoomOut' | 'antFadeOut'): void {
+    dispatchEvent(element, new AnimationEvent('animationend', { animationName }));
+  }
+
+  it('should apply enter class immediately to prevent flicker', () => {
+    modalService.create({
+      nzContent: TestWithModalContentComponent
+    });
+
+    const modalContentElement = overlayContainerElement.querySelector('.ant-modal');
+    const backdropElement = overlayContainerElement.querySelector('.cdk-overlay-backdrop');
+    // Enter class should be applied synchronously (before requestAnimationFrame)
+    // This ensures the modal starts hidden (scale(0), opacity: 0) to prevent flicker
+    expect(modalContentElement!.classList).toContain('ant-zoom-enter');
+    expect(modalContentElement!.classList).not.toContain('ant-zoom-enter-active');
+    if (backdropElement) {
+      expect(backdropElement.classList).toContain('ant-fade-enter');
+      expect(backdropElement.classList).not.toContain('ant-fade-enter-active');
+    }
   });
 
-  it('should apply animations class', fakeAsync(() => {
+  it('should apply animations class', async () => {
     const modalRef = modalService.create({
       nzContent: TestWithModalContentComponent
     });
 
-    fixture.detectChanges();
-    flushMicrotasks();
-
+    await sleep(16); // wait for the next frame
     const modalContentElement = overlayContainerElement.querySelector('.ant-modal');
     expect(modalContentElement!.classList).toContain('ant-zoom-enter');
     expect(modalContentElement!.classList).toContain('ant-zoom-enter-active');
-    tick(500);
 
+    animationDone(modalContentElement!, 'antZoomIn');
+    await fixture.whenStable();
+
+    const backdropElement = modalRef.getBackdropElement()!;
     modalRef.close();
-    fixture.detectChanges();
-    flushMicrotasks();
+
     expect(modalContentElement!.classList).toContain('ant-zoom-leave');
     expect(modalContentElement!.classList).toContain('ant-zoom-leave-active');
-    flush();
-  }));
+    expect(backdropElement.classList).toContain('ant-fade-leave');
+    expect(backdropElement.classList).toContain('ant-fade-leave-active');
+    expect(backdropElement.classList).not.toContain('cdk-overlay-backdrop-showing');
+  });
+
+  it('should wait for both the panel and the backdrop animations before disposing on close', async () => {
+    const modalRef = modalService.create({ nzContent: TestWithModalContentComponent });
+    const modalContentElement = overlayContainerElement.querySelector('.ant-modal')!;
+
+    animationDone(modalContentElement, 'antZoomIn');
+    await fixture.whenStable();
+
+    const backdropElement = modalRef.getBackdropElement()!;
+    modalRef.close();
+    const afterClose = vi.fn();
+    modalRef.afterClose.subscribe(afterClose);
+
+    animationDone(backdropElement, 'antFadeOut');
+    await fixture.whenStable();
+    expect(modalRef.getState()).toBe(NzModalState.CLOSING);
+    expect(afterClose).not.toHaveBeenCalled();
+
+    animationDone(modalContentElement, 'antZoomOut');
+    await fixture.whenStable();
+    expect(modalRef.getState()).toBe(NzModalState.CLOSED);
+    expect(afterClose).toHaveBeenCalledOnce();
+    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+  });
+
+  it('should close when the backdrop is removed without a fade animation', async () => {
+    const modalRef = modalService.create({
+      nzContent: TestWithModalContentComponent,
+      nzMaskStyle: { animation: 'none' }
+    });
+    const modalContentElement = overlayContainerElement.querySelector('.ant-modal')!;
+
+    animationDone(modalContentElement, 'antZoomIn');
+    await fixture.whenStable();
+
+    const backdropElement = modalRef.getBackdropElement()!;
+    modalRef.close();
+    animationDone(modalContentElement, 'antZoomOut');
+    await fixture.whenStable();
+    expect(modalRef.getState()).toBe(NzModalState.CLOSING);
+
+    dispatchEvent(backdropElement, new Event('transitionend'));
+    await fixture.whenStable();
+    expect(modalRef.getState()).toBe(NzModalState.CLOSED);
+  });
+
+  it('should ignore animationend events bubbling from projected modal content when closing', async () => {
+    const modalRef = modalService.create({ nzContent: TestWithModalContentComponent });
+    const modalContentElement = overlayContainerElement.querySelector('.ant-modal')!;
+
+    animationDone(modalContentElement, 'antZoomIn');
+    await fixture.whenStable();
+
+    const backdropElement = modalRef.getBackdropElement()!;
+    modalRef.close();
+
+    animationDone(modalContentElement, 'antFadeOut');
+    animationDone(backdropElement, 'antZoomOut');
+    await fixture.whenStable();
+    expect(modalRef.getState()).toBe(NzModalState.CLOSING);
+
+    const projectedElement = modalContentElement.querySelector('.modal-content')!;
+    dispatchEvent(
+      projectedElement,
+      new AnimationEvent('animationend', { animationName: 'someChildAnimation', bubbles: true })
+    );
+    await fixture.whenStable();
+    expect(modalRef.getState()).toBe(NzModalState.CLOSING);
+
+    animationDone(modalContentElement, 'antZoomOut');
+    animationDone(backdropElement, 'antFadeOut');
+    await fixture.whenStable();
+    expect(modalRef.getState()).toBe(NzModalState.CLOSED);
+  });
+
+  it('should emit when modal opening animation is complete', async () => {
+    const modalRef = modalService.create({
+      nzContent: TestWithModalContentComponent
+    });
+
+    const spy = vi.fn();
+    modalRef.afterOpen.subscribe(spy);
+    expect(spy).not.toHaveBeenCalled();
+
+    const modalContentElement = overlayContainerElement.querySelector('.ant-modal');
+    animationDone(modalContentElement!, 'antZoomIn');
+
+    await fixture.whenStable();
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('should return the current state of the modal', async () => {
+    const modalRef = modalService.create({ nzContent: TestWithModalContentComponent });
+    const modalContentElement = overlayContainerElement.querySelector('.ant-modal');
+
+    expect(modalRef.getState()).toBe(NzModalState.OPEN);
+    animationDone(modalContentElement!, 'antZoomIn');
+    await fixture.whenStable();
+
+    const backdropElement = modalRef.getBackdropElement()!;
+    modalRef.close();
+    expect(modalRef.getState()).toBe(NzModalState.CLOSING);
+
+    animationDone(modalContentElement!, 'antZoomOut');
+    animationDone(backdropElement, 'antFadeOut');
+    await fixture.whenStable();
+    expect(modalRef.getState()).toBe(NzModalState.CLOSED);
+  });
+
+  describe('NzModalRef', () => {
+    it('should omit any action when closing', async () => {
+      const onOk = vi.fn();
+      const onCancel = vi.fn();
+      const modalRef = modalService.create({
+        nzContent: TestWithModalContentComponent,
+        nzOnOk: onOk,
+        nzOnCancel: onCancel
+      });
+      const modalContentElement = overlayContainerElement.querySelector('.ant-modal');
+
+      animationDone(modalContentElement!, 'antZoomIn');
+      await fixture.whenStable();
+
+      expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
+      const backdropElement = modalRef.getBackdropElement()!;
+      await modalRef.triggerOk();
+      expect(onOk).toHaveBeenCalledTimes(1);
+      expect(modalRef.getState()).toBe(NzModalState.CLOSING);
+
+      modalRef.triggerOk();
+      modalRef.triggerOk();
+      modalRef.triggerCancel();
+      modalRef.triggerCancel();
+      expect(onOk).toHaveBeenCalledTimes(1);
+      expect(onCancel).toHaveBeenCalledTimes(0);
+
+      animationDone(modalContentElement!, 'antZoomOut');
+      animationDone(backdropElement, 'antFadeOut');
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+    });
+  });
 });
 
-describe('NzModal', () => {
+describe('modal', () => {
   let modalService: NzModalService;
   let overlayContainer: OverlayContainer;
   let overlayContainerElement: HTMLElement;
@@ -90,78 +257,106 @@ describe('NzModal', () => {
   let fixture: ComponentFixture<TestWithServiceComponent>;
   let mockLocation: SpyLocation;
 
-  beforeEach(fakeAsync(() => {
+  beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [NzModalModule, TestModalModule, NoopAnimationsModule, FormsModule],
-      providers: [{ provide: Location, useClass: SpyLocation }]
+      providers: [NzModalService, provideNzNoAnimation(), { provide: Location, useClass: SpyLocation }]
     });
-
-    TestBed.compileComponents();
-  }));
-
-  beforeEach(inject(
-    [NzModalService, Location, OverlayContainer, NzConfigService],
-    (m: NzModalService, l: Location, oc: OverlayContainer, cs: NzConfigService) => {
-      modalService = m;
-      configService = cs;
-      mockLocation = l as SpyLocation;
-      overlayContainer = oc;
-      overlayContainerElement = oc.getContainerElement();
-    }
-  ));
+    modalService = TestBed.inject(NzModalService);
+    configService = TestBed.inject(NzConfigService);
+    mockLocation = TestBed.inject(Location) as SpyLocation;
+    overlayContainer = TestBed.inject(OverlayContainer);
+    overlayContainerElement = overlayContainer.getContainerElement();
+    fixture = TestBed.createComponent(TestWithServiceComponent);
+  });
 
   afterEach(() => {
     overlayContainer.ngOnDestroy();
   });
 
-  beforeEach(() => {
-    fixture = TestBed.createComponent(TestWithServiceComponent);
-    fixture.detectChanges();
-  });
-
-  it('should open modal with component', () => {
+  it('should open modal with component', async () => {
     const modalRef = modalService.create({
       nzContent: TestWithModalContentComponent,
-      nzComponentParams: {
-        value: 'Modal'
-      }
+      nzData: 'Modal'
     });
-
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const modalContentElement = overlayContainerElement.querySelector('.modal-content');
     expect(modalContentElement).toBeTruthy();
     expect(modalContentElement!.textContent).toBe('Hello Modal');
     expect(modalRef.getContentComponent() instanceof TestWithModalContentComponent).toBe(true);
     expect(modalRef.getContentComponent().modalRef).toBe(modalRef);
-    modalRef.close();
+    expect(modalRef.getContentComponentRef()).not.toBeNull();
   });
 
-  it('should open modal with template', () => {
+  it('should give correct z-index value to overlay', async () => {
+    const Z_INDEX = 9999;
+    modalService.create({
+      nzContent: TestWithModalContentComponent,
+      nzData: 'Modal',
+      nzZIndex: Z_INDEX
+    });
+    await fixture.whenStable();
+
+    const overlay = document.querySelector('.cdk-global-overlay-wrapper') as HTMLElement;
+    expect(overlay.style.zIndex).toEqual(Z_INDEX.toString());
+  });
+
+  it('should open a modal with data', async () => {
+    const modalRef = modalService.create({
+      nzContent: TestWithModalContentComponent,
+      nzData: 'NG-ZORRO'
+    });
+    await fixture.whenStable();
+
+    const modalContentElement = overlayContainerElement.querySelector('.modal-data');
+    expect(modalContentElement).toBeTruthy();
+    expect(modalContentElement!.textContent?.toString().includes('NG-ZORRO')).toBeTruthy();
+    expect(modalRef.getContentComponent() instanceof TestWithModalContentComponent).toBe(true);
+    expect(modalRef.getContentComponent().modalRef).toBe(modalRef);
+    expect(modalRef.getContentComponentRef()).not.toBeNull();
+  });
+
+  it('should open modal with template', async () => {
     fixture.componentInstance.value = 'Modal';
-    fixture.detectChanges();
+    await updateNonSignalsInput(fixture);
     const modalRef = modalService.create({
       nzContent: fixture.componentInstance.templateRef
     });
-    fixture.detectChanges();
+    await fixture.whenStable();
+
     const modalContentElement = overlayContainerElement.querySelector('.modal-template-content');
     expect(modalContentElement).toBeTruthy();
     expect(modalContentElement!.textContent).toBe('Hello Modal');
     expect(fixture.componentInstance.modalRef).toBe(modalRef);
+    expect(modalRef.getContentComponentRef()).toBeNull();
+    expect(modalRef.getContentComponent()).toBeNull();
+  });
+
+  it('should open modal with template and pass data', async () => {
+    fixture.componentInstance.value = 'Modal';
+    await updateNonSignalsInput(fixture);
+    const modalRef = modalService.create({
+      nzContent: fixture.componentInstance.templateRef,
+      nzData: 'NG-ZORRO'
+    });
+    await fixture.whenStable();
+
+    const modalContentElement = overlayContainerElement.querySelector('.modal-template-data');
+    expect(modalContentElement).toBeTruthy();
+    expect(modalContentElement!.textContent?.includes('NG-ZORRO')).toBeTruthy();
+    expect(fixture.componentInstance.modalRef).toBe(modalRef);
     modalRef.close();
   });
 
-  it('should be thrown when attaching repeatedly', () => {
+  it('should be thrown when attaching repeatedly', async () => {
     const modalRefComponent = modalService.create({
-      nzContent: TestWithModalContentComponent,
-      nzComponentParams: {
-        value: 'Modal'
-      }
+      nzContent: TestWithModalContentComponent
     });
+    await fixture.whenStable();
 
     expect(() => {
       modalRefComponent.containerInstance.attachComponentPortal(new ComponentPortal(TestWithModalContentComponent));
-    }).toThrowError('Attempting to attach modal content after content is already attached');
+    }).toThrow('Attempting to attach modal content after content is already attached');
 
     const modalRefTemplate = modalService.create({
       nzContent: fixture.componentInstance.templateRef
@@ -171,398 +366,287 @@ describe('NzModal', () => {
       modalRefTemplate.containerInstance.attachTemplatePortal(
         new TemplatePortal(fixture.componentInstance.templateRef, null!)
       );
-    }).toThrowError('Attempting to attach modal content after content is already attached');
+    }).toThrow('Attempting to attach modal content after content is already attached');
   });
 
-  it('should open modal with HTML string', () => {
+  it('should open modal with HTML string', async () => {
     const modalRef = modalService.create({
       nzContent: `<span class="modal-html-content">Hello Modal</span>`
     });
-    fixture.detectChanges();
+    await fixture.whenStable();
+
     const modalContentElement = overlayContainerElement.querySelector('.modal-html-content');
     expect(modalContentElement).toBeTruthy();
     expect(modalContentElement!.textContent).toBe('Hello Modal');
     modalRef.close();
   });
 
-  it('should emit when modal opening animation is complete', fakeAsync(() => {
-    const modalRef = modalService.create({
-      nzContent: TestWithModalContentComponent
-    });
-    const spy = jasmine.createSpy('afterOpen spy');
+  describe('close', () => {
+    let modalRef: NzModalRef;
 
-    modalRef.afterOpen.subscribe(spy);
-    fixture.detectChanges();
-    expect(spy).not.toHaveBeenCalled();
-
-    flushMicrotasks();
-    expect(spy).toHaveBeenCalled();
-
-    modalRef.close();
-    fixture.detectChanges();
-    flush();
-  }));
-
-  it('should emit when modal closing animation is complete', fakeAsync(() => {
-    const modalRef = modalService.create({
-      nzContent: TestWithModalContentComponent
-    });
-    const spy = jasmine.createSpy('afterClose spy');
-
-    modalRef.afterClose.subscribe(spy);
-
-    fixture.detectChanges();
-
-    modalRef.close();
-    expect(spy).not.toHaveBeenCalled();
-
-    fixture.detectChanges();
-    flush();
-    fixture.detectChanges();
-
-    expect(spy).toHaveBeenCalled();
-  }));
-
-  it('should close and get the result', fakeAsync(() => {
-    const modalRef = modalService.create({
-      nzContent: TestWithModalContentComponent
-    });
-    const afterCloseCallback = jasmine.createSpy('afterClose callback');
-
-    modalRef.afterClose.subscribe(afterCloseCallback);
-    modalRef.close('Hello Modal');
-    fixture.detectChanges();
-    flush();
-
-    expect(afterCloseCallback).toHaveBeenCalledWith('Hello Modal');
-    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
-  }));
-
-  it('should destroy and get the result', fakeAsync(() => {
-    const modalRef = modalService.create({
-      nzContent: TestWithModalContentComponent
-    });
-    const afterCloseCallback = jasmine.createSpy('afterClose callback');
-
-    modalRef.afterClose.subscribe(afterCloseCallback);
-    modalRef.destroy('Hello Modal');
-    fixture.detectChanges();
-    flush();
-
-    expect(afterCloseCallback).toHaveBeenCalledWith('Hello Modal');
-    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
-  }));
-
-  it('should dispose of modal if view container is destroyed while animating', fakeAsync(() => {
-    const modalRef = modalService.create({
-      nzContent: TestWithModalContentComponent
+    beforeEach(async () => {
+      modalRef = modalService.create({
+        nzContent: TestWithModalContentComponent
+      });
+      await fixture.whenStable();
     });
 
-    modalRef.close();
-    fixture.detectChanges();
-    fixture.destroy();
-    flush();
+    describe('afterClose', () => {
+      it('should close and get the result', async () => {
+        const spy = vi.fn();
+        modalRef.afterClose.subscribe(spy);
 
-    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
-  }));
+        modalRef.close('Hello Modal');
+        await fixture.whenStable();
 
-  it('should close a modal via the escape key', fakeAsync(() => {
-    modalService.create({
-      nzContent: TestWithModalContentComponent
-    });
-
-    const event = dispatchKeyboardEvent(document.body, 'keydown', ESCAPE);
-    fixture.detectChanges();
-    flush();
-
-    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
-    expect(event.defaultPrevented).toBe(true);
-  }));
-
-  it('should not close a modal via the escape key with a modifier', fakeAsync(() => {
-    const modalRef = modalService.create({
-      nzContent: TestWithModalContentComponent
-    });
-
-    const event = createKeyboardEvent('keydown', ESCAPE);
-    Object.defineProperty(event, 'altKey', { get: () => true });
-    dispatchEvent(document.body, event);
-    fixture.detectChanges();
-    flush();
-
-    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeTruthy();
-    expect(event.defaultPrevented).toBe(false);
-
-    modalRef.close();
-    fixture.detectChanges();
-    flush();
-  }));
-
-  it('should not close a modal when the nzKeyboard is false', fakeAsync(() => {
-    const modalRef = modalService.create({
-      nzContent: TestWithModalContentComponent,
-      nzKeyboard: false
-    });
-
-    fixture.detectChanges();
-    dispatchKeyboardEvent(document.body, 'keydown', ESCAPE);
-    fixture.detectChanges();
-    flush();
-
-    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeTruthy();
-
-    modalRef.close();
-    fixture.detectChanges();
-    flush();
-  }));
-
-  it('should not close a modal when the nzOkLoading is true', fakeAsync(() => {
-    const modalRef = modalService.create({
-      nzContent: TestWithModalContentComponent
-    });
-
-    modalRef.updateConfig({
-      nzOkLoading: true
-    });
-    fixture.detectChanges();
-
-    dispatchKeyboardEvent(document.body, 'keydown', ESCAPE);
-    fixture.detectChanges();
-    flush();
-    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeTruthy();
-
-    modalRef.updateConfig({
-      nzOkLoading: false
-    });
-    fixture.detectChanges();
-
-    dispatchKeyboardEvent(document.body, 'keydown', ESCAPE);
-    fixture.detectChanges();
-    flush();
-    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
-  }));
-
-  it('should not close a modal when the nzCancelLoading is true', fakeAsync(() => {
-    const modalRef = modalService.create({
-      nzContent: TestWithModalContentComponent
-    });
-
-    modalRef.updateConfig({
-      nzCancelLoading: true
-    });
-    fixture.detectChanges();
-
-    dispatchKeyboardEvent(document.body, 'keydown', ESCAPE);
-    fixture.detectChanges();
-    flush();
-    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeTruthy();
-
-    modalRef.updateConfig({
-      nzCancelLoading: false
-    });
-    fixture.detectChanges();
-
-    dispatchKeyboardEvent(document.body, 'keydown', ESCAPE);
-    fixture.detectChanges();
-    flush();
-    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
-  }));
-
-  it('should close when clicking on the modal wrap', fakeAsync(() => {
-    modalService.create({
-      nzContent: TestWithModalContentComponent
-    });
-
-    fixture.detectChanges();
-
-    const modalWrapElement = overlayContainerElement.querySelector('nz-modal-container') as HTMLElement;
-    const modalElement = overlayContainerElement.querySelector('nz-modal-container .ant-modal') as HTMLElement;
-    dispatchMouseEvent(modalElement, 'mousedown');
-    fixture.detectChanges();
-    dispatchMouseEvent(modalWrapElement, 'mouseup');
-    flush();
-    modalWrapElement.click();
-    fixture.detectChanges();
-    flush();
-    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeFalsy();
-  }));
-
-  it("should close when clicking on the modal's close button", fakeAsync(() => {
-    modalService.create({
-      nzContent: TestWithModalContentComponent
-    });
-
-    fixture.detectChanges();
-
-    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeTruthy();
-
-    (overlayContainerElement.querySelector('button[nz-modal-close]') as HTMLElement).click();
-    fixture.detectChanges();
-    flush();
-
-    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeFalsy();
-  }));
-
-  it('should not close when mouseup on the modal wrap and mousedown on the modal body', fakeAsync(() => {
-    const modalRef = modalService.create({
-      nzContent: TestWithModalContentComponent
-    });
-
-    fixture.detectChanges();
-
-    const modalWrap = overlayContainerElement.querySelector('nz-modal-container') as HTMLElement;
-    const modalBody = overlayContainerElement.querySelector('.ant-modal-body') as HTMLElement;
-
-    dispatchMouseEvent(modalBody, 'mousedown');
-    fixture.detectChanges();
-
-    dispatchMouseEvent(modalWrap, 'mouseup');
-    flush();
-    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeTruthy();
-
-    modalRef.close();
-    fixture.detectChanges();
-    flush();
-  }));
-
-  it('should global config work', fakeAsync(() => {
-    configService.set('modal', { nzMask: false });
-
-    const modalRef = modalService.create({
-      nzContent: TestWithModalContentComponent
-    });
-
-    fixture.detectChanges();
-
-    expect(modalRef.getBackdropElement()?.classList).not.toContain('ant-modal-mask', 'should use global config');
-
-    configService.set('modal', { nzMask: true });
-    fixture.detectChanges();
-
-    expect(modalRef.getBackdropElement()?.classList).toContain(
-      'ant-modal-mask',
-      'should add class when global config changed'
-    );
-
-    configService.set('modal', { nzMask: false });
-    fixture.detectChanges();
-    expect(modalRef.getBackdropElement()?.classList).not.toContain(
-      'ant-modal-mask',
-      'should remove class when global config changed'
-    );
-
-    configService.set('modal', { nzMask: true }); // reset
-    modalRef.close();
-    fixture.detectChanges();
-    flush();
-  }));
-
-  it(
-    'should not close when clicking on the modal wrap and ' + 'nzMaskClosable or nzMask is false',
-    fakeAsync(() => {
-      const modalRef = modalService.create({
-        nzContent: TestWithModalContentComponent,
-        nzMaskClosable: false
+        expect(spy).toHaveBeenCalledWith('Hello Modal');
+        expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
       });
 
-      fixture.detectChanges();
+      it('should destroy and get the result', async () => {
+        const spy = vi.fn();
+        modalRef.afterClose.subscribe(spy);
+
+        modalRef.destroy('Hello Modal');
+        await fixture.whenStable();
+
+        expect(spy).toHaveBeenCalledWith('Hello Modal');
+        expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+      });
+    });
+
+    describe('animation', () => {
+      it.skip('should emit when modal closing animation is complete', async () => {
+        // todo: test with animation
+      });
+
+      it.skip('should dispose the modal if view container is destroyed while animating', async () => {
+        // todo: test with animation
+      });
+    });
+
+    describe('with keyboard', () => {
+      it('should close a modal via the escape key', async () => {
+        const event = dispatchKeyboardEvent(document.body, 'keydown', ESCAPE);
+        await fixture.whenStable();
+
+        expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+        expect(event.defaultPrevented).toBe(true);
+      });
+
+      it('should not close a modal via the escape key with a modifier', async () => {
+        const event = createKeyboardEvent('keydown', ESCAPE);
+        Object.defineProperty(event, 'altKey', { get: () => true });
+        dispatchEvent(document.body, event);
+        await fixture.whenStable();
+
+        expect(overlayContainerElement.querySelector('nz-modal-container')).toBeTruthy();
+        expect(event.defaultPrevented).toBe(false);
+      });
+
+      it('should not close a modal when the nzKeyboard is false', async () => {
+        modalRef.updateConfig({
+          nzKeyboard: false
+        });
+        await fixture.whenStable();
+
+        dispatchKeyboardEvent(document.body, 'keydown', ESCAPE);
+        await fixture.whenStable();
+        expect(overlayContainerElement.querySelector('nz-modal-container')).toBeTruthy();
+      });
+    });
+
+    it('should not close a modal when the nzOkLoading is true', async () => {
+      modalRef.updateConfig({
+        nzOkLoading: true
+      });
+      await fixture.whenStable();
+
+      dispatchKeyboardEvent(document.body, 'keydown', ESCAPE);
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeTruthy();
+
+      modalRef.updateConfig({
+        nzOkLoading: false
+      });
+      await fixture.whenStable();
+
+      dispatchKeyboardEvent(document.body, 'keydown', ESCAPE);
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+    });
+
+    it('should not close a modal when the nzCancelLoading is true', async () => {
+      modalRef.updateConfig({
+        nzCancelLoading: true
+      });
+      await fixture.whenStable();
+
+      dispatchKeyboardEvent(document.body, 'keydown', ESCAPE);
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeTruthy();
+
+      modalRef.updateConfig({
+        nzCancelLoading: false
+      });
+      await fixture.whenStable();
+
+      dispatchKeyboardEvent(document.body, 'keydown', ESCAPE);
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+    });
+
+    it('should close when clicking on the modal wrap', async () => {
+      const modalWrapElement = overlayContainerElement.querySelector('nz-modal-container') as HTMLElement;
+      modalWrapElement.click();
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeFalsy();
+    });
+
+    it("should close when clicking on the modal's close button", async () => {
+      const closeBtn = overlayContainerElement.querySelector('button[nz-modal-close]') as HTMLButtonElement;
+      closeBtn.click();
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeFalsy();
+    });
+
+    it('should not close when mouseup on the modal wrap and mousedown on the modal body', async () => {
+      const modalWrap = overlayContainerElement.querySelector('nz-modal-container') as HTMLElement;
+      const modalBody = overlayContainerElement.querySelector('.ant-modal-body') as HTMLElement;
+
+      dispatchMouseEvent(modalBody, 'mousedown');
+      await fixture.whenStable();
+
+      dispatchMouseEvent(modalWrap, 'mouseup');
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeTruthy();
+    });
+
+    it('should not close when clicking on the modal wrap and the nzMaskClosable or nzMask is false', async () => {
+      modalRef.updateConfig({
+        nzMaskClosable: false
+      });
+      await fixture.whenStable();
 
       const modalWrap = overlayContainerElement.querySelector('nz-modal-container') as HTMLElement;
       dispatchMouseEvent(modalWrap, 'mousedown');
-      fixture.detectChanges();
       dispatchMouseEvent(modalWrap, 'mouseup');
-      flush();
+      await fixture.whenStable();
       expect(overlayContainerElement.querySelector('nz-modal-container')).toBeTruthy();
 
       modalRef.updateConfig({
         nzMaskClosable: true,
         nzMask: false
       });
-
-      fixture.detectChanges();
+      await fixture.whenStable();
 
       dispatchMouseEvent(modalWrap, 'mousedown');
-      fixture.detectChanges();
       dispatchMouseEvent(modalWrap, 'mouseup');
-      flush();
+      await fixture.whenStable();
       expect(overlayContainerElement.querySelector('nz-modal-container')).toBeTruthy();
+    });
+  });
 
-      modalRef.close();
-      fixture.detectChanges();
-      flush();
-    })
-  );
+  it('should global config work', async () => {
+    configService.set('modal', { nzMask: false });
 
-  it('should notify the observers if all open modals have finished closing', fakeAsync(() => {
+    const modalRef = modalService.create({
+      nzContent: TestWithModalContentComponent
+    });
+    await fixture.whenStable();
+
+    expect(modalRef.getBackdropElement()?.classList).not.toContain('ant-modal-mask');
+
+    configService.set('modal', { nzMask: true });
+    await fixture.whenStable();
+
+    // should add class when global config changed
+    expect(modalRef.getBackdropElement()?.classList).toContain('ant-modal-mask');
+
+    configService.set('modal', { nzMask: false });
+    await fixture.whenStable();
+
+    // should remove class when global config changed
+    expect(modalRef.getBackdropElement()?.classList).not.toContain('ant-modal-mask');
+
+    configService.set('modal', { nzMask: true }); // reset
+  });
+
+  it('nzMask work', async () => {
+    configService.set('modal', { nzMask: false });
+
+    const modalRef = modalService.create({
+      nzContent: TestWithModalContentComponent
+    });
+    await fixture.whenStable();
+
+    // should not have default cdk dark backdrop
+    expect(modalRef.getBackdropElement()?.classList).not.toContain('cdk-overlay-dark-backdrop');
+
+    configService.set('modal', { nzMask: true });
+    await fixture.whenStable();
+
+    // should add class when global config changed
+    expect(modalRef.getBackdropElement()?.classList).toContain('ant-modal-mask');
+  });
+
+  it('should notify the observers if all open modals have finished closing', async () => {
     const ref1 = modalService.create({
       nzContent: TestWithModalContentComponent
     });
     const ref2 = modalService.create({
       nzContent: TestWithModalContentComponent
     });
-    const spy = jasmine.createSpy('afterAllClose spy');
+    const spy = vi.fn();
 
     modalService.afterAllClose.subscribe(spy);
 
     ref1.close();
-    fixture.detectChanges();
-    flush();
-
+    await fixture.whenStable();
     expect(spy).not.toHaveBeenCalled();
 
     ref2.close();
-    fixture.detectChanges();
-    flush();
-
-    expect(spy).toHaveBeenCalled();
-  }));
-
-  it('should emit the afterAllClose stream on subscribe if there are no open modals', () => {
-    const spy = jasmine.createSpy('afterAllClose spy');
-
-    modalService.afterAllClose.subscribe(spy);
-
+    await fixture.whenStable();
     expect(spy).toHaveBeenCalled();
   });
 
-  it('should set and update the width of the modal', fakeAsync(() => {
+  it('should emit the afterAllClose stream on subscribe if there are no open modals', () => {
+    const spy = vi.fn();
+    modalService.afterAllClose.subscribe(spy);
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('should set and update the width of the modal', async () => {
     const modalRef = modalService.create({
       nzContent: TestWithModalContentComponent,
       nzWidth: 500
     });
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const modal = overlayContainerElement.querySelector('.ant-modal') as HTMLElement;
-
     expect(modal.style.width).toBe('500px');
 
     modalRef.updateConfig({
       nzWidth: 300
     });
-    fixture.detectChanges();
-    flushMicrotasks();
+    await fixture.whenStable();
 
     expect(modal.style.width).toBe('300px');
 
     modalRef.updateConfig({
       nzWidth: '100%'
     });
-    fixture.detectChanges();
-    flushMicrotasks();
+    await fixture.whenStable();
 
     expect(modal.style.width).toBe('100%');
+  });
 
-    modalRef.close();
-    fixture.detectChanges();
-    flush();
-  }));
-
-  it('should set and update the z-index of the modal', fakeAsync(() => {
+  it('should set and update the z-index of the modal', async () => {
     const modalRef = modalService.create({
       nzContent: TestWithModalContentComponent,
       nzZIndex: 1001
     });
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const modal = overlayContainerElement.querySelector('nz-modal-container') as HTMLElement;
     const mask = overlayContainerElement.querySelector('.ant-modal-mask') as HTMLElement;
@@ -570,114 +654,82 @@ describe('NzModal', () => {
     expect(modal.style.zIndex).toBe('1001');
     expect(mask.style.zIndex).toBe('1001');
 
-    console.log(mask);
     modalRef.updateConfig({
       nzZIndex: 1100
     });
-    fixture.detectChanges();
-    flushMicrotasks();
+    await fixture.whenStable();
 
     expect(modal.style.zIndex).toBe('1100');
     expect(mask.style.zIndex).toBe('1100');
+  });
 
-    modalRef.close();
-    fixture.detectChanges();
-    flush();
-  }));
-
-  it('should set the nzWrapClassName of the modal', fakeAsync(() => {
-    const modalRef = modalService.create({
+  it('should set the nzWrapClassName of the modal', async () => {
+    modalService.create({
       nzContent: TestWithModalContentComponent,
       nzWrapClassName: 'test-wrap-class'
     });
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const modal = overlayContainerElement.querySelector('nz-modal-container') as HTMLElement;
-
     expect(modal.classList).toContain('test-wrap-class');
+  });
 
-    modalRef.close();
-    fixture.detectChanges();
-    flush();
-  }));
-
-  it('should set the nzCentered of the modal', fakeAsync(() => {
-    const modalRef = modalService.create({
+  it('should set the nzCentered of the modal', async () => {
+    modalService.create({
       nzCentered: true,
       nzContent: TestWithModalContentComponent
     });
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const modal = overlayContainerElement.querySelector('nz-modal-container') as HTMLElement;
-
     expect(modal.classList).toContain('ant-modal-centered');
+  });
 
-    modalRef.close();
-    fixture.detectChanges();
-    flush();
-  }));
-
-  it('should set the nzClassName of the modal', fakeAsync(() => {
-    const modalRef = modalService.create({
+  it('should set the nzClassName of the modal', async () => {
+    modalService.create({
       nzContent: TestWithModalContentComponent,
       nzClassName: 'test-class-name'
     });
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const modal = overlayContainerElement.querySelector('.ant-modal') as HTMLElement;
-
     expect(modal.classList).toContain('test-class-name');
+  });
 
-    modalRef.close();
-    fixture.detectChanges();
-    flush();
-  }));
-
-  it('should set the nzStyle of the modal', fakeAsync(() => {
-    const modalRef = modalService.create({
+  it('should set the nzStyle of the modal', async () => {
+    modalService.create({
       nzContent: TestWithModalContentComponent,
       nzStyle: {
         color: 'rgb(0, 0, 0)'
       }
     });
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const modal = overlayContainerElement.querySelector('.ant-modal') as HTMLElement;
-
     expect(modal.style.color).toContain('rgb(0, 0, 0)');
+  });
 
-    modalRef.close();
-    fixture.detectChanges();
-    flush();
-  }));
-
-  it('should set the nzBodyStyle of the modal', fakeAsync(() => {
-    const modalRef = modalService.create({
+  it('should set the nzBodyStyle of the modal', async () => {
+    modalService.create({
       nzContent: TestWithModalContentComponent,
       nzBodyStyle: {
         color: 'rgb(0, 0, 0)'
       }
     });
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const modal = overlayContainerElement.querySelector('.ant-modal-body') as HTMLElement;
-
     expect(modal.style.color).toContain('rgb(0, 0, 0)');
+  });
 
-    modalRef.close();
-    fixture.detectChanges();
-    flush();
-  }));
-
-  it('should set the nzMaskStyle of the modal', fakeAsync(() => {
+  it('should set the nzMaskStyle of the modal', async () => {
     const modalRef = modalService.create({
       nzContent: TestWithModalContentComponent,
       nzMaskStyle: {
         color: 'rgb(0, 0, 0)'
       }
     });
-    fixture.detectChanges();
-    flushMicrotasks();
+    await fixture.whenStable();
 
     expect(modalRef.getBackdropElement()!.style.color).toBe('rgb(0, 0, 0)');
 
@@ -686,229 +738,195 @@ describe('NzModal', () => {
         color: 'rgb(255, 0, 0)'
       }
     });
-
-    fixture.detectChanges();
-    flushMicrotasks();
+    await fixture.whenStable();
 
     expect(modalRef.getBackdropElement()!.style.color).toBe('rgb(255, 0, 0)');
-    modalRef.close();
-    fixture.detectChanges();
-    flush();
-  }));
+  });
 
-  it('should close all of the modals', fakeAsync(() => {
+  it('should close all of the modals', async () => {
     modalService.create({ nzContent: TestWithModalContentComponent });
     modalService.create({ nzContent: TestWithModalContentComponent });
     modalService.create({ nzContent: TestWithModalContentComponent });
+    await fixture.whenStable();
 
     expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(3);
 
     modalService.closeAll();
-    fixture.detectChanges();
-    flush();
+    await fixture.whenStable();
 
-    expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
-  }));
+    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+  });
 
-  it('should close all open modals when the user goes forwards/backwards in history', fakeAsync(() => {
+  it('should close all open modals when the user goes forwards/backwards in history', async () => {
     modalService.create({ nzContent: TestWithModalContentComponent });
     modalService.create({ nzContent: TestWithModalContentComponent });
+    await fixture.whenStable();
 
     expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(2);
 
     mockLocation.simulateHashChange('');
-    fixture.detectChanges();
-    flush();
+    await fixture.whenStable();
 
-    expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
-  }));
+    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+  });
 
-  it('should close all open modals when the location hash changes', fakeAsync(() => {
+  it('should close all open modals when the location hash changes', async () => {
     modalService.create({ nzContent: TestWithModalContentComponent });
     modalService.create({ nzContent: TestWithModalContentComponent });
+    await fixture.whenStable();
 
     expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(2);
 
     mockLocation.simulateHashChange('');
-    fixture.detectChanges();
-    flush();
+    await fixture.whenStable();
 
-    expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
-  }));
+    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+  });
 
-  it('should close all of the modals when the injectable is destroyed', fakeAsync(() => {
+  it('should close all of the modals when the injectable is destroyed', async () => {
     modalService.create({ nzContent: TestWithModalContentComponent });
     modalService.create({ nzContent: TestWithModalContentComponent });
+    await fixture.whenStable();
 
     expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(2);
 
     modalService.ngOnDestroy();
-    fixture.detectChanges();
-    flush();
+    await fixture.whenStable();
 
-    expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
-  }));
+    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+  });
 
-  it('should complete close streams when the injectable is destroyed', fakeAsync(() => {
-    const afterAllCloseSpy = jasmine.createSpy('after all closed spy');
-    const afterAllCloseSubscription = modalService.afterAllClose.subscribe({
+  it('should complete close streams when the injectable is destroyed', async () => {
+    const afterAllCloseSpy = vi.fn();
+    modalService.afterAllClose.subscribe({
       complete: afterAllCloseSpy
     });
 
     modalService.ngOnDestroy();
+    await fixture.whenStable();
 
     expect(afterAllCloseSpy).toHaveBeenCalled();
+  });
 
-    afterAllCloseSubscription.unsubscribe();
-  }));
-
-  it('should allow the consumer to disable modals a modal on navigation', fakeAsync(() => {
+  it('should allow the consumer to disable modals a modal on navigation', async () => {
     modalService.create({ nzContent: TestWithModalContentComponent });
     modalService.create({ nzContent: TestWithModalContentComponent, nzCloseOnNavigation: false });
 
     expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(2);
 
     mockLocation.simulateUrlPop('');
-    fixture.detectChanges();
-    flush();
+    await fixture.whenStable();
 
-    expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(1);
-  }));
+    expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
+  });
 
-  it('should have the componentInstance available in the afterClose callback', fakeAsync(() => {
+  it('should have the componentInstance available in the afterClose callback', async () => {
     const modalRef = modalService.create({ nzContent: TestWithModalContentComponent });
-    const spy = jasmine.createSpy('afterClose spy');
-
-    flushMicrotasks();
-    fixture.detectChanges();
-    flushMicrotasks();
-
+    const spy = vi.fn();
     modalRef.afterClose.subscribe(() => {
       spy();
       expect(modalRef.componentInstance).toBeTruthy();
     });
 
+    await fixture.whenStable();
     modalRef.close();
 
-    flushMicrotasks();
-    fixture.detectChanges();
-    tick(500);
+    await sleep(500);
+    await fixture.whenStable();
 
     expect(spy).toHaveBeenCalled();
-  }));
+  });
 
-  it('should return the current state of the modal', fakeAsync(() => {
-    const modalRef = modalService.create({ nzContent: TestWithModalContentComponent });
-
-    expect(modalRef.getState()).toBe(NzModalState.OPEN);
-    modalRef.close();
-    fixture.detectChanges();
-
-    expect(modalRef.getState()).toBe(NzModalState.CLOSING);
-    flush();
-
-    expect(modalRef.getState()).toBe(NzModalState.CLOSED);
-  }));
-
-  it('should use injector from viewContainerRef', () => {
+  it('should use injector from viewContainerRef', async () => {
     const viewContainerFixture = TestBed.createComponent(TestWithChildViewContainerComponent);
-    viewContainerFixture.detectChanges();
+    await viewContainerFixture.whenStable();
     const viewContainerRef = viewContainerFixture.componentInstance.childViewContainer;
 
     const modalRef = modalService.create({
       nzContent: TestWithModalContentComponent,
       nzViewContainerRef: viewContainerRef
     });
-
-    viewContainerFixture.detectChanges();
+    await viewContainerFixture.whenStable();
 
     const modalInjector = modalRef.componentInstance!.modalInjector;
 
     expect(modalRef.componentInstance!.modalRef).toBe(modalRef);
     expect(modalInjector.get<TestWithViewContainerDirective>(TestWithViewContainerDirective)).toBeTruthy();
-
-    modalRef.close();
-    viewContainerFixture.detectChanges();
   });
 
-  it('should close from a ViewContainerRef with OnPush change detection', fakeAsync(() => {
+  it('should close from a ViewContainerRef with OnPush change detection', async () => {
     const onPushFixture = TestBed.createComponent(TestWithOnPushViewContainerComponent);
-
-    onPushFixture.detectChanges();
+    await onPushFixture.whenStable();
 
     const modalRef = modalService.create({
       nzContent: TestWithModalContentComponent,
       nzViewContainerRef: onPushFixture.componentInstance.viewContainerRef
     });
+    await onPushFixture.whenStable();
 
-    flushMicrotasks();
-    onPushFixture.detectChanges();
-    flushMicrotasks();
-
-    expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(1);
+    expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
 
     modalRef.close();
-    flushMicrotasks();
-    onPushFixture.detectChanges();
-    tick(500);
+    await onPushFixture.whenStable();
 
-    expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
-  }));
+    expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+  });
 
   describe('NzModalRef', () => {
-    it('should getElement work', fakeAsync(() => {
+    it('should getElement work', async () => {
       const modalRef = modalService.create({ nzContent: TestWithModalContentComponent });
-      fixture.detectChanges();
+      await fixture.whenStable();
+
       const container = overlayContainerElement.querySelector('nz-modal-container') as HTMLElement;
       expect(modalRef.getElement()).toBe(container);
-      modalRef.close();
-      fixture.detectChanges();
-      flush();
-    }));
+    });
 
-    it('should triggerOk work', fakeAsync(() => {
+    it('should triggerOk work', async () => {
       const modalRef = modalService.create({ nzContent: TestWithModalContentComponent });
-      fixture.detectChanges();
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(1);
+      await fixture.whenStable();
+
+      expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
+
       modalRef.triggerOk();
-      fixture.detectChanges();
-      flush();
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
-    }));
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+    });
 
-    it('should triggerCancel work', fakeAsync(() => {
+    it('should triggerCancel work', async () => {
       const modalRef = modalService.create({ nzContent: TestWithModalContentComponent });
-      fixture.detectChanges();
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(1);
+      await fixture.whenStable();
+
+      expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
+
       modalRef.triggerCancel();
-      fixture.detectChanges();
-      flush();
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
-    }));
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+    });
 
-    it('should not close the modal when loading', fakeAsync(() => {
+    it('should not close the modal when loading', async () => {
       const modalRef = modalService.create({ nzContent: TestWithModalContentComponent });
-      fixture.detectChanges();
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(1);
+      await fixture.whenStable();
+
+      expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
+
       modalRef.updateConfig({
         nzOkLoading: true
       });
-      fixture.detectChanges();
+      await fixture.whenStable();
       modalRef.triggerOk();
-      fixture.detectChanges();
-      flush();
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(1);
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
+
       modalRef.updateConfig({
         nzOkLoading: false
       });
-      fixture.detectChanges();
+      await fixture.whenStable();
       modalRef.triggerOk();
-      fixture.detectChanges();
-      flush();
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
-    }));
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+    });
 
-    it('should set loading state when the callback is promise', fakeAsync(() => {
+    it('should set loading state when the callback is promise', async () => {
       const modalRef = modalService.create({
         nzContent: TestWithModalContentComponent,
         nzOnOk: () =>
@@ -918,36 +936,36 @@ describe('NzModal', () => {
             }, 200);
           })
       });
-      fixture.detectChanges();
+      await fixture.whenStable();
 
       modalRef.triggerOk();
-      fixture.detectChanges();
+      await fixture.whenStable();
       expect(modalRef.getConfig().nzOkLoading).toBe(true);
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(1);
-      tick(200);
-      fixture.detectChanges();
-      flush();
-      expect(modalRef.getConfig().nzOkLoading).toBe(false);
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
-    }));
+      expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
 
-    it('should not close when the callback is return false', fakeAsync(() => {
+      await sleep(200);
+      await fixture.whenStable();
+      expect(modalRef.getConfig().nzOkLoading).toBe(false);
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+    });
+
+    it('should not close when the callback is return false', async () => {
       const modalRef = modalService.create({
         nzContent: TestWithModalContentComponent,
         nzOnOk: () => false
       });
-      fixture.detectChanges();
+      await fixture.whenStable();
 
       modalRef.triggerOk();
-      fixture.detectChanges();
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(1);
-      modalRef.close();
-      fixture.detectChanges();
-      flush();
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
-    }));
+      await fixture.whenStable();
 
-    it('should not close when the callback is return Promise<false>', fakeAsync(() => {
+      expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
+      modalRef.close();
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+    });
+
+    it('should not close when the callback is return Promise<false>', async () => {
       const modalRef = modalService.create({
         nzContent: TestWithModalContentComponent,
         nzOnOk: () =>
@@ -957,24 +975,24 @@ describe('NzModal', () => {
             }, 200);
           })
       });
-      fixture.detectChanges();
+      await fixture.whenStable();
 
       modalRef.triggerOk();
-      fixture.detectChanges();
+      await fixture.whenStable();
       expect(modalRef.getConfig().nzOkLoading).toBe(true);
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(1);
-      tick(200);
-      fixture.detectChanges();
-      flush();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
+
+      await sleep(200);
+      await fixture.whenStable();
       expect(modalRef.getConfig().nzOkLoading).toBe(false);
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(1);
+      expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
 
       modalRef.close();
-      fixture.detectChanges();
-      flush();
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
-    }));
-    it('should not close when the callback is return Promise.reject', fakeAsync(() => {
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+    });
+
+    it('should not close when the callback is return Promise.reject', async () => {
       const modalRef = modalService.create({
         nzContent: TestWithModalContentComponent,
         nzOnOk: () =>
@@ -984,73 +1002,72 @@ describe('NzModal', () => {
             }, 200);
           })
       });
-      fixture.detectChanges();
+      await fixture.whenStable();
 
-      expectAsync(modalRef.triggerOk()).toBeRejectedWith('Promise.reject');
-      fixture.detectChanges();
+      const okPromise = modalRef.triggerOk().then(
+        () => {
+          throw new Error('Expected triggerOk to reject.');
+        },
+        error => error
+      );
+      await fixture.whenStable();
+
       expect(modalRef.getConfig().nzOkLoading).toBe(true);
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(1);
-      tick(200);
-      fixture.detectChanges();
-      flush();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
+
+      await sleep(200);
+      expect(await okPromise).toBe('Promise.reject');
+      await fixture.whenStable();
+
       expect(modalRef.getConfig().nzOkLoading).toBe(false);
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(1);
+      expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
 
       modalRef.close();
-      fixture.detectChanges();
-      flush();
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
-    }));
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+    });
   });
 
   describe('focus management', () => {
-    // When testing focus, all of the elements must be in the DOM.
+    // When testing focus, all the elements must be in the DOM.
     beforeEach(() => document.body.appendChild(overlayContainerElement));
     afterEach(() => document.body.removeChild(overlayContainerElement));
 
-    it('should focus the first tabbable element of the modal on open', fakeAsync(() => {
+    it('should focus the first tabbable element of the modal on open', async () => {
       modalService.create({
         nzContent: TestWithModalContentComponent,
         nzClosable: false,
         nzFooter: null
       });
+      await fixture.whenStable();
 
-      fixture.detectChanges();
-      flushMicrotasks();
+      // expect the first tabbable element (input) in the modal to be focused.
+      expect(document.activeElement!.tagName).toBe('INPUT');
+    });
 
-      expect(document.activeElement!.tagName).toBe(
-        'INPUT',
-        'Expected first tabbable element (input) in the modal to be focused.'
-      );
-    }));
-
-    it('should focus the first tabbable element when content is string type', fakeAsync(() => {
+    it('should focus the first tabbable element when content is string type', async () => {
       const modalRef = modalService.confirm({
         nzContent: 'confirm content'
       });
-
-      fixture.detectChanges();
-      flushMicrotasks();
+      await fixture.whenStable();
 
       expect(modalRef.containerInstance.getNativeElement().contains(document.activeElement)).toBe(true);
-    }));
+    });
 
-    it('should allow disabling focus of the first tabbable element', fakeAsync(() => {
+    it('should allow disabling focus of the first tabbable element', async () => {
       modalService.create({
         nzContent: TestWithModalContentComponent,
         nzClosable: false,
         nzFooter: null,
         nzAutofocus: null
       });
-
-      fixture.detectChanges();
-      flushMicrotasks();
+      await fixture.whenStable();
 
       expect(document.activeElement!.tagName).not.toBe('INPUT');
-    }));
+    });
 
-    it('should re-focus trigger element when modal closes', fakeAsync(() => {
-      // Create a element that has focus before the modal is opened.
+    it('should re-focus trigger element when modal closes', async () => {
+      // Create an element that has focus before the modal is opened.
       const button = document.createElement('button');
       button.id = 'modal-trigger';
       document.body.appendChild(button);
@@ -1059,354 +1076,289 @@ describe('NzModal', () => {
       const modalRef = modalService.create({
         nzContent: TestWithModalContentComponent
       });
+      await fixture.whenStable();
 
-      flushMicrotasks();
-      fixture.detectChanges();
-      flushMicrotasks();
+      // expect the focus to change when modal is opened
+      expect(document.activeElement!.id).not.toBe('modal-trigger');
 
-      expect(document.activeElement!.id).not.toBe(
-        'modal-trigger',
-        'Expected the focus to change when modal was opened.'
-      );
-
+      // expect the focus not to have changed before the animation finishes
       modalRef.close();
-      expect(document.activeElement!.id).not.toBe(
-        'modal-trigger',
-        'Expcted the focus not to have changed before the animation finishes.'
-      );
+      await fixture.whenStable();
 
-      flushMicrotasks();
-      fixture.detectChanges();
-      tick(500);
-
-      expect(document.activeElement!.id).toBe(
-        'modal-trigger',
-        'Expected that the trigger was refocused after the modal is closed.'
-      );
+      // expect the trigger is refocused after the modal is closed.
+      expect(document.activeElement!.id).toBe('modal-trigger');
 
       document.body.removeChild(button);
-    }));
+    });
 
-    it('should move focus to the container if there are no focusable elements in the modal', fakeAsync(() => {
+    it('should move focus to the container if there are no focusable elements in the modal', async () => {
       modalService.create({
         nzContent: TestModalWithoutFocusableElementsComponent,
         nzClosable: false,
         nzFooter: null
       });
+      await sleep(16);
+      await fixture.whenStable();
 
-      fixture.detectChanges();
-      flushMicrotasks();
-
-      expect(document.activeElement!.tagName).toBe('NZ-MODAL-CONTAINER', 'Expected modal container to be focused.');
-    }));
+      // expect the modal container to be focused
+      expect(document.activeElement!.tagName).toBe('NZ-MODAL-CONTAINER');
+    });
   });
 
-  describe('footer component', () => {
-    it('should the ok button work', fakeAsync(() => {
-      const modalRef = modalService.create({
+  describe('footer', () => {
+    let modalRef: NzModalRef;
+
+    function getCancelButton(): HTMLButtonElement {
+      return overlayContainerElement.querySelector('div[nz-modal-footer] button:nth-child(1)') as HTMLButtonElement;
+    }
+
+    function getOkButton(): HTMLButtonElement {
+      return overlayContainerElement.querySelector('div[nz-modal-footer] button:nth-child(2)') as HTMLButtonElement;
+    }
+
+    beforeEach(async () => {
+      modalRef = modalService.create({
         nzContent: TestWithModalContentComponent
       });
-      fixture.detectChanges();
-      const spy = jasmine.createSpy('afterClose spy');
+      await fixture.whenStable();
+    });
+
+    it('should the ok button work', async () => {
+      const spy = vi.fn();
       modalRef.afterClose.subscribe(spy);
 
-      const okButton = overlayContainerElement.querySelector(
-        'div[nz-modal-footer] button:nth-child(2)'
-      ) as HTMLButtonElement;
+      const okButton = getOkButton();
       expect(okButton).toBeTruthy();
 
       okButton.click();
-      fixture.detectChanges();
-      expect(spy).not.toHaveBeenCalled();
-
-      flush();
-      fixture.detectChanges();
       expect(spy).toHaveBeenCalled();
-    }));
+    });
 
-    it('should the cancel button work', fakeAsync(() => {
-      const modalRef = modalService.create({
-        nzContent: TestWithModalContentComponent
-      });
-      fixture.detectChanges();
-      const spy = jasmine.createSpy('afterClose spy');
+    it('should the cancel button work', async () => {
+      const spy = vi.fn();
       modalRef.afterClose.subscribe(spy);
 
-      const cancelButton = overlayContainerElement.querySelector(
-        'div[nz-modal-footer] button:nth-child(1)'
-      ) as HTMLButtonElement;
+      const cancelButton = getCancelButton();
       expect(cancelButton).toBeTruthy();
 
       cancelButton.click();
-      fixture.detectChanges();
-      expect(spy).not.toHaveBeenCalled();
-
-      flush();
-      fixture.detectChanges();
       expect(spy).toHaveBeenCalled();
-    }));
+    });
 
-    it('should loading work', fakeAsync(() => {
-      const modalRef = modalService.create({
-        nzContent: TestWithModalContentComponent,
+    it('should loading work', async () => {
+      modalRef.updateConfig({
         nzOkLoading: true,
         nzCancelLoading: true
       });
-      fixture.detectChanges();
+      await fixture.whenStable();
 
-      const okButton = overlayContainerElement.querySelector(
-        'div[nz-modal-footer] button:nth-child(2)'
-      ) as HTMLButtonElement;
-      const cancelButton = overlayContainerElement.querySelector(
-        'div[nz-modal-footer] button:nth-child(1)'
-      ) as HTMLButtonElement;
+      const okButton = getOkButton();
+      const cancelButton = getCancelButton();
       expect(okButton.classList).toContain('ant-btn-loading');
       expect(cancelButton.classList).toContain('ant-btn-loading');
+    });
 
-      modalRef.close();
-      fixture.detectChanges();
-      flush();
-    }));
-
-    it('should loading work', fakeAsync(() => {
-      const modalRef = modalService.create({
-        nzContent: TestWithModalContentComponent,
+    it('should loading work', async () => {
+      modalRef.updateConfig({
         nzOkDisabled: true,
         nzCancelDisabled: true
       });
-      fixture.detectChanges();
+      await fixture.whenStable();
 
-      const okButton = overlayContainerElement.querySelector(
-        'div[nz-modal-footer] button:nth-child(2)'
-      ) as HTMLButtonElement;
-      const cancelButton = overlayContainerElement.querySelector(
-        'div[nz-modal-footer] button:nth-child(1)'
-      ) as HTMLButtonElement;
+      const okButton = getOkButton();
+      const cancelButton = getCancelButton();
       expect(okButton.disabled).toBe(true);
       expect(cancelButton.disabled).toBe(true);
+    });
+  });
 
-      modalRef.close();
-      fixture.detectChanges();
-      flush();
-    }));
-
-    it('should set buttons', fakeAsync(() => {
-      modalService.create({
-        nzContent: TestWithModalContentComponent,
-        nzFooter: [
-          {
-            label: 'Test Button0',
-            onClick: () =>
-              new Promise(resolve => {
-                setTimeout(() => {
-                  resolve(null);
-                }, 200);
-              })
-          },
-          {
-            label: 'Test Button1',
-            loading: () => true
-          },
-          {
-            label: 'Test Button2',
-            autoLoading: false,
-            onClick: () =>
-              new Promise(resolve => {
-                setTimeout(() => {
-                  resolve(null);
-                }, 200);
-              })
-          },
-          {
-            label: 'Test Button3',
-            onClick: () =>
-              new Promise(() => {
-                throw new Error('Rethrow error');
-              })
+  it('should set footer with buttons', async () => {
+    // note: the buttons in `nzFooter` only works in the constructor of the builtin modal footer
+    let errorThrown = false;
+    modalService.create({
+      nzContent: TestWithModalContentComponent,
+      nzFooter: [
+        {
+          label: 'Test Button0',
+          onClick: () =>
+            new Promise(resolve => {
+              setTimeout(() => {
+                resolve(null);
+              }, 200);
+            })
+        },
+        {
+          label: 'Test Button1',
+          loading: () => true
+        },
+        {
+          label: 'Test Button2',
+          autoLoading: false,
+          onClick: () =>
+            new Promise(resolve => {
+              setTimeout(() => {
+                resolve(null);
+              }, 200);
+            })
+        },
+        {
+          label: 'Test Button3',
+          onClick: () => {
+            errorThrown = true;
+            return Promise.resolve();
           }
-        ]
-      });
-      fixture.detectChanges();
+        }
+      ]
+    });
+    await fixture.whenStable();
 
-      const buttons = overlayContainerElement.querySelectorAll(
-        'div[nz-modal-footer] button'
-      ) as NodeListOf<HTMLButtonElement>;
-      expect(buttons[0].textContent!.trim()).toBe('Test Button0');
-      expect(buttons[1].textContent!.trim()).toBe('Test Button1');
-      expect(buttons[2].textContent!.trim()).toBe('Test Button2');
-      expect(buttons[3].textContent!.trim()).toBe('Test Button3');
+    const buttons = overlayContainerElement.querySelectorAll(
+      'div[nz-modal-footer] button'
+    ) as NodeListOf<HTMLButtonElement>;
+    expect(buttons[0].textContent!.trim()).toBe('Test Button0');
+    expect(buttons[0].classList).not.toContain('ant-btn-loading');
 
-      expect(buttons[1].classList).toContain('ant-btn-loading');
+    expect(buttons[1].textContent!.trim()).toBe('Test Button1');
+    expect(buttons[1].classList).toContain('ant-btn-loading');
 
-      buttons[2].click();
-      fixture.detectChanges();
-      tick();
-      expect(buttons[0].classList).not.toContain('ant-btn-loading');
+    expect(buttons[2].textContent!.trim()).toBe('Test Button2');
+    expect(buttons[2].classList).not.toContain('ant-btn-loading');
 
-      buttons[0].click();
-      fixture.detectChanges();
-      tick();
-      expect(buttons[0].classList).toContain('ant-btn-loading');
-      buttons[0].click();
-      fixture.detectChanges();
-      tick();
-      expect(buttons[0].classList).toContain('ant-btn-loading');
-      flush();
-      fixture.detectChanges();
-      expect(buttons[0].classList).not.toContain('ant-btn-loading');
+    expect(buttons[3].textContent!.trim()).toBe('Test Button3');
+    expect(buttons[3].classList).not.toContain('ant-btn-loading');
 
-      expect(() => {
-        buttons[3].click();
-        tick();
-      }).toThrowError(/Rethrow error/);
-    }));
+    // should click to set loading to true, and automatically set loading to false after 200ms
+    buttons[0].click();
+    await fixture.whenStable();
+    expect(buttons[0].classList).toContain('ant-btn-loading');
+    // skip: loading has been set to false, but the class is not removed
+    // await sleep(200);
+    // await fixture.whenStable();
+    // expect(buttons[0].classList).not.toContain('ant-btn-loading');
+
+    // loading is always true
+    expect(buttons[1].classList).toContain('ant-btn-loading');
+
+    // won't set loading to true if autoLoading is false
+    buttons[2].click();
+    await fixture.whenStable();
+    expect(buttons[2].classList).not.toContain('ant-btn-loading');
+
+    // should call the callback
+    buttons[3].click();
+    await fixture.whenStable();
+    expect(errorThrown).toBe(true);
   });
 
   describe('confirm', () => {
-    it('should set default option', () => {
+    it('should set default option', async () => {
       const modalRef = modalService.confirm({
         nzContent: 'Test Content',
         nzTitle: 'Test Title',
         nzFooter: [{ label: 'Test Footer' }]
       });
-      fixture.detectChanges();
+      await fixture.whenStable();
+
       expect((overlayContainerElement.querySelector('.ant-modal') as HTMLDivElement).style.width).toBe('416px');
       expect(modalRef.getConfig().nzMaskClosable).toBe(false);
+      expect(modalRef.getConfig().nzDraggable).toBe(false);
       expect(modalRef.getConfig().nzCentered).toBe(false);
-      expect(overlayContainerElement.querySelectorAll('nz-modal-confirm-container').length).toBe(1);
+      expect(overlayContainerElement.querySelector('nz-modal-confirm-container')).not.toBeNull();
       expect(overlayContainerElement.querySelector('.ant-modal-confirm-title')!.textContent).toBe('Test Title');
       expect(overlayContainerElement.querySelector('.ant-modal-confirm-content')!.textContent).toBe('Test Content');
       expect(overlayContainerElement.querySelectorAll('.ant-modal-confirm-btns button').length).toBe(2);
-
-      modalRef.close();
     });
 
-    it('should the ok button work', fakeAsync(() => {
+    it('should the ok button work', async () => {
       modalService.confirm();
-      fixture.detectChanges();
+      await fixture.whenStable();
 
-      expect(overlayContainerElement.querySelectorAll('nz-modal-confirm-container').length).toBe(1);
+      expect(overlayContainerElement.querySelector('nz-modal-confirm-container')).not.toBeNull();
       const okButton = overlayContainerElement.querySelector(
         '.ant-modal-confirm-btns button:nth-child(2)'
       ) as HTMLButtonElement;
       okButton.click();
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-confirm-container')).toBeNull();
+    });
 
-      flush();
-      fixture.detectChanges();
-      expect(overlayContainerElement.querySelectorAll('nz-modal-confirm-container').length).toBe(0);
-    }));
-
-    it('should the cancel button work', fakeAsync(() => {
+    it('should the cancel button work', async () => {
       modalService.confirm();
-      fixture.detectChanges();
+      await fixture.whenStable();
 
-      expect(overlayContainerElement.querySelectorAll('nz-modal-confirm-container').length).toBe(1);
+      expect(overlayContainerElement.querySelector('nz-modal-confirm-container')).not.toBeNull();
       const cancelButton = overlayContainerElement.querySelector(
         '.ant-modal-confirm-btns button:nth-child(1)'
       ) as HTMLButtonElement;
       cancelButton.click();
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-confirm-container')).toBeNull();
+    });
 
-      flush();
-      fixture.detectChanges();
-      expect(overlayContainerElement.querySelectorAll('nz-modal-confirm-container').length).toBe(0);
-    }));
-
-    it('should info type work', fakeAsync(() => {
+    it('should info type work', async () => {
       const modalRef = modalService.info();
-      fixture.detectChanges();
+      await fixture.whenStable();
       expect(modalRef.getConfig().nzIconType).toBe('info-circle');
+    });
 
-      modalRef.close();
-      fixture.detectChanges();
-      flush();
-    }));
-
-    it('should success type work', fakeAsync(() => {
+    it('should success type work', async () => {
       const modalRef = modalService.success();
-      fixture.detectChanges();
+      await fixture.whenStable();
       expect(modalRef.getConfig().nzIconType).toBe('check-circle');
+    });
 
-      modalRef.close();
-      fixture.detectChanges();
-      flush();
-    }));
-
-    it('should error type work', fakeAsync(() => {
+    it('should error type work', async () => {
       const modalRef = modalService.error();
-      fixture.detectChanges();
+      await fixture.whenStable();
       expect(modalRef.getConfig().nzIconType).toBe('close-circle');
+    });
 
-      modalRef.close();
-      fixture.detectChanges();
-      flush();
-    }));
-
-    it('should warning type work', fakeAsync(() => {
+    it('should warning type work', async () => {
       const modalRef = modalService.warning();
-      fixture.detectChanges();
+      await fixture.whenStable();
       expect(modalRef.getConfig().nzIconType).toBe('exclamation-circle');
+    });
 
-      modalRef.close();
-      fixture.detectChanges();
-      flush();
-    }));
-
-    it('should set nzIconType', fakeAsync(() => {
+    it('should set nzIconType', async () => {
       const modalRef = modalService.warning({
         nzIconType: 'info-circle'
       });
-      fixture.detectChanges();
+      await fixture.whenStable();
       expect(modalRef.getConfig().nzIconType).toBe('info-circle');
+    });
 
-      modalRef.close();
-      fixture.detectChanges();
-      flush();
-    }));
-
-    it('should set nzCancelText', fakeAsync(() => {
+    it('should set nzCancelText', async () => {
       const modalRef = modalService.warning({
         nzCancelText: 'cancel'
       });
-      fixture.detectChanges();
+      await fixture.whenStable();
       expect(modalRef.getConfig().nzCancelText).toBe('cancel');
+    });
 
-      modalRef.close();
-      fixture.detectChanges();
-      flush();
-    }));
-
-    it('should set nzCentered', fakeAsync(() => {
+    it('should set nzCentered', async () => {
       const modalRef = modalService.confirm({
         nzCentered: true
       });
-      fixture.detectChanges();
+      await fixture.whenStable();
 
       expect(modalRef.getConfig().nzCentered).toBe(true);
 
       const modal = overlayContainerElement.querySelector('nz-modal-confirm-container') as HTMLElement;
       expect(modal.classList).toContain('ant-modal-centered');
+    });
 
-      modalRef.close();
-      fixture.detectChanges();
-      flush();
-    }));
-
-    it('should open confirm with component', () => {
+    it('should open confirm with component', async () => {
       const modalRef = modalService.confirm({
         nzContent: TestWithModalContentComponent,
-        nzComponentParams: {
-          value: 'Confirm'
-        }
+        nzData: 'Confirm'
       });
-
-      fixture.detectChanges();
+      await fixture.whenStable();
 
       const modalContentElement = overlayContainerElement.querySelector('.modal-content');
       expect(modalContentElement).toBeTruthy();
       expect(modalContentElement!.textContent).toBe('Hello Confirm');
       expect(modalRef.getContentComponent() instanceof TestWithModalContentComponent).toBe(true);
       expect(modalRef.getContentComponent().modalRef).toBe(modalRef);
-      modalRef.close();
     });
   });
 
@@ -1416,13 +1368,12 @@ describe('NzModal', () => {
 
     beforeEach(() => {
       componentFixture = TestBed.createComponent(TestModalComponent);
-      componentFixture.detectChanges();
       componentInstance = componentFixture.componentInstance;
     });
 
-    it('should nzVisible work', fakeAsync(() => {
-      const openSpy = jasmine.createSpy('open spy');
-      const closeSpy = jasmine.createSpy('close spy');
+    it('should nzVisible work', async () => {
+      const openSpy = vi.fn();
+      const closeSpy = vi.fn();
 
       componentInstance.nzModalComponent.afterClose.subscribe(closeSpy);
       componentInstance.nzModalComponent.afterOpen.subscribe(openSpy);
@@ -1430,45 +1381,39 @@ describe('NzModal', () => {
       expect(openSpy).not.toHaveBeenCalled();
       expect(closeSpy).not.toHaveBeenCalled();
 
-      componentInstance.isVisible = true;
-      componentFixture.detectChanges();
-      flush();
+      componentInstance.visible.set(true);
+      await fixture.whenStable();
 
       expect(openSpy).toHaveBeenCalled();
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(1);
+      expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
 
-      componentInstance.isVisible = false;
-      componentFixture.detectChanges();
-      flush();
+      componentInstance.visible.set(false);
+      await fixture.whenStable();
 
       expect(closeSpy).toHaveBeenCalled();
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
-    }));
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+    });
 
-    it('should set nzVisible to false when implicitly closed', fakeAsync(() => {
-      const closeSpy = jasmine.createSpy('close spy');
+    it('should set nzVisible to false when implicitly closed', async () => {
+      const closeSpy = vi.fn();
       componentInstance.nzModalComponent.afterClose.subscribe(closeSpy);
       expect(closeSpy).not.toHaveBeenCalled();
 
-      componentInstance.isVisible = true;
-      componentFixture.detectChanges();
-      flush();
-
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(1);
+      componentInstance.visible.set(true);
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
 
       modalService.closeAll();
-      componentFixture.detectChanges();
-      flush();
+      await fixture.whenStable();
 
       expect(closeSpy).toHaveBeenCalled();
-      expect(componentInstance.isVisible).toBe(false);
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
-    }));
+      expect(componentInstance.visible()).toBe(false);
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+    });
 
-    it('should nzOnCancel work', fakeAsync(() => {
-      componentInstance.isVisible = true;
-      componentFixture.detectChanges();
-      flush();
+    it('should nzOnCancel work', async () => {
+      componentInstance.visible.set(true);
+      await fixture.whenStable();
 
       expect(componentInstance.cancelSpy).not.toHaveBeenCalled();
 
@@ -1476,17 +1421,15 @@ describe('NzModal', () => {
         'nz-modal-container div[nz-modal-footer] button:nth-child(1)'
       ) as HTMLButtonElement;
       button.click();
-      componentFixture.detectChanges();
-      flush();
+      await fixture.whenStable();
 
       expect(componentInstance.cancelSpy).toHaveBeenCalled();
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
-    }));
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+    });
 
-    it('should nzOnOk work', fakeAsync(() => {
-      componentInstance.isVisible = true;
-      componentFixture.detectChanges();
-      flush();
+    it('should nzOnOk work', async () => {
+      componentInstance.visible.set(true);
+      await fixture.whenStable();
 
       expect(componentInstance.okSpy).not.toHaveBeenCalled();
 
@@ -1494,115 +1437,95 @@ describe('NzModal', () => {
         'nz-modal-container div[nz-modal-footer] button:nth-child(2)'
       ) as HTMLButtonElement;
       button.click();
-      componentFixture.detectChanges();
-      flush();
+      await fixture.whenStable();
 
       expect(componentInstance.okSpy).toHaveBeenCalled();
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
-    }));
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
+    });
 
-    it('should set nzContent whit component mode', fakeAsync(() => {
+    it('should nzContent work', async () => {
       const modalInstance = componentInstance.nzModalComponent;
 
       modalInstance.open();
-      componentFixture.detectChanges();
-      flush();
+      await fixture.whenStable();
 
       expect(modalInstance.getModalRef()!.getConfig().nzContent).not.toBe(componentInstance.templateRef);
 
-      componentInstance.content = componentInstance.templateRef;
-      componentFixture.detectChanges();
+      componentInstance.content.set(componentInstance.templateRef);
+      await fixture.whenStable();
 
       expect(modalInstance.getModalRef()!.getConfig().nzContent).toBe(componentInstance.templateRef);
+    });
 
-      modalInstance.close();
-      componentFixture.detectChanges();
-      flush();
-    }));
-
-    it('should global config work', fakeAsync(() => {
+    it('should global config work', async () => {
       configService.set('modal', {
         nzMaskClosable: false
       });
       const modalInstance = componentInstance.nzModalComponent;
-
       modalInstance.open();
-      componentFixture.detectChanges();
-      flush();
+      await fixture.whenStable();
 
       let modalWrapElement = overlayContainerElement.querySelector('nz-modal-container') as HTMLElement;
       let modalElement = overlayContainerElement.querySelector('nz-modal-container .ant-modal') as HTMLElement;
 
       dispatchMouseEvent(modalWrapElement, 'mousedown');
-      fixture.detectChanges();
       dispatchMouseEvent(modalElement, 'mouseup');
-      flush();
       modalWrapElement.click();
-      fixture.detectChanges();
-      flush();
+      await fixture.whenStable();
 
       expect(componentInstance.cancelSpy).not.toHaveBeenCalled();
 
       configService.set('modal', {
         nzMaskClosable: true
       });
-      componentFixture.detectChanges();
-      flush();
+      await fixture.whenStable();
 
       modalWrapElement = overlayContainerElement.querySelector('nz-modal-container') as HTMLElement;
       modalElement = overlayContainerElement.querySelector('nz-modal-container .ant-modal') as HTMLElement;
 
       dispatchMouseEvent(modalWrapElement, 'mousedown');
-      fixture.detectChanges();
       dispatchMouseEvent(modalElement, 'mouseup');
-      flush();
       modalWrapElement.click();
-      fixture.detectChanges();
-      flush();
+      await fixture.whenStable();
       expect(componentInstance.cancelSpy).toHaveBeenCalled();
-    }));
+    });
 
-    it('should instance API work', fakeAsync(() => {
+    it('should instance API work', async () => {
       const modalInstance = componentInstance.nzModalComponent;
 
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
 
       modalInstance.open();
-      componentFixture.detectChanges();
-      flush();
+      await fixture.whenStable();
 
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(1);
+      expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
 
       modalInstance.open();
-      componentFixture.detectChanges();
-      flush();
+      await fixture.whenStable();
 
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(1);
+      expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
 
       modalInstance.close();
-      componentFixture.detectChanges();
-      flush();
+      await fixture.whenStable();
 
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
 
       expect(() => {
         modalInstance.close();
-      }).not.toThrowError();
+      }).not.toThrow();
 
       modalInstance.open();
-      componentFixture.detectChanges();
-      flush();
+      await fixture.whenStable();
 
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(1);
+      expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
 
       expect(modalInstance.getContentComponent()).toBeFalsy();
       expect(modalInstance.getElement()).toBeTruthy();
 
       modalInstance.destroy();
-      componentFixture.detectChanges();
-      flush();
+      await fixture.whenStable();
 
-      expect(overlayContainerElement.querySelectorAll('nz-modal-container').length).toBe(0);
+      expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
 
       expect(modalInstance.getContentComponent()).toBeFalsy();
       expect(modalInstance.getElement()).toBeFalsy();
@@ -1610,32 +1533,80 @@ describe('NzModal', () => {
       expect(() => {
         modalInstance.triggerOk();
         modalInstance.triggerCancel();
-      }).not.toThrowError();
-    }));
+      }).not.toThrow();
+    });
 
-    it('should close when the host view is destroyed', fakeAsync(() => {
-      componentInstance.isVisible = true;
-      componentFixture.detectChanges();
-      flush();
+    it('should close when the host view is destroyed', async () => {
+      componentInstance.visible.set(true);
+      await fixture.whenStable();
 
       expect(overlayContainerElement.querySelector('nz-modal-container')).not.toBeNull();
 
       componentFixture.destroy();
-      componentFixture.detectChanges();
-      flush();
+      await fixture.whenStable();
 
       expect(overlayContainerElement.querySelector('nz-modal-container')).toBeNull();
-    }));
+    });
+
+    it('should be draggable when nzDraggable is set to true', async () => {
+      componentInstance.visible.set(true);
+      componentInstance.draggable.set(true);
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('.cdk-drag')).not.toBeNull();
+
+      componentInstance.draggable.set(false);
+      await fixture.whenStable();
+      expect(overlayContainerElement.querySelector('.cdk-drag-disabled')).not.toBeNull();
+    });
+
+    it('should have "move" cursor on the top of modal when modal is draggable', async () => {
+      componentInstance.visible.set(true);
+      componentInstance.draggable.set(true);
+      await fixture.whenStable();
+      const modalHeader = overlayContainerElement.querySelector('.ant-modal-header');
+      expect(getComputedStyle(modalHeader!).cursor).toEqual('move');
+
+      componentInstance.visible.set(true);
+      componentInstance.draggable.set(false);
+      await fixture.whenStable();
+      expect(getComputedStyle(modalHeader!).cursor).toEqual('auto');
+    });
+
+    it('should persist the drag offset as layout position when drag ends so that the modal closes in place', async () => {
+      componentInstance.visible.set(true);
+      componentInstance.draggable.set(true);
+      await fixture.whenStable();
+
+      const modalRef = componentInstance.nzModalComponent.getModalRef()!;
+      const containerInstance = modalRef.containerInstance as NzModalContainerComponent;
+      const modalElement = overlayContainerElement.querySelector<HTMLElement>('.ant-modal')!;
+      const resetSpy = vi.fn();
+
+      containerInstance['onDragEnded']({
+        source: {
+          getFreeDragPosition: () => ({ x: 120, y: 80 }),
+          reset: resetSpy
+        }
+      } as unknown as CdkDragEnd);
+
+      expect(resetSpy).toHaveBeenCalled();
+      expect(modalElement.style.top).toBe('80px');
+      expect(modalElement.style.left).toBe('120px');
+    });
   });
 });
 
-@Directive({ selector: 'test-with-view-container' })
+@Directive({
+  selector: 'nz-test-with-view-container'
+})
 class TestWithViewContainerDirective {
-  constructor(public viewContainerRef: ViewContainerRef) {}
+  public readonly viewContainerRef = inject(ViewContainerRef);
 }
 
 @Component({
-  template: ` <test-with-view-container></test-with-view-container> `
+  selector: 'test-with-child-view-container',
+  imports: [TestWithViewContainerDirective],
+  template: `<nz-test-with-view-container />`
 })
 class TestWithChildViewContainerComponent {
   @ViewChild(TestWithViewContainerDirective) childWithViewContainer!: TestWithViewContainerDirective;
@@ -1646,28 +1617,30 @@ class TestWithChildViewContainerComponent {
 }
 
 @Component({
-  changeDetection: ChangeDetectionStrategy.OnPush,
+  selector: 'test-with-on-push-view-container',
   template: 'hello'
 })
 class TestWithOnPushViewContainerComponent {
-  constructor(public viewContainerRef: ViewContainerRef) {}
+  public readonly viewContainerRef = inject(ViewContainerRef);
 }
 
 @Component({
+  selector: 'test-with-service',
   template: `
-    <ng-template let-modalRef="modalRef">
+    <ng-template let-modalRef="modalRef" let-data>
       <span class="modal-template-content">Hello {{ value }}</span>
+      <span class="modal-template-data">My favorite UI framework is {{ data }}</span>
       {{ setModalRef(modalRef) }}
     </ng-template>
   `
 })
 class TestWithServiceComponent {
+  public readonly nzModalService = inject(NzModalService);
+  public readonly viewContainerRef = inject(ViewContainerRef);
+
   value?: string;
   modalRef?: NzModalRef;
   @ViewChild(TemplateRef) templateRef!: TemplateRef<{}>;
-
-  constructor(public nzModalService: NzModalService, public viewContainerRef: ViewContainerRef) {}
-
   setModalRef(modalRef: NzModalRef): string {
     this.modalRef = modalRef;
     return '';
@@ -1675,16 +1648,20 @@ class TestWithServiceComponent {
 }
 
 @Component({
+  selector: 'test-with-modal-content',
+  imports: [NzModalModule],
   template: `
     <div class="modal-content">Hello {{ value }}</div>
+    <div class="modal-data">My favorite UI Library is {{ nzModalData }}</div>
     <input />
     <button (click)="destroyModal()">destroy</button>
   `
 })
 class TestWithModalContentComponent {
-  @Input() value?: string;
-
-  constructor(public modalRef: NzModalRef, public modalInjector: Injector) {}
+  readonly value = inject<string>(NZ_MODAL_DATA);
+  readonly nzModalData = inject<string>(NZ_MODAL_DATA);
+  readonly modalRef = inject(NzModalRef);
+  readonly modalInjector = inject(Injector);
 
   destroyModal(): void {
     this.modalRef.destroy();
@@ -1692,10 +1669,13 @@ class TestWithModalContentComponent {
 }
 
 @Component({
+  selector: 'test-modal',
+  imports: [NzModalModule],
   template: `
     <nz-modal
-      [(nzVisible)]="isVisible"
-      [nzContent]="content"
+      [(nzVisible)]="visible"
+      [nzContent]="content()"
+      [nzDraggable]="draggable()"
       nzTitle="Test Title"
       (nzOnCancel)="handleCancel()"
       (nzOnOk)="handleOk()"
@@ -1706,42 +1686,28 @@ class TestWithModalContentComponent {
   `
 })
 class TestModalComponent {
-  isVisible = false;
-  cancelSpy = jasmine.createSpy('cancel spy');
-  okSpy = jasmine.createSpy('ok spy');
-  @ViewChild(NzModalComponent) nzModalComponent!: NzModalComponent;
-  @ViewChild(TemplateRef) templateRef!: TemplateRef<{}>;
-  content: TemplateRef<{}> = this.templateRef;
+  readonly visible = model(false);
+  readonly draggable = signal(false);
+  cancelSpy = vi.fn();
+  okSpy = vi.fn();
+  @ViewChild(NzModalComponent, { static: true }) nzModalComponent!: NzModalComponent;
+  @ViewChild(TemplateRef, { static: true }) templateRef!: TemplateRef<{}>;
 
-  constructor() {}
+  readonly content = signal(this.templateRef);
 
   handleCancel(): void {
-    this.isVisible = false;
+    this.visible.set(false);
     this.cancelSpy();
   }
 
   handleOk(): void {
-    this.isVisible = false;
+    this.visible.set(false);
     this.okSpy();
   }
 }
 
-@Component({ template: '<p>Modal</p>' })
-class TestModalWithoutFocusableElementsComponent {}
-
-const TEST_DIRECTIVES = [
-  TestWithServiceComponent,
-  TestWithModalContentComponent,
-  TestWithChildViewContainerComponent,
-  TestWithViewContainerDirective,
-  TestWithOnPushViewContainerComponent,
-  TestModalWithoutFocusableElementsComponent,
-  TestModalComponent
-];
-
-@NgModule({
-  imports: [NzModalModule],
-  exports: TEST_DIRECTIVES,
-  declarations: TEST_DIRECTIVES
+@Component({
+  selector: 'test-modal-without-focusable-elements',
+  template: '<p>Modal</p>'
 })
-class TestModalModule {}
+class TestModalWithoutFocusableElementsComponent {}

@@ -4,13 +4,15 @@
  */
 
 import { MediaMatcher } from '@angular/cdk/layout';
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Observable } from 'rxjs';
 import { distinctUntilChanged, map, startWith } from 'rxjs/operators';
 
 import { NzResizeService } from './resize';
 
 export enum NzBreakpointEnum {
+  xxxl = 'xxxl',
   xxl = 'xxl',
   xl = 'xl',
   lg = 'lg',
@@ -19,9 +21,15 @@ export enum NzBreakpointEnum {
   xs = 'xs'
 }
 
-export type BreakpointMap = { [key in NzBreakpointEnum]: string };
-export type BreakpointBooleanMap = { [key in NzBreakpointEnum]: boolean };
-export type NzBreakpointKey = keyof typeof NzBreakpointEnum;
+export const responsiveArray = ['xxxl', 'xxl', 'xl', 'lg', 'md', 'sm', 'xs'] as const;
+export type Breakpoint = (typeof responsiveArray)[number];
+
+export type ResponsiveLike<T> = {
+  [key in Breakpoint]: T;
+};
+
+export type BreakpointMap = ResponsiveLike<string>;
+export type BreakpointBooleanMap = ResponsiveLike<boolean>;
 
 export const gridResponsiveMap: BreakpointMap = {
   xs: '(max-width: 575px)',
@@ -29,7 +37,8 @@ export const gridResponsiveMap: BreakpointMap = {
   md: '(min-width: 768px)',
   lg: '(min-width: 992px)',
   xl: '(min-width: 1200px)',
-  xxl: '(min-width: 1600px)'
+  xxl: '(min-width: 1600px)',
+  xxxl: '(min-width: 1920px)'
 };
 
 export const siderResponsiveMap: BreakpointMap = {
@@ -38,35 +47,37 @@ export const siderResponsiveMap: BreakpointMap = {
   md: '(max-width: 767.98px)',
   lg: '(max-width: 991.98px)',
   xl: '(max-width: 1199.98px)',
-  xxl: '(max-width: 1599.98px)'
+  xxl: '(max-width: 1599.98px)',
+  xxxl: '(max-width: 1919.98px)'
 };
 
 @Injectable({
   providedIn: 'root'
 })
 export class NzBreakpointService {
-  constructor(private resizeService: NzResizeService, private mediaMatcher: MediaMatcher) {
-    this.resizeService.subscribe().subscribe(() => {});
+  private readonly resizeService = inject(NzResizeService);
+  private readonly mediaMatcher = inject(MediaMatcher);
+
+  constructor() {
+    this.resizeService.connect().pipe(takeUntilDestroyed()).subscribe();
   }
 
   subscribe(breakpointMap: BreakpointMap): Observable<NzBreakpointEnum>;
   subscribe(breakpointMap: BreakpointMap, fullMap: true): Observable<BreakpointBooleanMap>;
   subscribe(breakpointMap: BreakpointMap, fullMap?: true): Observable<NzBreakpointEnum | BreakpointBooleanMap> {
     if (fullMap) {
-      // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-      const get = () => this.matchMedia(breakpointMap, true);
-      return this.resizeService.subscribe().pipe(
-        map(get),
-        startWith(get()),
-        distinctUntilChanged(
-          (x: [NzBreakpointEnum, BreakpointBooleanMap], y: [NzBreakpointEnum, BreakpointBooleanMap]) => x[0] === y[0]
-        ),
+      return this.resizeService.connect().pipe(
+        startWith(void 0),
+        map(() => this.matchMedia(breakpointMap, true)),
+        distinctUntilChanged((x, y) => x[0] === y[0]),
         map(x => x[1])
       );
     } else {
-      // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-      const get = () => this.matchMedia(breakpointMap);
-      return this.resizeService.subscribe().pipe(map(get), startWith(get()), distinctUntilChanged());
+      return this.resizeService.connect().pipe(
+        startWith(void 0),
+        map(() => this.matchMedia(breakpointMap)),
+        distinctUntilChanged()
+      );
     }
   }
 
@@ -84,7 +95,7 @@ export class NzBreakpointService {
       const castBP = breakpoint as NzBreakpointEnum;
       const matched = this.mediaMatcher.matchMedia(gridResponsiveMap[castBP]).matches;
 
-      breakpointBooleanMap[breakpoint as NzBreakpointEnum] = matched;
+      breakpointBooleanMap[castBP] = matched;
 
       if (matched) {
         bp = castBP;

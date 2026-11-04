@@ -1,8 +1,9 @@
 import { Component } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
-import { NzCascaderOption } from 'ng-zorro-antd/cascader';
+import { NzCascaderModule, NzCascaderOption } from 'ng-zorro-antd/cascader';
 
-const options = [
+const options: NzCascaderOption[] = [
   {
     value: 'zhejiang',
     label: 'Zhejiang',
@@ -47,12 +48,11 @@ const options = [
 
 @Component({
   selector: 'nz-demo-cascader-disabled',
-  template: `
-    <nz-cascader [nzOptions]="nzOptions" [(ngModel)]="values" (ngModelChange)="onChanges($event)"></nz-cascader>
-  `
+  imports: [FormsModule, NzCascaderModule],
+  template: `<nz-cascader [nzOptions]="nzOptions" [(ngModel)]="values" (ngModelChange)="onChanges($event)" />`
 })
 export class NzDemoCascaderDisabledComponent {
-  nzOptions: NzCascaderOption[] = options;
+  readonly nzOptions: NzCascaderOption[] = options;
   values: string[] | null = null;
 
   onChanges(values: string[]): void {

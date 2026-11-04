@@ -3,48 +3,68 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
+import { Directionality } from '@angular/cdk/bidi';
 import { DOWN_ARROW, ENTER, ESCAPE, LEFT_ARROW, RIGHT_ARROW, TAB, UP_ARROW } from '@angular/cdk/keycodes';
 import {
   ConnectionPositionPair,
+  createFlexibleConnectedPositionStrategy,
+  createOverlayRef,
+  createRepositionScrollStrategy,
   FlexibleConnectedPositionStrategy,
-  Overlay,
-  OverlayConfig,
   OverlayRef,
   PositionStrategy
 } from '@angular/cdk/overlay';
 import { TemplatePortal } from '@angular/cdk/portal';
-import { DOCUMENT } from '@angular/common';
+import { NgTemplateOutlet } from '@angular/common';
 import {
-  ChangeDetectionStrategy,
+  AfterViewInit,
+  booleanAttribute,
   ChangeDetectorRef,
   Component,
+  computed,
+  contentChild,
   ContentChild,
+  DestroyRef,
+  DOCUMENT,
+  effect,
   ElementRef,
   EventEmitter,
-  Inject,
+  inject,
+  Injector,
   Input,
+  NgZone,
   OnChanges,
-  OnDestroy,
   OnInit,
-  Optional,
   Output,
   QueryList,
+  Renderer2,
+  signal,
   SimpleChanges,
   TemplateRef,
   ViewChild,
   ViewChildren,
   ViewContainerRef
 } from '@angular/core';
-import { fromEvent, merge, Subscription } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { merge, Subscription } from 'rxjs';
+import { distinctUntilChanged, startWith, switchMap } from 'rxjs/operators';
 
+import { NZ_FORM_VARIANT, NzFormItemFeedbackIconComponent, NzFormStatusService } from 'ng-zorro-antd/core/form';
+import { NzStringTemplateOutletDirective } from 'ng-zorro-antd/core/outlet';
 import { DEFAULT_MENTION_BOTTOM_POSITIONS, DEFAULT_MENTION_TOP_POSITIONS } from 'ng-zorro-antd/core/overlay';
-import { BooleanInput, NzSafeAny } from 'ng-zorro-antd/core/types';
-import { getCaretCoordinates, getMentions, InputBoolean } from 'ng-zorro-antd/core/util';
+import { NgClassInterface, NzSafeAny, NzStatus, NzValidateStatus, NzVariant } from 'ng-zorro-antd/core/types';
+import {
+  fromEventOutsideAngular,
+  getCaretCoordinates,
+  getMentions,
+  getStatusClassNames
+} from 'ng-zorro-antd/core/util';
+import { NzEmptyModule } from 'ng-zorro-antd/empty';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 
 import { NZ_MENTION_CONFIG } from './config';
 import { NzMentionSuggestionDirective } from './mention-suggestions';
 import { NzMentionTriggerDirective } from './mention-trigger';
-import { NzMentionService } from './mention.service';
 
 export interface MentionOnSearchTypes {
   value: string;
@@ -63,46 +83,96 @@ export type MentionPlacement = 'top' | 'bottom';
   selector: 'nz-mention',
   exportAs: 'nzMention',
   template: `
-    <ng-content></ng-content>
+    <ng-content />
     <ng-template #suggestions>
-      <ul class="ant-mention-dropdown">
-        <li
-          #items
-          class="ant-mention-dropdown-item"
-          *ngFor="let suggestion of filteredSuggestions; let i = index"
-          [class.focus]="i === activeIndex"
-          (mousedown)="$event.preventDefault()"
-          (click)="selectSuggestion(suggestion)"
-        >
-          <ng-container *ngIf="suggestionTemplate; else defaultSuggestion">
-            <ng-container *ngTemplateOutlet="suggestionTemplate; context: { $implicit: suggestion }"></ng-container>
-          </ng-container>
-          <ng-template #defaultSuggestion>{{ nzValueWith(suggestion) }}</ng-template>
-        </li>
-        <li class="ant-mention-dropdown-notfound ant-mention-dropdown-item" *ngIf="filteredSuggestions.length === 0">
-          <span *ngIf="nzLoading"><i nz-icon nzType="loading"></i></span>
-          <span *ngIf="!nzLoading">{{ nzNotFoundContent }}</span>
-        </li>
-      </ul>
+      <div class="ant-mentions-dropdown">
+        <ul class="ant-mentions-dropdown-menu" role="menu" tabindex="0">
+          @for (suggestion of filteredSuggestions; track suggestion) {
+            <li
+              #items
+              class="ant-mentions-dropdown-menu-item"
+              role="menuitem"
+              tabindex="-1"
+              [class.ant-mentions-dropdown-menu-item-active]="$index === activeIndex"
+              [class.ant-mentions-dropdown-menu-item-selected]="$index === activeIndex"
+              (click)="selectSuggestion(suggestion)"
+            >
+              @if (suggestionTemplate) {
+                <ng-container *ngTemplateOutlet="suggestionTemplate; context: { $implicit: suggestion }" />
+              } @else {
+                {{ nzValueWith(suggestion) }}
+              }
+            </li>
+          } @empty {
+            <li class="ant-mentions-dropdown-menu-item ant-mentions-dropdown-menu-item-disabled">
+              @if (nzLoading) {
+                <span><nz-icon nzType="loading" /></span>
+              } @else {
+                <span>
+                  <nz-embed-empty nzComponentName="select" [specificContent]="nzNotFoundContent!" />
+                </span>
+              }
+            </li>
+          }
+        </ul>
+      </div>
     </ng-template>
+    @if (hasFeedback && !!status) {
+      <nz-form-item-feedback-icon class="ant-mentions-suffix" [status]="status" />
+    }
+    @if (nzAllowClear && hasValue()) {
+      <span class="ant-mentions-suffix">
+        <button type="button" tabindex="-1" class="ant-mentions-clear-icon" (click)="clear()">
+          <ng-template [nzStringTemplateOutlet]="nzClearIcon">
+            <nz-icon nzType="close-circle" nzTheme="fill" />
+          </ng-template>
+        </button>
+      </span>
+    }
   `,
-  preserveWhitespaces: false,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [NzMentionService]
+  host: {
+    class: 'ant-mentions',
+    '[class.ant-mentions-rtl]': `dir() === 'rtl'`,
+    '[class.ant-mentions-outlined]': `finalVariant() === 'outlined'`,
+    '[class.ant-mentions-borderless]': `finalVariant() === 'borderless'`,
+    '[class.ant-mentions-filled]': `finalVariant() === 'filled'`,
+    '[class.ant-mentions-underlined]': `finalVariant() === 'underlined'`,
+    '[class.ant-mentions-focused]': `focused()`,
+    '[class.ant-mentions-disabled]': `disabled()`
+  },
+  imports: [
+    NgTemplateOutlet,
+    NzIconModule,
+    NzEmptyModule,
+    NzFormItemFeedbackIconComponent,
+    NzStringTemplateOutletDirective
+  ]
 })
-export class NzMentionComponent implements OnDestroy, OnInit, OnChanges {
-  static ngAcceptInputType_nzLoading: BooleanInput;
+export class NzMentionComponent implements OnInit, AfterViewInit, OnChanges {
+  private readonly ngZone = inject(NgZone);
+  protected readonly dir = inject(Directionality).valueSignal;
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly injector = inject(Injector);
+  private readonly viewContainerRef = inject(ViewContainerRef);
+  private readonly elementRef = inject(ElementRef);
+  private readonly renderer = inject(Renderer2);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly nzFormStatusService = inject(NzFormStatusService, { optional: true });
 
   @Input() nzValueWith: (value: NzSafeAny) => string = value => value;
   @Input() nzPrefix: string | string[] = '@';
-  @Input() @InputBoolean() nzLoading = false;
+  @Input({ transform: booleanAttribute }) nzLoading = false;
   @Input() nzNotFoundContent: string = '无匹配结果，轻敲空格完成输入';
   @Input() nzPlacement: MentionPlacement = 'bottom';
   @Input() nzSuggestions: NzSafeAny[] = [];
-  @Output() readonly nzOnSelect: EventEmitter<NzSafeAny> = new EventEmitter();
-  @Output() readonly nzOnSearchChange: EventEmitter<MentionOnSearchTypes> = new EventEmitter();
+  @Input() nzStatus: NzStatus = '';
+  @Input() nzVariant: NzVariant | undefined = undefined;
+  @Input({ transform: booleanAttribute }) nzAllowClear = false;
+  @Input() nzClearIcon: TemplateRef<NzSafeAny> | null = null;
+  @Output() readonly nzOnSelect = new EventEmitter<NzSafeAny>();
+  @Output() readonly nzOnSearchChange = new EventEmitter<MentionOnSearchTypes>();
+  @Output() readonly nzOnClear = new EventEmitter<void>();
 
-  trigger!: NzMentionTriggerDirective;
   @ViewChild(TemplateRef, { static: false }) suggestionsTemp?: TemplateRef<void>;
   @ViewChildren('items', { read: ElementRef })
   items!: QueryList<ElementRef>;
@@ -114,10 +184,25 @@ export class NzMentionComponent implements OnDestroy, OnInit, OnChanges {
     }
   }
 
+  readonly trigger = contentChild.required(NzMentionTriggerDirective);
+
   isOpen = false;
   filteredSuggestions: string[] = [];
   suggestionTemplate: TemplateRef<{ $implicit: NzSafeAny }> | null = null;
   activeIndex = -1;
+  // status
+  prefixCls: string = 'ant-mentions';
+  statusCls: NgClassInterface = {};
+  status: NzValidateStatus = '';
+  hasFeedback: boolean = false;
+  readonly focused = signal(false);
+
+  readonly disabled = computed(() => {
+    return this.trigger().disabled();
+  });
+  readonly hasValue = computed(() => {
+    return !!this.trigger()?.value().trim();
+  });
 
   private previousValue: string | null = null;
   private cursorMention: string | null = null;
@@ -127,9 +212,10 @@ export class NzMentionComponent implements OnDestroy, OnInit, OnChanges {
   private portal?: TemplatePortal<void>;
   private positionStrategy!: FlexibleConnectedPositionStrategy;
   private overlayOutsideClickSubscription!: Subscription;
+  private document: Document = inject(DOCUMENT);
 
   private get triggerNativeElement(): HTMLTextAreaElement | HTMLInputElement {
-    return this.trigger.el.nativeElement;
+    return this.trigger().elementRef.nativeElement;
   }
 
   private get focusItemElement(): HTMLElement | null {
@@ -140,35 +226,67 @@ export class NzMentionComponent implements OnDestroy, OnInit, OnChanges {
     return null;
   }
 
-  constructor(
-    @Optional() @Inject(DOCUMENT) private ngDocument: NzSafeAny,
-    private cdr: ChangeDetectorRef,
-    private overlay: Overlay,
-    private viewContainerRef: ViewContainerRef,
-    private nzMentionService: NzMentionService
-  ) {}
+  private readonly formVariant = inject(NZ_FORM_VARIANT, { optional: true });
 
-  ngOnInit(): void {
-    this.nzMentionService.triggerChanged().subscribe(trigger => {
-      this.trigger = trigger;
-      this.bindTriggerEvents();
+  protected readonly variant = signal<NzVariant | undefined>(this.nzVariant);
+
+  protected readonly finalVariant = computed(() => this.variant() || this.formVariant?.() || 'outlined');
+
+  constructor() {
+    this.destroyRef.onDestroy(() => {
       this.closeDropdown();
-      this.overlayRef = null;
+    });
+
+    effect(() => {
+      const trigger = this.trigger();
+      if (trigger) {
+        this.bindTriggerEvents();
+        this.closeDropdown();
+        this.overlayRef = null;
+      }
     });
   }
 
+  ngOnInit(): void {
+    this.nzFormStatusService?.formStatusChanges
+      .pipe(
+        distinctUntilChanged((pre, cur) => pre.status === cur.status && pre.hasFeedback === cur.hasFeedback),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(({ status, hasFeedback }) => {
+        this.setStatusStyles(status, hasFeedback);
+      });
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes.hasOwnProperty('nzSuggestions')) {
+    const { nzSuggestions, nzStatus, nzVariant } = changes;
+    if (nzSuggestions) {
       if (this.isOpen) {
         this.previousValue = null;
         this.activeIndex = -1;
         this.resetDropdown(false);
       }
     }
+    if (nzStatus) {
+      this.setStatusStyles(this.nzStatus, this.hasFeedback);
+    }
+    if (nzVariant) {
+      this.variant.set(nzVariant.currentValue);
+    }
   }
 
-  ngOnDestroy(): void {
-    this.closeDropdown();
+  ngAfterViewInit(): void {
+    this.items.changes
+      .pipe(
+        startWith(this.items),
+        switchMap(() => {
+          const items = this.items.toArray();
+          return merge(...items.map(item => fromEventOutsideAngular<MouseEvent>(item.nativeElement, 'mousedown')));
+        })
+      )
+      .subscribe(event => {
+        event.preventDefault();
+      });
   }
 
   closeDropdown(): void {
@@ -187,12 +305,12 @@ export class NzMentionComponent implements OnDestroy, OnInit, OnChanges {
   }
 
   getMentions(): string[] {
-    return this.trigger ? getMentions(this.trigger.value!, this.nzPrefix) : [];
+    return this.trigger() ? getMentions(this.trigger().value(), this.nzPrefix) : [];
   }
 
   selectSuggestion(suggestion: string | {}): void {
     const value = this.nzValueWith(suggestion);
-    this.trigger.insertMention({
+    this.trigger().insertMention({
       mention: value,
       startPos: this.cursorMentionStart!,
       endPos: this.cursorMentionEnd!
@@ -202,10 +320,16 @@ export class NzMentionComponent implements OnDestroy, OnInit, OnChanges {
     this.activeIndex = -1;
   }
 
+  clear(): void {
+    this.closeDropdown();
+    this.trigger().clear();
+    this.nzOnClear.emit();
+  }
+
   private handleInput(event: KeyboardEvent): void {
     const target = event.target as HTMLInputElement | HTMLTextAreaElement;
-    this.trigger.onChange(target.value);
-    this.trigger.value = target.value;
+    this.trigger().onChange(target.value);
+    this.trigger().value.set(target.value);
     this.resetDropdown();
   }
 
@@ -238,13 +362,15 @@ export class NzMentionComponent implements OnDestroy, OnInit, OnChanges {
   }
 
   private handleClick(): void {
-    this.resetDropdown();
+    this.resetDropdown(false);
   }
 
   private bindTriggerEvents(): void {
-    this.trigger.onInput.subscribe((e: KeyboardEvent) => this.handleInput(e));
-    this.trigger.onKeydown.subscribe((e: KeyboardEvent) => this.handleKeydown(e));
-    this.trigger.onClick.subscribe(() => this.handleClick());
+    this.trigger().onFocusin.subscribe(() => this.focused.set(true));
+    this.trigger().onBlur.subscribe(() => this.focused.set(false));
+    this.trigger().onInput.subscribe((e: KeyboardEvent) => this.handleInput(e));
+    this.trigger().onKeydown.subscribe((e: KeyboardEvent) => this.handleKeydown(e));
+    this.trigger().onClick.subscribe(() => this.handleClick());
   }
 
   private suggestionsFilter(value: string, emit: boolean): void {
@@ -319,12 +445,7 @@ export class NzMentionComponent implements OnDestroy, OnInit, OnChanges {
           ? value.indexOf(NZ_MENTION_CONFIG.split, selectionStart)
           : value.length;
       const mention = value.substring(startPos, endPos);
-      if (
-        (startPos > 0 && value[startPos - 1] !== NZ_MENTION_CONFIG.split) ||
-        startPos < 0 ||
-        mention.includes(prefix[i], 1) ||
-        mention.includes(NZ_MENTION_CONFIG.split)
-      ) {
+      if (startPos < 0 || mention.includes(prefix[i], 1) || mention.includes(NZ_MENTION_CONFIG.split)) {
         this.cursorMention = null;
         this.cursorMentionStart = -1;
         this.cursorMentionEnd = -1;
@@ -357,25 +478,38 @@ export class NzMentionComponent implements OnDestroy, OnInit, OnChanges {
   }
 
   private subscribeOverlayOutsideClick(): Subscription {
-    return merge<MouseEvent | TouchEvent>(
-      this.overlayRef!.outsidePointerEvents(),
-      fromEvent<TouchEvent>(this.ngDocument, 'touchend')
-    ).subscribe((event: MouseEvent | TouchEvent) => {
+    const canCloseDropdown = (event: MouseEvent | TouchEvent): boolean => {
       const clickTarget = event.target as HTMLElement;
-      if (
+      return (
         this.isOpen &&
-        clickTarget !== this.trigger.el.nativeElement &&
+        clickTarget !== this.triggerNativeElement &&
         !this.overlayRef?.overlayElement.contains(clickTarget)
-      ) {
-        this.closeDropdown();
-      }
-    });
+      );
+    };
+
+    const subscription = new Subscription();
+
+    subscription.add(
+      this.overlayRef!.outsidePointerEvents().subscribe(event => canCloseDropdown(event) && this.closeDropdown())
+    );
+
+    subscription.add(
+      fromEventOutsideAngular<TouchEvent>(this.document, 'touchend').subscribe(
+        event => canCloseDropdown(event) && this.ngZone.run(() => this.closeDropdown())
+      )
+    );
+
+    return subscription;
   }
 
   private attachOverlay(): void {
     if (!this.overlayRef) {
       this.portal = new TemplatePortal(this.suggestionsTemp!, this.viewContainerRef);
-      this.overlayRef = this.overlay.create(this.getOverlayConfig());
+      this.overlayRef = createOverlayRef(this.injector, {
+        positionStrategy: this.getOverlayPosition(),
+        scrollStrategy: createRepositionScrollStrategy(this.injector),
+        disposeOnNavigation: true
+      });
     }
     if (this.overlayRef && !this.overlayRef.hasAttached()) {
       this.overlayRef.attach(this.portal);
@@ -384,25 +518,29 @@ export class NzMentionComponent implements OnDestroy, OnInit, OnChanges {
     this.updatePositions();
   }
 
-  private getOverlayConfig(): OverlayConfig {
-    return new OverlayConfig({
-      positionStrategy: this.getOverlayPosition(),
-      scrollStrategy: this.overlay.scrollStrategies.reposition(),
-      disposeOnNavigation: true
-    });
+  private getOverlayPosition(): PositionStrategy {
+    return (this.positionStrategy = createFlexibleConnectedPositionStrategy(this.injector, this.trigger().elementRef)
+      .withPositions([
+        new ConnectionPositionPair({ originX: 'start', originY: 'bottom' }, { overlayX: 'start', overlayY: 'top' }),
+        new ConnectionPositionPair({ originX: 'start', originY: 'top' }, { overlayX: 'start', overlayY: 'bottom' })
+      ])
+      .withFlexibleDimensions(false)
+      .withPush(false));
   }
 
-  private getOverlayPosition(): PositionStrategy {
-    const positions = [
-      new ConnectionPositionPair({ originX: 'start', originY: 'bottom' }, { overlayX: 'start', overlayY: 'top' }),
-      new ConnectionPositionPair({ originX: 'start', originY: 'top' }, { overlayX: 'start', overlayY: 'bottom' })
-    ];
-    this.positionStrategy = this.overlay
-      .position()
-      .flexibleConnectedTo(this.trigger.el)
-      .withPositions(positions)
-      .withFlexibleDimensions(false)
-      .withPush(false);
-    return this.positionStrategy;
+  private setStatusStyles(status: NzValidateStatus, hasFeedback: boolean): void {
+    // set inner status
+    this.status = status;
+    this.hasFeedback = hasFeedback;
+    this.cdr.markForCheck();
+    // render status if nzStatus is set
+    this.statusCls = getStatusClassNames(this.prefixCls, status, hasFeedback);
+    Object.keys(this.statusCls).forEach(status => {
+      if (this.statusCls[status]) {
+        this.renderer.addClass(this.elementRef.nativeElement, status);
+      } else {
+        this.renderer.removeClass(this.elementRef.nativeElement, status);
+      }
+    });
   }
 }

@@ -1,7 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+import { NzTreeSelectModule } from 'ng-zorro-antd/tree-select';
 
 @Component({
   selector: 'nz-demo-tree-select-basic',
+  imports: [FormsModule, NzTreeSelectModule],
   template: `
     <nz-tree-select
       style="width: 250px"
@@ -10,14 +14,13 @@ import { Component, OnInit } from '@angular/core';
       nzShowSearch
       nzPlaceHolder="Please select"
       [(ngModel)]="value"
-      (ngModelChange)="onChange($event)"
-    ></nz-tree-select>
+    />
   `
 })
-export class NzDemoTreeSelectBasicComponent implements OnInit {
-  expandKeys = ['100', '1001'];
-  value?: string;
-  nodes = [
+export class NzDemoTreeSelectBasicComponent {
+  readonly expandKeys = ['100', '1001'];
+  readonly value = signal('1001');
+  readonly nodes = [
     {
       title: 'parent 1',
       key: '100',
@@ -38,15 +41,4 @@ export class NzDemoTreeSelectBasicComponent implements OnInit {
       ]
     }
   ];
-
-  onChange($event: string): void {
-    console.log($event);
-  }
-
-  ngOnInit(): void {
-    // mock async
-    setTimeout(() => {
-      this.value = '1001';
-    }, 1000);
-  }
 }

@@ -1,10 +1,13 @@
-import { Component } from '@angular/core';
+import { LowerCasePipe } from '@angular/common';
+import { Component, inject } from '@angular/core';
 
-import { NzContextMenuService, NzDropdownMenuComponent } from 'ng-zorro-antd/dropdown';
-import { NzFormatEmitEvent, NzTreeNode } from 'ng-zorro-antd/tree';
+import { NzContextMenuService, NzDropdownMenuComponent, NzDropdownModule } from 'ng-zorro-antd/dropdown';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzFormatEmitEvent, NzTreeModule, NzTreeNode } from 'ng-zorro-antd/tree';
 
 @Component({
   selector: 'nz-demo-tree-directory',
+  imports: [NzDropdownModule, NzIconModule, NzTreeModule, LowerCasePipe],
   template: `
     <nz-tree
       nzBlockNode
@@ -12,19 +15,22 @@ import { NzFormatEmitEvent, NzTreeNode } from 'ng-zorro-antd/tree';
       (nzClick)="activeNode($event)"
       (nzDblClick)="openFolder($event)"
       [nzTreeTemplate]="nzTreeTemplate"
-    ></nz-tree>
+    />
     <ng-template #nzTreeTemplate let-node let-origin="origin">
       <span class="custom-node">
-        <span *ngIf="!node.isLeaf" (contextmenu)="contextMenu($event, menu)">
-          <i nz-icon [nzType]="node.isExpanded ? 'folder-open' : 'folder'" (click)="openFolder(node)"></i>
-          <span class="folder-name">{{ node.title }}</span>
-          <span class="folder-desc">created by {{ origin.author | lowercase }}</span>
-        </span>
-        <span *ngIf="node.isLeaf" (contextmenu)="contextMenu($event, menu)">
-          <i nz-icon nzType="file"></i>
-          <span class="file-name">{{ node.title }}</span>
-          <span class="file-desc">modified by {{ origin.author | lowercase }}</span>
-        </span>
+        @if (!node.isLeaf) {
+          <span (contextmenu)="contextMenu($event, menu)">
+            <nz-icon [nzType]="node.isExpanded ? 'folder-open' : 'folder'" (click)="openFolder(node)" />
+            <span class="folder-name">{{ node.title }}</span>
+            <span class="folder-desc">created by {{ origin.author | lowercase }}</span>
+          </span>
+        } @else {
+          <span (contextmenu)="contextMenu($event, menu)">
+            <nz-icon nzType="file" />
+            <span class="file-name">{{ node.title }}</span>
+            <span class="file-desc">modified by {{ origin.author | lowercase }}</span>
+          </span>
+        }
       </span>
     </ng-template>
     <nz-dropdown-menu #menu="nzDropdownMenu">
@@ -34,42 +40,41 @@ import { NzFormatEmitEvent, NzTreeNode } from 'ng-zorro-antd/tree';
       </ul>
     </nz-dropdown-menu>
   `,
-  styles: [
-    `
-      nz-tree {
-        overflow: hidden;
-        margin: 0 -24px;
-        padding: 0 24px;
-      }
+  styles: `
+    nz-tree {
+      overflow: hidden;
+      margin: 0 -24px;
+      padding: 0 24px;
+    }
 
-      .custom-node {
-        cursor: pointer;
-        line-height: 24px;
-        margin-left: 4px;
-        display: inline-block;
-      }
+    .custom-node {
+      cursor: pointer;
+      line-height: 24px;
+      display: inline-block;
+    }
 
-      .file-name,
-      .folder-name {
-        margin-left: 4px;
-      }
+    .custom-node,
+    .file-name,
+    .folder-name {
+      margin-inline-start: 4px;
+    }
 
-      .file-desc,
-      .folder-desc {
-        padding: 0 8px;
-        display: inline-block;
-        background: #87ceff;
-        color: #ffffff;
-        position: relative;
-        left: 12px;
-      }
-    `
-  ]
+    .file-desc,
+    .folder-desc {
+      padding: 0 8px;
+      display: inline-block;
+      background: #87ceff;
+      color: #ffffff;
+      position: relative;
+      inset-inline-start: 12px;
+    }
+  `
 })
 export class NzDemoTreeDirectoryComponent {
-  // activated node
+  private readonly nzContextMenuService = inject(NzContextMenuService);
+
   activatedNode?: NzTreeNode;
-  nodes = [
+  readonly nodes = [
     {
       title: 'parent 0',
       key: '100',
@@ -90,7 +95,6 @@ export class NzDemoTreeDirectoryComponent {
       ]
     }
   ];
-
   openFolder(data: NzTreeNode | NzFormatEmitEvent): void {
     // do something if u want
     if (data instanceof NzTreeNode) {
@@ -114,6 +118,4 @@ export class NzDemoTreeDirectoryComponent {
   selectDropdown(): void {
     // do something
   }
-
-  constructor(private nzContextMenuService: NzContextMenuService) {}
 }

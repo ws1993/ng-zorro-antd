@@ -31,12 +31,14 @@ export function releaseSite(version: string): boolean {
         'sitemap.js?(.map)',
         'static.paths.js?(.map)',
         'prerender.js?(.map)',
+        'schematics',
+        'schematics/**/*',
         'server/**/*',
         '.idea/**/*',
         '.vscode/**/*',
         '.git/**/*'
       ].map(f => join(buildConfig.outputDir, f));
-      return !fileGlobs.some(p => minimatch(file, p));
+      return !fileGlobs.some(p => minimatch.minimatch(file, p));
     }
   });
 

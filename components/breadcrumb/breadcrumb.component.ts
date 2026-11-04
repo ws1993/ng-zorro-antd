@@ -3,28 +3,28 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Direction, Directionality } from '@angular/cdk/bidi';
+import { Directionality } from '@angular/cdk/bidi';
 import {
-  ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
-  ElementRef,
   Injector,
   Input,
-  OnDestroy,
   OnInit,
-  Optional,
-  Renderer2,
   TemplateRef,
-  ViewEncapsulation
+  ViewEncapsulation,
+  booleanAttribute,
+  forwardRef,
+  inject,
+  DestroyRef
 } from '@angular/core';
-import { ActivatedRoute, NavigationEnd, Params, PRIMARY_OUTLET, Router } from '@angular/router';
-import { Subject } from 'rxjs';
-import { filter, startWith, takeUntil } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, NavigationEnd, PRIMARY_OUTLET, Params, Router } from '@angular/router';
+import { filter, startWith } from 'rxjs/operators';
 
 import { PREFIX } from 'ng-zorro-antd/core/logger';
-import { BooleanInput } from 'ng-zorro-antd/core/types';
-import { InputBoolean } from 'ng-zorro-antd/core/util';
+
+import { NzBreadcrumb } from './breadcrumb';
+import { NzBreadCrumbItemComponent } from './breadcrumb-item.component';
 
 export interface BreadcrumbOption {
   label: string;
@@ -33,61 +33,44 @@ export interface BreadcrumbOption {
 }
 
 @Component({
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  encapsulation: ViewEncapsulation.None,
   selector: 'nz-breadcrumb',
   exportAs: 'nzBreadcrumb',
-  preserveWhitespaces: false,
+  providers: [{ provide: NzBreadcrumb, useExisting: forwardRef(() => NzBreadCrumbComponent) }],
+  imports: [NzBreadCrumbItemComponent],
   template: `
-    <ng-content></ng-content>
-    <ng-container *ngIf="nzAutoGenerate && breadcrumbs.length">
-      <nz-breadcrumb-item *ngFor="let breadcrumb of breadcrumbs">
-        <a [attr.href]="breadcrumb.url" (click)="navigate(breadcrumb.url, $event)">{{ breadcrumb.label }}</a>
-      </nz-breadcrumb-item>
-    </ng-container>
-  `
+    <ng-content />
+    @if (nzAutoGenerate && breadcrumbs.length) {
+      @for (breadcrumb of breadcrumbs; track breadcrumb.url) {
+        <nz-breadcrumb-item>
+          <a [attr.href]="breadcrumb.url" (click)="navigate(breadcrumb.url, $event)">{{ breadcrumb.label }}</a>
+        </nz-breadcrumb-item>
+      }
+    }
+  `,
+  host: {
+    class: 'ant-breadcrumb',
+    '[class.ant-breadcrumb-rtl]': `dir() === 'rtl'`
+  },
+  encapsulation: ViewEncapsulation.None
 })
-export class NzBreadCrumbComponent implements OnInit, OnDestroy {
-  static ngAcceptInputType_nzAutoGenerate: BooleanInput;
+export class NzBreadCrumbComponent implements OnInit, NzBreadcrumb {
+  private readonly injector = inject(Injector);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly destroyRef = inject(DestroyRef);
+  protected readonly dir = inject(Directionality).valueSignal;
 
-  @Input() @InputBoolean() nzAutoGenerate = false;
+  @Input({ transform: booleanAttribute }) nzAutoGenerate = false;
   @Input() nzSeparator: string | TemplateRef<void> | null = '/';
   @Input() nzRouteLabel: string = 'breadcrumb';
   @Input() nzRouteLabelFn: (label: string) => string = label => label;
+  @Input() nzRouteFn: (route: string) => string = route => route;
 
   breadcrumbs: BreadcrumbOption[] = [];
-  dir: Direction = 'ltr';
-
-  private destroy$ = new Subject<void>();
-
-  constructor(
-    private injector: Injector,
-    private cdr: ChangeDetectorRef,
-    private elementRef: ElementRef,
-    private renderer: Renderer2,
-    @Optional() private directionality: Directionality
-  ) {
-    renderer.addClass(elementRef.nativeElement, 'ant-breadcrumb');
-  }
 
   ngOnInit(): void {
     if (this.nzAutoGenerate) {
       this.registerRouterChange();
     }
-
-    this.directionality.change?.pipe(takeUntil(this.destroy$)).subscribe((direction: Direction) => {
-      this.dir = direction;
-      this.prepareComponentForRtl();
-      this.cdr.detectChanges();
-    });
-
-    this.dir = this.directionality.value;
-    this.prepareComponentForRtl();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 
   navigate(url: string, e: MouseEvent): void {
@@ -102,14 +85,14 @@ export class NzBreadCrumbComponent implements OnInit, OnDestroy {
       router.events
         .pipe(
           filter(e => e instanceof NavigationEnd),
-          takeUntil(this.destroy$),
+          takeUntilDestroyed(this.destroyRef),
           startWith(true) // trigger initial render
         )
         .subscribe(() => {
           this.breadcrumbs = this.getBreadcrumbs(activatedRoute.root);
           this.cdr.markForCheck();
         });
-    } catch (e) {
+    } catch {
       throw new Error(`${PREFIX} You should import RouterModule if you want to use 'NzAutoGenerate'.`);
     }
   }
@@ -138,13 +121,13 @@ export class NzBreadCrumbComponent implements OnInit, OnDestroy {
         // Do not change nextUrl if routeUrl is falsy. This happens when it's a route lazy loading other modules.
         const nextUrl = routeUrl ? `${url}/${routeUrl}` : url;
         const breadcrumbLabel = this.nzRouteLabelFn(child.snapshot.data[this.nzRouteLabel]);
-
+        const shapedUrl = this.nzRouteFn(nextUrl);
         // If have data, go to generate a breadcrumb for it.
         if (routeUrl && breadcrumbLabel) {
           const breadcrumb: BreadcrumbOption = {
             label: breadcrumbLabel,
             params: child.snapshot.params,
-            url: nextUrl
+            url: shapedUrl
           };
           breadcrumbs.push(breadcrumb);
         }
@@ -154,13 +137,5 @@ export class NzBreadCrumbComponent implements OnInit, OnDestroy {
     }
 
     return breadcrumbs;
-  }
-
-  private prepareComponentForRtl(): void {
-    if (this.dir === 'rtl') {
-      this.renderer.addClass(this.elementRef.nativeElement, 'ant-breadcrumb-rtl');
-    } else {
-      this.renderer.removeClass(this.elementRef.nativeElement, 'ant-breadcrumb-rtl');
-    }
   }
 }

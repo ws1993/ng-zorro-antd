@@ -4,15 +4,13 @@
  */
 
 import { Direction } from '@angular/cdk/bidi';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ViewEncapsulation } from '@angular/core';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { Component, ViewEncapsulation } from '@angular/core';
 
-import { MessageConfig, NzConfigService } from 'ng-zorro-antd/core/config';
+import { MessageConfig, onConfigChangeEventForComponent } from 'ng-zorro-antd/core/config';
 import { toCssPixel } from 'ng-zorro-antd/core/util';
 
 import { NzMNContainerComponent } from './base';
-import { NzMessageData } from './typings';
+import { NzMessageComponent } from './message.component';
 
 const NZ_CONFIG_COMPONENT_NAME = 'message';
 
@@ -26,45 +24,32 @@ const NZ_MESSAGE_DEFAULT_CONFIG: Required<MessageConfig> = {
 };
 
 @Component({
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  encapsulation: ViewEncapsulation.None,
   selector: 'nz-message-container',
   exportAs: 'nzMessageContainer',
-  preserveWhitespaces: false,
+  encapsulation: ViewEncapsulation.None,
   template: `
     <div class="ant-message" [class.ant-message-rtl]="dir === 'rtl'" [style.top]="top">
-      <nz-message
-        *ngFor="let instance of instances"
-        [instance]="instance"
-        (destroyed)="remove($event.id, $event.userAction)"
-      ></nz-message>
+      @for (instance of instances; track instance) {
+        <nz-message [instance]="instance" (destroyed)="remove($event.id, $event.userAction)" />
+      }
     </div>
-  `
+  `,
+  imports: [NzMessageComponent]
 })
 export class NzMessageContainerComponent extends NzMNContainerComponent {
-  readonly destroy$ = new Subject<void>();
-  dir: Direction = 'ltr';
-  instances: Array<Required<NzMessageData>> = [];
+  dir: Direction = this.nzConfigService.getConfigForComponent(NZ_CONFIG_COMPONENT_NAME)?.nzDirection || 'ltr';
   top?: string | null;
 
-  constructor(cdr: ChangeDetectorRef, nzConfigService: NzConfigService) {
-    super(cdr, nzConfigService);
-    const config = this.nzConfigService.getConfigForComponent(NZ_CONFIG_COMPONENT_NAME);
-    this.dir = config?.nzDirection || 'ltr';
+  constructor() {
+    super();
+    this.updateConfig();
   }
 
   protected subscribeConfigChange(): void {
-    this.nzConfigService
-      .getConfigChangeEventForComponent(NZ_CONFIG_COMPONENT_NAME)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(() => {
-        this.updateConfig();
-        const config = this.nzConfigService.getConfigForComponent(NZ_CONFIG_COMPONENT_NAME);
-        if (config) {
-          const { nzDirection } = config;
-          this.dir = nzDirection || this.dir;
-        }
-      });
+    onConfigChangeEventForComponent(NZ_CONFIG_COMPONENT_NAME, () => {
+      this.updateConfig();
+      this.dir = this.nzConfigService.getConfigForComponent(NZ_CONFIG_COMPONENT_NAME)?.nzDirection || this.dir;
+    });
   }
 
   protected updateConfig(): void {

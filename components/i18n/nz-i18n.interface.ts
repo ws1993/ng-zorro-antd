@@ -66,6 +66,7 @@ export interface NzDatePickerLangI18nInterface extends NzCalendarI18nInterface {
   weekPlaceholder?: string;
   rangePlaceholder?: string[];
   rangeYearPlaceholder?: string[];
+  rangeQuarterPlaceholder?: string[];
   rangeMonthPlaceholder?: string[];
   rangeWeekPlaceholder?: string[];
 }
@@ -131,6 +132,42 @@ export interface NzTextI18nInterface {
   expand: string;
 }
 
+export interface NzCronExpressionLabelI18n {
+  second?: string;
+  minute?: string;
+  hour?: string;
+  day?: string;
+  month?: string;
+  week?: string;
+}
+
+export interface NzCronExpressionCronErrorI18n {
+  cronError?: string;
+}
+
+export type NzCronExpressionI18nInterface = NzCronExpressionCronErrorI18n & NzCronExpressionLabelI18n;
+
+export interface NzQRCodeI18nInterface {
+  expired: string;
+  refresh: string;
+  scanned: string;
+}
+
+export interface NzCheckListI18nInterface {
+  checkList: string;
+  checkListFinish: string;
+  checkListClose: string;
+  checkListFooter: string;
+  checkListCheck: string;
+  ok: string;
+  cancel: string;
+  checkListCheckOther: string;
+}
+
+export interface NzFormI18nInterface {
+  optional: string;
+}
+
 export interface NzI18nInterface {
   locale: string;
   Pagination: NzPaginationI18nInterface;
@@ -144,7 +181,11 @@ export interface NzI18nInterface {
   Transfer: NzTransferI18nInterface;
   Upload: NzUploadI18nInterface;
   Empty: NzEmptyI18nInterface;
+  Form: NzFormI18nInterface;
   Text?: NzTextI18nInterface;
+  CronExpression?: NzCronExpressionI18nInterface;
+  QRCode?: NzQRCodeI18nInterface;
+  CheckList?: NzCheckListI18nInterface;
 }
 
 export type DateLocale = Locale;

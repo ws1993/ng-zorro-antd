@@ -3,95 +3,141 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Platform } from '@angular/cdk/platform';
 import {
-  ChangeDetectionStrategy,
+  afterEveryRender,
   ChangeDetectorRef,
+  computed,
   Component,
   ElementRef,
   EventEmitter,
+  inject,
+  input,
   Input,
+  numberAttribute,
   OnChanges,
   Output,
   ViewChild,
   ViewEncapsulation
 } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { of, switchMap } from 'rxjs';
 
-import { NzConfigKey, NzConfigService, WithConfig } from 'ng-zorro-antd/core/config';
+import { NzConfigKey, withConfigFactory, WithConfig } from 'ng-zorro-antd/core/config';
 import {
-  NgClassInterface,
-  NgStyleInterface,
-  NumberInput,
-  NzShapeSCType,
-  NzSizeLDSType
-} from 'ng-zorro-antd/core/types';
-import { InputNumber } from 'ng-zorro-antd/core/util';
+  gridResponsiveMap,
+  NzBreakpointEnum,
+  NzBreakpointService,
+  type Breakpoint,
+  type ResponsiveLike
+} from 'ng-zorro-antd/core/services';
+import type { NzShapeSCType, NzSizeLDSType } from 'ng-zorro-antd/core/types';
+import { isPlainObject, toCssPixel } from 'ng-zorro-antd/core/util';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 
 const NZ_CONFIG_MODULE_NAME: NzConfigKey = 'avatar';
+const withConfig = withConfigFactory(NZ_CONFIG_MODULE_NAME);
+export type NzAvatarSize = NzSizeLDSType | number | Partial<ResponsiveLike<number>>;
+
+/** https://html.spec.whatwg.org/multipage/embedded-content.html#attr-img-loading */
+type NzAvatarLoading = 'eager' | 'lazy';
+
+/** https://wicg.github.io/priority-hints/#idl-index */
+type NzAvatarFetchPriority = 'high' | 'low' | 'auto';
 
 @Component({
   selector: 'nz-avatar',
   exportAs: 'nzAvatar',
+  imports: [NzIconModule],
   template: `
-    <i nz-icon *ngIf="nzIcon && hasIcon" [nzType]="nzIcon"></i>
-    <img *ngIf="nzSrc && hasSrc" [src]="nzSrc" [attr.srcset]="nzSrcSet" [attr.alt]="nzAlt" (error)="imgError($event)" />
-    <span class="ant-avatar-string" #textEl [ngStyle]="textStyles" *ngIf="nzText && hasText">{{ nzText }}</span>
+    @if (nzIcon && hasIcon) {
+      <nz-icon [nzType]="nzIcon" />
+    } @else if (nzSrc && hasSrc) {
+      <img
+        [src]="nzSrc"
+        [attr.srcset]="nzSrcSet"
+        [attr.alt]="nzAlt"
+        [attr.loading]="nzLoading() || 'eager'"
+        [attr.fetchpriority]="nzFetchPriority() || 'auto'"
+        (error)="imgError($event)"
+      />
+    } @else if (nzText && hasText) {
+      <span class="ant-avatar-string" #textEl>{{ nzText }}</span>
+    }
+    <ng-content />
   `,
   host: {
-    '[class.ant-avatar-lg]': `nzSize === 'large'`,
-    '[class.ant-avatar-sm]': `nzSize === 'small'`,
+    class: 'ant-avatar',
+    '[class.ant-avatar-lg]': `size() === 'large'`,
+    '[class.ant-avatar-sm]': `size() === 'small'`,
     '[class.ant-avatar-square]': `nzShape === 'square'`,
     '[class.ant-avatar-circle]': `nzShape === 'circle'`,
     '[class.ant-avatar-icon]': `nzIcon`,
     '[class.ant-avatar-image]': `hasSrc `,
-    '[style.width]': 'customSize',
-    '[style.height]': 'customSize',
-    '[style.line-height]': 'customSize',
-    // nzSize type is number when customSize is true
-    '[style.font-size.px]': '(hasIcon && customSize) ? $any(nzSize) / 2 : null'
+    '[style.width]': 'customSize()',
+    '[style.height]': 'customSize()',
+    '[style.line-height]': 'customSize()',
+    '[style.font-size.px]': 'hasIcon ? customFontSize() : null'
   },
-  preserveWhitespaces: false,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None
 })
 export class NzAvatarComponent implements OnChanges {
-  static ngAcceptInputType_nzGap: NumberInput;
-
   readonly _nzModuleName: NzConfigKey = NZ_CONFIG_MODULE_NAME;
   @Input() @WithConfig() nzShape: NzShapeSCType = 'circle';
-  @Input() @WithConfig() nzSize: NzSizeLDSType | number = 'default';
-  @Input() @WithConfig() @InputNumber() nzGap = 4;
+  readonly nzSize = input<NzAvatarSize>();
+  @Input({ transform: numberAttribute }) @WithConfig() nzGap = 4;
   @Input() nzText?: string;
   @Input() nzSrc?: string;
   @Input() nzSrcSet?: string;
   @Input() nzAlt?: string;
   @Input() nzIcon?: string;
+  readonly nzLoading = input<NzAvatarLoading>();
+  readonly nzFetchPriority = input<NzAvatarFetchPriority>();
   @Output() readonly nzError = new EventEmitter<Event>();
 
   hasText: boolean = false;
   hasSrc: boolean = true;
   hasIcon: boolean = false;
-  textStyles: NgStyleInterface = {};
-  classMap: NgClassInterface = {};
-  customSize: string | null = null;
 
-  @ViewChild('textEl', { static: false }) textEl?: ElementRef;
+  private el: HTMLElement = inject(ElementRef).nativeElement;
+  private cdr = inject(ChangeDetectorRef);
+  private breakpointService = inject(NzBreakpointService);
 
-  private el: HTMLElement = this.elementRef.nativeElement;
+  protected readonly size = withConfig('nzSize', this.nzSize, 'default');
+  private readonly currentBreakpoint = toSignal(
+    toObservable(this.size).pipe(
+      switchMap(size =>
+        isPlainObject<Partial<ResponsiveLike<number>>>(size)
+          ? this.breakpointService.subscribe(gridResponsiveMap)
+          : of(NzBreakpointEnum.md)
+      )
+    ),
+    { initialValue: NzBreakpointEnum.md }
+  );
+  private readonly currentSize = computed(() => {
+    const size = this.size();
 
-  constructor(
-    public nzConfigService: NzConfigService,
-    private elementRef: ElementRef,
-    private cdr: ChangeDetectorRef,
-    private platform: Platform
-  ) {
-    // TODO: move to host after View Engine deprecation
-    this.elementRef.nativeElement.classList.add('ant-avatar');
+    return isPlainObject<Partial<ResponsiveLike<number>>>(size) ? size[this.currentBreakpoint() as Breakpoint] : size;
+  });
+  protected readonly customSize = computed(() => {
+    const size = this.currentSize();
+
+    return typeof size === 'number' ? toCssPixel(size) : null;
+  });
+  protected readonly customFontSize = computed(() => {
+    const size = this.currentSize();
+
+    return typeof size === 'number' ? size / 2 : null;
+  });
+
+  @ViewChild('textEl', { static: false }) textEl?: ElementRef<HTMLSpanElement>;
+
+  constructor() {
+    afterEveryRender(() => this.calcStringSize());
   }
 
-  imgError($event: Event): void {
-    this.nzError.emit($event);
-    if (!$event.defaultPrevented) {
+  imgError(event: Event): void {
+    this.nzError.emit(event);
+    if (!event.defaultPrevented) {
       this.hasSrc = false;
       this.hasIcon = false;
       this.hasText = false;
@@ -101,8 +147,6 @@ export class NzAvatarComponent implements OnChanges {
         this.hasText = true;
       }
       this.cdr.detectChanges();
-      this.setSizeStyle();
-      this.notifyCalc();
     }
   }
 
@@ -110,47 +154,20 @@ export class NzAvatarComponent implements OnChanges {
     this.hasText = !this.nzSrc && !!this.nzText;
     this.hasIcon = !this.nzSrc && !!this.nzIcon;
     this.hasSrc = !!this.nzSrc;
-
-    this.setSizeStyle();
-    this.notifyCalc();
   }
 
   private calcStringSize(): void {
-    if (!this.hasText) {
+    if (!this.hasText || !this.textEl) {
       return;
     }
 
-    const childrenWidth = this.textEl!.nativeElement.offsetWidth;
-    const avatarWidth = this.el.getBoundingClientRect().width;
+    const textEl = this.textEl.nativeElement;
+    const childrenWidth = textEl.offsetWidth;
+    const avatarWidth = this.el.getBoundingClientRect?.().width ?? 0;
     const offset = this.nzGap * 2 < avatarWidth ? this.nzGap * 2 : 8;
     const scale = avatarWidth - offset < childrenWidth ? (avatarWidth - offset) / childrenWidth : 1;
 
-    this.textStyles = {
-      transform: `scale(${scale}) translateX(-50%)`
-    };
-    if (this.customSize) {
-      Object.assign(this.textStyles, {
-        lineHeight: this.customSize
-      });
-    }
-    this.cdr.detectChanges();
-  }
-
-  private notifyCalc(): void {
-    // If use ngAfterViewChecked, always demands more computations, so......
-    if (this.platform.isBrowser) {
-      setTimeout(() => {
-        this.calcStringSize();
-      });
-    }
-  }
-
-  private setSizeStyle(): void {
-    if (typeof this.nzSize === 'number') {
-      this.customSize = `${this.nzSize}px`;
-    } else {
-      this.customSize = null;
-    }
-    this.cdr.markForCheck();
+    textEl.style.transform = `scale(${scale}) translateX(-50%)`;
+    textEl.style.lineHeight = this.customSize() || '';
   }
 }

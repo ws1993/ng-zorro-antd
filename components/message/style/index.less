@@ -13,6 +13,10 @@
   width: 100%;
   pointer-events: none;
 
+  &-rtl {
+    direction: rtl;
+  }
+
   &-notice {
     padding: 8px;
     text-align: center;
@@ -47,27 +51,9 @@
   .@{iconfont-css-prefix} {
     position: relative;
     top: 1px;
-    margin-right: 8px;
+    margin-inline-end: 8px;
     font-size: @font-size-lg;
   }
-
-  &-notice.@{ant-prefix}-move-up-leave.@{ant-prefix}-move-up-leave-active {
-    animation-name: MessageMoveOut;
-    animation-duration: 0.3s;
-  }
 }
 
-@keyframes MessageMoveOut {
-  0% {
-    max-height: 150px;
-    padding: 8px;
-    opacity: 1;
-  }
-  100% {
-    max-height: 0;
-    padding: 0;
-    opacity: 0;
-  }
-}
-
-@import './rtl';
+@import './animation';

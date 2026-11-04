@@ -66,7 +66,7 @@
       }
     }
 
-    .@{ant-prefix}-tabs {
+    .@{ant-prefix}-tabs-top {
       clear: both;
       margin-bottom: @card-head-tabs-margin-bottom;
       color: @text-color;
@@ -80,23 +80,22 @@
   }
 
   &-extra {
-    float: right;
     // https://stackoverflow.com/a/22429853/3040605
-    margin-left: auto;
+    margin-inline-start: auto;
     padding: @card-head-padding 0;
     color: @card-head-extra-color;
     font-weight: normal;
     font-size: @font-size-base;
-
-    .@{card-prefix-cls}-rtl & {
-      margin-right: auto;
-      margin-left: 0;
-    }
   }
 
   &-body {
     padding: @card-padding-base;
     .clearfix();
+  }
+
+  &-contain-grid &-body {
+    display: flex;
+    flex-wrap: wrap;
   }
 
   &-contain-grid:not(&-loading) &-body {
@@ -105,7 +104,6 @@
   }
 
   &-grid {
-    float: left;
     width: 33.33%;
     padding: @card-padding-base;
     border: 0;
@@ -114,10 +112,6 @@
       1px 1px 0 0 @border-color-split, 1px 0 0 0 @border-color-split inset,
       0 1px 0 0 @border-color-split inset;
     transition: all 0.3s;
-
-    .@{card-prefix-cls}-rtl & {
-      float: right;
-    }
 
     &-hoverable {
       &:hover {
@@ -139,8 +133,7 @@
 
   &-bordered &-cover {
     margin-top: -1px;
-    margin-right: -1px;
-    margin-left: -1px;
+    margin-inline: -1px;
   }
 
   &-cover {
@@ -155,6 +148,7 @@
   }
 
   &-actions {
+    display: flex;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -163,14 +157,9 @@
     .clearfix();
 
     & > li {
-      float: left;
       margin: @card-actions-li-margin;
       color: @text-color-secondary;
       text-align: center;
-
-      .@{card-prefix-cls}-rtl & {
-        float: right;
-      }
 
       > span {
         position: relative;
@@ -205,12 +194,7 @@
       }
 
       &:not(:last-child) {
-        border-right: @border-width-base @border-style-base @border-color-split;
-
-        .@{card-prefix-cls}-rtl & {
-          border-right: none;
-          border-left: @border-width-base @border-style-base @border-color-split;
-        }
+        border-inline-end: @border-width-base @border-style-base @border-color-split;
       }
     }
   }
@@ -234,22 +218,18 @@
   }
 
   &-meta {
+    display: flex;
     margin: -4px 0;
     .clearfix();
 
     &-avatar {
-      float: left;
-      padding-right: 16px;
-
-      .@{card-prefix-cls}-rtl & {
-        float: right;
-        padding-right: 0;
-        padding-left: 16px;
-      }
+      padding-inline-end: 16px;
     }
 
     &-detail {
+      flex: 1;
       overflow: hidden;
+
       > div:not(:last-child) {
         margin-bottom: @margin-xs;
       }
@@ -275,31 +255,6 @@
 
   &-loading &-body {
     user-select: none;
-  }
-
-  &-loading-content {
-    p {
-      margin: 0;
-    }
-  }
-
-  &-loading-block {
-    height: 14px;
-    margin: 4px 0;
-    background: linear-gradient(90deg, @gradient-min, @gradient-max, @gradient-min);
-    background-size: 600% 600%;
-    border-radius: @card-radius;
-    animation: card-loading 1.4s ease infinite;
-  }
-}
-
-@keyframes card-loading {
-  0%,
-  100% {
-    background-position: 0 50%;
-  }
-  50% {
-    background-position: 100% 50%;
   }
 }
 

@@ -1,8 +1,10 @@
 import { CollectionViewer, DataSource, SelectionChange } from '@angular/cdk/collections';
-import { FlatTreeControl, TreeControl } from '@angular/cdk/tree';
-import { Component } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { BehaviorSubject, merge, Observable, of } from 'rxjs';
 import { delay, map, tap } from 'rxjs/operators';
+
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzTreeView, NzTreeViewComponent, NzTreeViewModule } from 'ng-zorro-antd/tree-view';
 
 interface FlatNode {
   expandable: boolean;
@@ -54,39 +56,21 @@ class DynamicDatasource implements DataSource<FlatNode> {
   private flattenedData: BehaviorSubject<FlatNode[]>;
   private childrenLoadedSet = new Set<FlatNode>();
 
-  constructor(private treeControl: TreeControl<FlatNode>, initData: FlatNode[]) {
+  constructor(
+    private tree: NzTreeView<FlatNode>,
+    initData: FlatNode[]
+  ) {
     this.flattenedData = new BehaviorSubject<FlatNode[]>(initData);
-    treeControl.dataNodes = initData;
+    tree.dataNodes = initData;
   }
 
   connect(collectionViewer: CollectionViewer): Observable<FlatNode[]> {
     const changes = [
       collectionViewer.viewChange,
-      this.treeControl.expansionModel.changed.pipe(tap(change => this.handleExpansionChange(change))),
-      this.flattenedData
+      this.tree._getExpansionModel().changed.pipe(tap(change => this.handleExpansionChange(change))),
+      this.flattenedData.asObservable()
     ];
-    return merge(...changes).pipe(map(() => this.expandFlattenedNodes(this.flattenedData.getValue())));
-  }
-
-  expandFlattenedNodes(nodes: FlatNode[]): FlatNode[] {
-    const treeControl = this.treeControl;
-    const results: FlatNode[] = [];
-    const currentExpand: boolean[] = [];
-    currentExpand[0] = true;
-
-    nodes.forEach(node => {
-      let expand = true;
-      for (let i = 0; i <= treeControl.getLevel(node); i++) {
-        expand = expand && currentExpand[i];
-      }
-      if (expand) {
-        results.push(node);
-      }
-      if (treeControl.isExpandable(node)) {
-        currentExpand[treeControl.getLevel(node) + 1] = treeControl.isExpanded(node);
-      }
-    });
-    return results;
+    return merge(...changes).pipe(map(() => this.flattenedData.value));
   }
 
   handleExpansionChange(change: SelectionChange<FlatNode>): void {
@@ -109,6 +93,8 @@ class DynamicDatasource implements DataSource<FlatNode> {
         this.childrenLoadedSet.add(node);
       }
       this.flattenedData.next(flattenedData);
+      // save flattened data into tree instance
+      this.tree.dataNodes = flattenedData;
     });
   }
 
@@ -119,33 +105,38 @@ class DynamicDatasource implements DataSource<FlatNode> {
 
 @Component({
   selector: 'nz-demo-tree-view-dynamic',
+  imports: [NzIconModule, NzTreeViewModule],
   template: `
-    <nz-tree-view [nzTreeControl]="treeControl" [nzDataSource]="dataSource">
-      <nz-tree-node *nzTreeNodeDef="let node" nzTreeNodePadding>
+    <nz-tree-view [nzDataSource]="dataSource" [nzLevelAccessor]="levelAccessor">
+      <nz-tree-node *nzTreeNodeDef="let node" nzTreeNodePadding [nzExpandable]="false">
         {{ node.label }}
       </nz-tree-node>
 
-      <nz-tree-node *nzTreeNodeDef="let node; when: hasChild" nzTreeNodePadding>
-        <nz-tree-node-toggle *ngIf="!node.loading">
-          <i nz-icon nzType="caret-down" nzTreeNodeToggleRotateIcon></i>
-        </nz-tree-node-toggle>
-        <nz-tree-node-toggle *ngIf="node.loading" nzTreeNodeNoopToggle>
-          <i nz-icon nzType="loading" nzTreeNodeToggleActiveIcon></i>
-        </nz-tree-node-toggle>
+      <nz-tree-node *nzTreeNodeDef="let node; when: hasChild" nzTreeNodePadding [nzExpandable]="true">
+        @if (!node.loading) {
+          <nz-tree-node-toggle>
+            <nz-icon nzType="caret-down" nzTreeNodeToggleRotateIcon />
+          </nz-tree-node-toggle>
+        } @else {
+          <nz-tree-node-toggle nzTreeNodeNoopToggle>
+            <nz-icon nzType="loading" nzTreeNodeToggleActiveIcon />
+          </nz-tree-node-toggle>
+        }
         {{ node.label }}
       </nz-tree-node>
     </nz-tree-view>
   `
 })
-export class NzDemoTreeViewDynamicComponent {
-  treeControl = new FlatTreeControl<FlatNode>(
-    node => node.level,
-    node => node.expandable
-  );
+export class NzDemoTreeViewDynamicComponent implements OnInit {
+  @ViewChild(NzTreeViewComponent, { static: true }) tree!: NzTreeViewComponent<FlatNode>;
 
-  dataSource = new DynamicDatasource(this.treeControl, TREE_DATA);
+  readonly levelAccessor = (dataNode: FlatNode): number => dataNode.level;
 
-  constructor() {}
+  readonly hasChild = (_: number, node: FlatNode): boolean => node.expandable;
 
-  hasChild = (_: number, node: FlatNode): boolean => node.expandable;
+  dataSource!: DynamicDatasource;
+
+  ngOnInit(): void {
+    this.dataSource = new DynamicDatasource(this.tree, TREE_DATA);
+  }
 }

@@ -15,9 +15,14 @@
   list-style: none;
   outline: none;
 
+  &-rtl {
+    direction: rtl;
+  }
+
   &-disabled &-star {
     cursor: default;
-    &:hover {
+
+    > div:hover {
       transform: scale(1);
     }
   }
@@ -29,14 +34,13 @@
     cursor: pointer;
 
     &:not(:last-child) {
-      margin-right: 8px;
+      margin-inline-end: 8px;
     }
 
     > div {
       transition: all 0.3s, outline 0s;
 
-      &:hover,
-      &:focus-visible {
+      &:hover {
         transform: @rate-star-hover-scale;
       }
 
@@ -46,6 +50,7 @@
 
       &:focus-visible {
         outline: 1px dashed @rate-star-color;
+        transform: @rate-star-hover-scale;
       }
     }
 
@@ -62,7 +67,7 @@
     &-first {
       position: absolute;
       top: 0;
-      left: 0;
+      inset-inline-start: 0;
       width: 50%;
       height: 100%;
       overflow: hidden;
@@ -86,5 +91,3 @@
     font-size: @font-size-base;
   }
 }
-
-@import './rtl';

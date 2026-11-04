@@ -1,7 +1,11 @@
 import { Component } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+import { NzTreeSelectModule } from 'ng-zorro-antd/tree-select';
 
 @Component({
   selector: 'nz-demo-tree-select-multiple',
+  imports: [FormsModule, NzTreeSelectModule],
   template: `
     <nz-tree-select
       style="width: 250px"
@@ -10,17 +14,16 @@ import { Component } from '@angular/core';
       [nzMaxTagCount]="3"
       [nzMaxTagPlaceholder]="omittedPlaceHolder"
       [nzNodes]="nodes"
-      [nzDefaultExpandAll]="true"
-      [nzAllowClear]="false"
-      [nzMultiple]="true"
+      nzDefaultExpandAll
+      nzMultiple
       (ngModelChange)="onChange($event)"
-    ></nz-tree-select>
+    />
     <ng-template #omittedPlaceHolder let-omittedValues>and {{ omittedValues.length }} more...</ng-template>
   `
 })
 export class NzDemoTreeSelectMultipleComponent {
   value: string[] = [];
-  nodes = [
+  readonly nodes = [
     {
       title: 'parent 1',
       key: '100',

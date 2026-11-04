@@ -3,9 +3,9 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { ChangeDetectionStrategy, Component, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 
-import { NzResizeDirection } from './resize-handle.component';
+import { NzCursorType, NzResizeDirection, NzResizeHandleComponent } from './resize-handle.component';
 
 export const DEFAULT_RESIZE_DIRECTION: NzResizeDirection[] = [
   'bottomRight',
@@ -18,23 +18,43 @@ export const DEFAULT_RESIZE_DIRECTION: NzResizeDirection[] = [
   'left'
 ];
 
+export interface NzResizeHandleOption {
+  direction: NzResizeDirection;
+  cursorType: NzCursorType;
+}
+
+function normalizeResizeHandleOptions(value: Array<NzResizeDirection | NzResizeHandleOption>): NzResizeHandleOption[] {
+  return value.map(val => {
+    if (typeof val === 'string') {
+      return {
+        direction: val,
+        cursorType: 'window'
+      };
+    }
+
+    return val;
+  });
+}
+
 @Component({
   selector: 'nz-resize-handles',
   exportAs: 'nzResizeHandles',
-  template: ` <nz-resize-handle *ngFor="let dir of directions" [nzDirection]="dir"></nz-resize-handle> `,
-  changeDetection: ChangeDetectionStrategy.OnPush
+  template: `
+    @for (option of resizeHandleOptions; track option) {
+      <nz-resize-handle [nzDirection]="option.direction" [nzCursorType]="option.cursorType" />
+    }
+  `,
+  imports: [NzResizeHandleComponent]
 })
 export class NzResizeHandlesComponent implements OnChanges {
-  @Input() nzDirections: NzResizeDirection[] = DEFAULT_RESIZE_DIRECTION;
-  directions: Set<NzResizeDirection>;
+  @Input() nzDirections: Array<NzResizeDirection | NzResizeHandleOption> = DEFAULT_RESIZE_DIRECTION;
 
-  constructor() {
-    this.directions = new Set(this.nzDirections);
-  }
+  resizeHandleOptions = normalizeResizeHandleOptions(this.nzDirections);
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes.nzDirections) {
-      this.directions = new Set(changes.nzDirections.currentValue);
+    const { nzDirections } = changes;
+    if (nzDirections) {
+      this.resizeHandleOptions = normalizeResizeHandleOptions(nzDirections.currentValue);
     }
   }
 }

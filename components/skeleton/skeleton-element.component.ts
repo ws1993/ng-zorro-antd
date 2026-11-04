@@ -3,15 +3,7 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import {
-  ChangeDetectionStrategy,
-  Component,
-  Directive,
-  ElementRef,
-  Input,
-  OnChanges,
-  SimpleChanges
-} from '@angular/core';
+import { Component, Directive, Input, OnChanges, SimpleChanges, booleanAttribute } from '@angular/core';
 
 import {
   NzSkeletonAvatarShape,
@@ -24,25 +16,24 @@ import {
 @Directive({
   selector: 'nz-skeleton-element',
   host: {
-    '[class.ant-skeleton-active]': 'nzActive'
+    class: 'ant-skeleton ant-skeleton-element',
+    '[class.ant-skeleton-active]': 'nzActive',
+    '[class.ant-skeleton-block]': 'nzBlock'
   }
 })
 export class NzSkeletonElementDirective {
-  @Input() nzActive: boolean = false;
+  @Input({ transform: booleanAttribute }) nzActive: boolean = false;
   @Input() nzType!: 'button' | 'input' | 'avatar' | 'image';
-
-  constructor(private elementRef: ElementRef) {
-    // TODO: move to host after View Engine deprecation
-    this.elementRef.nativeElement.classList.add('ant-skeleton', 'ant-skeleton-element');
-  }
+  @Input({ transform: booleanAttribute }) nzBlock: boolean = false;
 }
 
 @Component({
-  changeDetection: ChangeDetectionStrategy.OnPush,
+  // eslint-disable-next-line @angular-eslint/component-selector
   selector: 'nz-skeleton-element[nzType="button"]',
   template: `
     <span
       class="ant-skeleton-button"
+      [class.ant-skeleton-button-square]="nzShape === 'square'"
       [class.ant-skeleton-button-round]="nzShape === 'round'"
       [class.ant-skeleton-button-circle]="nzShape === 'circle'"
       [class.ant-skeleton-button-lg]="nzSize === 'large'"
@@ -56,7 +47,7 @@ export class NzSkeletonElementButtonComponent {
 }
 
 @Component({
-  changeDetection: ChangeDetectionStrategy.OnPush,
+  // eslint-disable-next-line @angular-eslint/component-selector
   selector: 'nz-skeleton-element[nzType="avatar"]',
   template: `
     <span
@@ -65,7 +56,7 @@ export class NzSkeletonElementButtonComponent {
       [class.ant-skeleton-avatar-circle]="nzShape === 'circle'"
       [class.ant-skeleton-avatar-lg]="nzSize === 'large'"
       [class.ant-skeleton-avatar-sm]="nzSize === 'small'"
-      [ngStyle]="styleMap"
+      [style]="styleMap"
     ></span>
   `
 })
@@ -86,7 +77,7 @@ export class NzSkeletonElementAvatarComponent implements OnChanges {
 }
 
 @Component({
-  changeDetection: ChangeDetectionStrategy.OnPush,
+  // eslint-disable-next-line @angular-eslint/component-selector
   selector: 'nz-skeleton-element[nzType="input"]',
   template: `
     <span
@@ -101,7 +92,7 @@ export class NzSkeletonElementInputComponent {
 }
 
 @Component({
-  changeDetection: ChangeDetectionStrategy.OnPush,
+  // eslint-disable-next-line @angular-eslint/component-selector
   selector: 'nz-skeleton-element[nzType="image"]',
   template: `
     <span class="ant-skeleton-image">

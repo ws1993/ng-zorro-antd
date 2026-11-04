@@ -1,12 +1,18 @@
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Component, inject } from '@angular/core';
+import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzFormLayoutType, NzFormModule } from 'ng-zorro-antd/form';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzRadioModule } from 'ng-zorro-antd/radio';
 
 @Component({
   selector: 'nz-demo-form-layout',
+  imports: [ReactiveFormsModule, NzButtonModule, NzFormModule, NzInputModule, NzRadioModule],
   template: `
     <form
       nz-form
-      [nzLayout]="validateForm.get('formLayout')?.value"
+      [nzLayout]="validateForm.controls.formLayout.value"
       [formGroup]="validateForm"
       (ngSubmit)="submitForm()"
     >
@@ -14,9 +20,9 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
         <nz-form-label [nzSpan]="isHorizontal ? 4 : null">Form Layout</nz-form-label>
         <nz-form-control [nzSpan]="isHorizontal ? 14 : null">
           <nz-radio-group formControlName="formLayout">
-            <label nz-radio-button [nzValue]="'horizontal'">Horizontal</label>
-            <label nz-radio-button [nzValue]="'vertical'">Vertical</label>
-            <label nz-radio-button [nzValue]="'inline'">Inline</label>
+            <label nz-radio-button nzValue="horizontal">Horizontal</label>
+            <label nz-radio-button nzValue="vertical">Vertical</label>
+            <label nz-radio-button nzValue="inline">Inline</label>
           </nz-radio-group>
         </nz-form-control>
       </nz-form-item>
@@ -39,16 +45,19 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
       </nz-form-item>
     </form>
   `,
-  styles: [
-    `
-      [nz-form]:not(.ant-form-inline):not(.ant-form-vertical) {
-        max-width: 600px;
-      }
-    `
-  ]
+  styles: `
+    [nz-form]:not(.ant-form-inline):not(.ant-form-vertical) {
+      max-width: 600px;
+    }
+  `
 })
-export class NzDemoFormLayoutComponent implements OnInit {
-  validateForm!: FormGroup;
+export class NzDemoFormLayoutComponent {
+  private fb = inject(NonNullableFormBuilder);
+  validateForm = this.fb.group({
+    formLayout: this.fb.control<NzFormLayoutType>('horizontal'),
+    fieldA: this.fb.control('', [Validators.required]),
+    filedB: this.fb.control('', [Validators.required])
+  });
 
   submitForm(): void {
     if (this.validateForm.valid) {
@@ -64,16 +73,6 @@ export class NzDemoFormLayoutComponent implements OnInit {
   }
 
   get isHorizontal(): boolean {
-    return this.validateForm.controls.formLayout?.value === 'horizontal';
-  }
-
-  constructor(private fb: FormBuilder) {}
-
-  ngOnInit(): void {
-    this.validateForm = this.fb.group({
-      formLayout: ['horizontal'],
-      fieldA: [null, [Validators.required]],
-      filedB: [null, [Validators.required]]
-    });
+    return this.validateForm.controls.formLayout.value === 'horizontal';
   }
 }

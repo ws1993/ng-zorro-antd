@@ -1,65 +1,66 @@
 import { Component } from '@angular/core';
 
+import { NzBadgeModule } from 'ng-zorro-antd/badge';
+import { NzCalendarModule } from 'ng-zorro-antd/calendar';
+
 @Component({
   selector: 'nz-demo-calendar-notice-calendar',
+  imports: [NzBadgeModule, NzCalendarModule],
   template: `
     <nz-calendar>
       <ul *nzDateCell="let date" class="events">
-        <ng-container [ngSwitch]="date.getDate()">
-          <ng-container *ngSwitchCase="8">
-            <li *ngFor="let item of listDataMap.eight">
-              <nz-badge [nzStatus]="item.type" [nzText]="item.content"></nz-badge>
-            </li>
-          </ng-container>
-          <ng-container *ngSwitchCase="10">
-            <li *ngFor="let item of listDataMap.ten">
-              <nz-badge [nzStatus]="item.type" [nzText]="item.content"></nz-badge>
-            </li>
-          </ng-container>
-          <ng-container *ngSwitchCase="11">
-            <li *ngFor="let item of listDataMap.eleven">
-              <nz-badge [nzStatus]="item.type" [nzText]="item.content"></nz-badge>
-            </li>
-          </ng-container>
-        </ng-container>
+        @switch (date.getDate()) {
+          @case (8) {
+            @for (item of listDataMap.eight; track $index) {
+              <li>
+                <nz-badge [nzStatus]="item.type" [nzText]="item.content" />
+              </li>
+            }
+          }
+          @case (10) {
+            @for (item of listDataMap.ten; track $index) {
+              <li>
+                <nz-badge [nzStatus]="item.type" [nzText]="item.content" />
+              </li>
+            }
+          }
+          @case (11) {
+            @for (item of listDataMap.eleven; track $index) {
+              <li>
+                <nz-badge [nzStatus]="item.type" [nzText]="item.content" />
+              </li>
+            }
+          }
+        }
       </ul>
       <ng-container *nzMonthCell="let month">
-        <div *ngIf="getMonthData(month) as monthData" class="notes-month">
-          <section>{{ monthData }}</section>
-          <span>Backlog number</span>
-        </div>
+        @if (getMonthData(month); as monthData) {
+          <div class="notes-month">
+            <section>{{ monthData }}</section>
+            <span>Backlog number</span>
+          </div>
+        }
       </ng-container>
     </nz-calendar>
   `,
-  styles: [
-    `
-      .events {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-      }
+  styles: `
+    .events {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
 
-      .events .ant-badge-status {
-        overflow: hidden;
-        white-space: nowrap;
-        width: 100%;
-        text-overflow: ellipsis;
-        font-size: 12px;
-      }
-
-      .notes-month {
-        text-align: center;
-        font-size: 28px;
-      }
-
-      .notes-month section {
-        font-size: 28px;
-      }
-    `
-  ]
+    .events .ant-badge-status {
+      overflow: hidden;
+      white-space: nowrap;
+      width: 100%;
+      text-overflow: ellipsis;
+      font-size: 12px;
+    }
+  `
 })
 export class NzDemoCalendarNoticeCalendarComponent {
-  listDataMap = {
+  readonly listDataMap = {
     eight: [
       { type: 'warning', content: 'This is warning event.' },
       { type: 'success', content: 'This is usual event.' }

@@ -1,12 +1,22 @@
-import { BidiModule, Dir } from '@angular/cdk/bidi';
-import { Component, DebugElement, ViewChild } from '@angular/core';
-import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick, waitForAsync } from '@angular/core/testing';
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
+import { Platform } from '@angular/cdk/platform';
+import { Component, DebugElement, DOCUMENT, ElementRef, Renderer2, signal, ViewChild } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { Subscription } from 'rxjs';
+
+import { expect, vi } from 'vitest';
 
 import { NzScrollService } from 'ng-zorro-antd/core/services';
+import { sleep } from 'ng-zorro-antd/core/testing';
+import { NzSafeAny } from 'ng-zorro-antd/core/types';
+import { toCssPixelNumber } from 'ng-zorro-antd/core/util';
 
 import { NzAffixComponent } from './affix.component';
-import { NzAffixModule } from './affix.module';
 
 interface Offset {
   top: number;
@@ -42,193 +52,138 @@ describe('affix', () => {
   const height = 100;
   const width = 100;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        imports: [NzAffixModule],
-        declarations: [TestAffixComponent],
-        providers: [
-          {
-            provide: NzScrollService,
-            useClass: NzScrollService
-          }
-        ]
-      }).compileComponents();
+  beforeEach(() => {
+    fixture = TestBed.createComponent(TestAffixComponent);
+    context = fixture.componentInstance;
+    component = context.nzAffixComponent;
+    scrollService = TestBed.inject(NzScrollService);
+    componentObject = new NzAffixPageObject();
+    debugElement = fixture.debugElement;
+    componentObject.wrap().id = 'wrap';
+  });
 
-      fixture = TestBed.createComponent(TestAffixComponent);
-      context = fixture.componentInstance;
-      component = context.nzAffixComponent;
-      scrollService = TestBed.inject(NzScrollService);
-      componentObject = new NzAffixPageObject();
-      debugElement = fixture.debugElement;
-      componentObject.wrap().id = 'wrap';
-    })
-  );
-  afterEach(fakeAsync(() => {
-    setupInitialState();
-  }));
-
-  describe('[default]', () => {
-    it('recreate bug https://github.com/NG-ZORRO/ng-zorro-antd/issues/671', fakeAsync(() => {
+  describe('basic', () => {
+    it('recreate bug https://github.com/NG-ZORRO/ng-zorro-antd/issues/671', async () => {
       const edge = defaultOffsetTop + startOffset;
-      setupInitialState();
-      emitScroll(window, edge + 2);
+      await setupInitialState();
+      await emitScroll(window, edge + 2);
       componentObject.emitScroll(window, edge + 1);
       componentObject.emitScroll(window, edge);
       componentObject.emitScroll(window, edge - 1);
-      tick(100);
-      fixture.detectChanges();
+      await sleep(100);
 
-      expect(componentObject.wrap().offsetTop !== defaultOffsetTop).toBe(true);
-      setupInitialState();
-      discardPeriodicTasks();
-    }));
-
-    it('wraps content with affix', () => {
-      expect(componentObject.content() === null).toBe(false);
+      expect(componentObject.wrap().classList).not.toContain('ant-affix');
     });
 
     describe('when scrolled within top offset', () => {
-      it('scrolls with the content', fakeAsync(() => {
-        setupInitialState();
-        emitScroll(window, defaultOffsetTop + startOffset - 1);
+      it('scrolls with the content', async () => {
+        await setupInitialState();
+        await emitScroll(window, defaultOffsetTop + startOffset - 1);
 
-        expect(componentObject.wrap().offsetTop !== defaultOffsetTop).toBe(true);
-        setupInitialState();
-        discardPeriodicTasks();
-      }));
+        expect(componentObject.wrap().classList).not.toContain('ant-affix');
+      });
     });
 
     describe('when scrolled below the top offset', () => {
-      it('sticks to the top offset', fakeAsync(() => {
-        setupInitialState();
-        emitScroll(window, defaultOffsetTop + startOffset + 1);
+      it('sticks to the top offset', async () => {
+        await setupInitialState();
+        await emitScroll(window, defaultOffsetTop + startOffset + 1);
         expect(componentObject.wrap().offsetTop).toBe(defaultOffsetTop);
-        setupInitialState();
-        discardPeriodicTasks();
-      }));
+      });
 
       describe('when element gets shifted horizontally', () => {
-        it('adjusts left position accordingly to maintain natural position', fakeAsync(() => {
-          setupInitialState();
+        it('adjusts left position accordingly to maintain natural position', async () => {
+          await setupInitialState();
           componentObject.offsetTo(componentObject.elementRef(), { top: startOffset, left: 10, width, height });
-          emitScroll(window, defaultOffsetTop + startOffset + 1);
+          await emitScroll(window, defaultOffsetTop + startOffset + 1);
 
-          expect(componentObject.wrap().offsetLeft).toBe(10);
+          expect(toCssPixelNumber(componentObject.wrap().style.left)).toBe(10);
 
-          emitScroll(window, defaultOffsetTop + startOffset - 1);
+          await emitScroll(window, defaultOffsetTop + startOffset - 1);
           componentObject.offsetTo(componentObject.elementRef(), { top: startOffset, left: 100, width, height });
-          emitScroll(window, defaultOffsetTop + startOffset + 1);
+          await emitScroll(window, defaultOffsetTop + startOffset + 1);
 
-          expect(componentObject.wrap().offsetLeft).toBe(100);
-          setupInitialState();
-          discardPeriodicTasks();
-        }));
+          expect(toCssPixelNumber(componentObject.wrap().style.left)).toBe(100);
+        });
       });
 
       for (const event of handledEvents) {
-        it(`handles '${event.type}' event`, fakeAsync(() => {
-          setupInitialState();
-          emitScroll(window, defaultOffsetTop + startOffset + 1);
+        it(`handles '${event.type}' event`, async () => {
+          await setupInitialState();
+          await emitScroll(window, defaultOffsetTop + startOffset + 1);
 
           expect(componentObject.wrap().offsetTop).toBe(defaultOffsetTop);
-          setupInitialState();
-          discardPeriodicTasks();
-        }));
+        });
       }
     });
-
-    it('shoule be re-adjust width when trigger resize', fakeAsync(() => {
-      setupInitialState();
-      emitScroll(window, defaultOffsetTop + startOffset - 1);
-      componentObject.emitEvent(window, new Event('resize'));
-      tick(20);
-      fixture.detectChanges();
-      setupInitialState();
-      discardPeriodicTasks();
-    }));
   });
 
   describe('resize', () => {
-    it('should be reset placeholder size', fakeAsync(() => {
+    it('should be reset placeholder size', async () => {
       const offsetTop = 150;
-      context.newOffset = offsetTop;
-      setupInitialState({ offsetTop: offsetTop + 1 });
-      const offsetWidthSpy = spyOnProperty(componentObject.elementRef(), 'offsetWidth', 'get');
-      emitScroll(window, 2);
+      context.newOffset.set(offsetTop);
+      await setupInitialState({ offsetTop: offsetTop + 1 });
+      const offsetWidthSpy = vi.spyOn(componentObject.elementRef(), 'offsetWidth', 'get');
+      await emitScroll(window, 2);
       expect(componentObject.elementRef().style.width).toBe(`${width}px`);
       componentObject.offsetYTo(componentObject.elementRef(), offsetTop + 2);
-      tick(20);
-      fixture.detectChanges();
-      offsetWidthSpy.and.returnValue(100);
+      await sleep(20);
+
+      offsetWidthSpy.mockReturnValue(100);
       componentObject.emitEvent(window, new Event('resize'));
-      tick(20);
-      fixture.detectChanges();
+      await sleep(20);
 
-      expect(componentObject.elementRef().style.width).toBe(`100px`);
-      setupInitialState();
-      discardPeriodicTasks();
-    }));
+      expect(componentObject.elementRef().style.width).toBe('100px');
+    });
 
-    it('should be reset placeholder size when container becomes greater', fakeAsync(() => {
+    it('should be reset placeholder size when container becomes greater', async () => {
       const target = componentObject.target();
-      const clientHeightSpy = spyOnProperty(target, 'clientHeight', 'get');
-      context.fakeTarget = target;
-      context.newOffsetBottom = 10;
-      clientHeightSpy.and.returnValue(10);
-      setupInitialState();
-      emitScroll(target, 11);
-      clientHeightSpy.and.returnValue(100);
+      const clientHeightSpy = vi.spyOn(target, 'clientHeight', 'get');
+      context.fakeTarget.set(target);
+      context.newOffsetBottom.set(10);
+      clientHeightSpy.mockReturnValue(10);
+      await setupInitialState();
+      await emitScroll(target, 11);
+      clientHeightSpy.mockReturnValue(100);
       componentObject.emitEvent(target, new Event('resize'));
-      tick(20);
-      fixture.detectChanges();
+      await sleep(20);
+
       expect(componentObject.elementRef().style.width).toBe(`${componentObject.elementRef().offsetWidth}px`);
-      setupInitialState();
-      discardPeriodicTasks();
-    }));
+    });
   });
 
   describe('[nzOffsetTop]', () => {
     const offsetTop = 150;
 
     beforeEach(() => {
-      context.newOffset = offsetTop;
+      context.newOffset.set(offsetTop);
     });
 
     describe('when scrolled within top offset', () => {
-      it('scrolls with the content', fakeAsync(() => {
-        setupInitialState({ offsetTop: offsetTop + 1 });
-        emitScroll(window, 0);
+      it('scrolls with the content', async () => {
+        await setupInitialState({ offsetTop: offsetTop + 1 });
+        await emitScroll(window, 0);
 
         expect(componentObject.wrap().offsetTop !== offsetTop).toBe(true);
-
-        discardPeriodicTasks();
-      }));
+      });
     });
 
     describe('when scrolled below the top offset', () => {
-      it('sticks to the top offset', fakeAsync(() => {
-        setupInitialState({ offsetTop: offsetTop + 1 });
-        emitScroll(window, 2);
+      it('sticks to the top offset', async () => {
+        await setupInitialState({ offsetTop: offsetTop + 1 });
+        await emitScroll(window, 2);
 
-        expect(componentObject.wrap().offsetTop).toBe(offsetTop);
-        emitScroll(window, 0);
-
-        discardPeriodicTasks();
-      }));
+        expect(toCssPixelNumber(componentObject.wrap().style.top)).toBe(offsetTop);
+      });
     });
 
-    it('recreate bug https://github.com/NG-ZORRO/ng-zorro-antd/issues/868', fakeAsync(() => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      context.newOffset = offsetTop.toString() as any;
-      setupInitialState({ offsetTop: offsetTop + 1 });
-      emitScroll(window, 2);
+    it('recreate bug https://github.com/NG-ZORRO/ng-zorro-antd/issues/868', async () => {
+      context.newOffset.set(offsetTop.toString() as NzSafeAny);
+      await setupInitialState({ offsetTop: offsetTop + 1 });
+      await emitScroll(window, 2);
 
-      expect(componentObject.wrap().offsetTop).toBe(offsetTop);
-      emitScroll(window, 0);
-
-      discardPeriodicTasks();
-    }));
+      expect(toCssPixelNumber(componentObject.wrap().style.top)).toBe(offsetTop);
+    });
   });
 
   describe('[nzOffsetBottom]', () => {
@@ -238,48 +193,39 @@ describe('affix', () => {
     describe('with window', () => {
       beforeEach(() => {
         target = window;
-        context.fakeTarget = target;
-        context.newOffsetBottom = 10;
+        context.fakeTarget.set(target);
+        context.newOffsetBottom.set(10);
       });
-      describe('when scrolled below the bottom offset', () => {
-        it('sticks to the bottom offset', fakeAsync(() => {
-          setupInitialState();
-          emitScroll(target, 5000);
-          const wrapEl = componentObject.wrap();
-          expect(+wrapEl.style.bottom!.replace('px', '')).toBe(0);
-          emitScroll(window, 0);
 
-          setupInitialState();
-        }));
+      describe('when scrolled below the bottom offset', () => {
+        it('should stick to the bottom with the specified offset', async () => {
+          await setupInitialState({ offsetTop: 5000 });
+          expect(toCssPixelNumber(componentObject.wrap().style.bottom)).toBe(10);
+        });
       });
     });
 
     describe('with target', () => {
       beforeEach(() => {
         target = componentObject.target();
-        context.fakeTarget = target;
-        context.newOffsetBottom = offsetTop;
+        context.fakeTarget.set(target);
+        context.newOffsetBottom.set(offsetTop);
       });
+
       describe('when scrolled within bottom offset', () => {
-        it('scrolls with the content', fakeAsync(() => {
-          setupInitialState();
-          emitScroll(target, 0);
-          const wrapEl = componentObject.wrap();
-          expect(+wrapEl.style.bottom!.replace('px', '')).toBeGreaterThan(0);
-          setupInitialState();
-          discardPeriodicTasks();
-        }));
+        it('should scroll with the content', async () => {
+          await setupInitialState();
+          await emitScroll(target, 0);
+          expect(toCssPixelNumber(componentObject.wrap().style.bottom)).toBeGreaterThan(0);
+        });
       });
 
       describe('when scrolled below the bottom offset', () => {
-        it('sticks to the bottom offset', fakeAsync(() => {
-          setupInitialState();
-          emitScroll(target, 5000);
-          const wrapEl = componentObject.wrap();
-          expect(+wrapEl.style.bottom!.replace('px', '')).toBe(0);
-          setupInitialState();
-          discardPeriodicTasks();
-        }));
+        it('should stick to the bottom offset', async () => {
+          await setupInitialState();
+          await emitScroll(target, 5000);
+          expect(toCssPixelNumber(componentObject.wrap().style.bottom)).toBe(0);
+        });
       });
     });
   });
@@ -287,96 +233,94 @@ describe('affix', () => {
   describe('[nzTarget]', () => {
     let target: HTMLElement;
 
-    beforeEach(() => {
+    beforeEach(async () => {
       target = componentObject.target();
-      context.fakeTarget = target;
+      vi.spyOn(target, 'clientHeight', 'get').mockReturnValue(1000);
+      context.fakeTarget.set(target);
+      context.newOffset.set(defaultOffsetTop);
+      fixture.detectChanges();
+      await fixture.whenStable();
     });
 
     describe('when window is scrolled', () => {
-      it('scrolls with the content', fakeAsync(() => {
-        setupInitialState();
-        emitScroll(window, defaultOffsetTop + startOffset + 1);
+      it('scrolls with the content', async () => {
+        await setupInitialState();
+        componentObject.emitScroll(target, defaultOffsetTop - 1);
+        component.updatePosition(scrollEvent);
+        componentObject.emitScroll(window, defaultOffsetTop + startOffset + 1);
+        component.updatePosition(scrollEvent);
 
-        expect(componentObject.elementRef().offsetTop !== defaultOffsetTop).toBe(true);
-        emitScroll(window, 0);
-        discardPeriodicTasks();
-      }));
+        expect(componentObject.wrap().classList).not.toContain('ant-affix');
+      });
     });
 
     describe('when custom target is scrolled within top offset', () => {
-      it('scrolls with the content', fakeAsync(() => {
-        setupInitialState();
-        emitScroll(target, defaultOffsetTop + startOffset - 1);
+      it('scrolls with the content', async () => {
+        await setupInitialState();
+        componentObject.emitScroll(target, defaultOffsetTop - 1);
+        component.updatePosition(scrollEvent);
 
-        expect(componentObject.elementRef().offsetTop !== defaultOffsetTop).toBe(true);
-        setupInitialState();
-        discardPeriodicTasks();
-      }));
+        expect(componentObject.wrap().classList).not.toContain('ant-affix');
+      });
     });
 
     describe('when custom target is scrolled below the top offset', () => {
-      it('sticks to the top offset', fakeAsync(() => {
-        setupInitialState();
-        emitScroll(target, defaultOffsetTop + startOffset + 1);
+      it('sticks to the top offset', async () => {
+        await setupInitialState();
+        await emitScroll(target, defaultOffsetTop + startOffset + 1);
 
-        expect(componentObject.elementRef().offsetTop !== defaultOffsetTop).toBe(true);
-        setupInitialState();
-        discardPeriodicTasks();
-      }));
+        expect(componentObject.wrap().classList).toContain('ant-affix');
+        expect(componentObject.wrap().style.position).toBe('fixed');
+      });
     });
 
-    it('should be a string value', fakeAsync(() => {
-      spyOn(component, 'updatePosition');
+    it('should be a string value', async () => {
+      vi.spyOn(component, 'updatePosition');
       expect(component.updatePosition).not.toHaveBeenCalled();
-      fixture.detectChanges();
-      context.fakeTarget = '#target';
-      fixture.detectChanges();
-      tick();
+
+      context.fakeTarget.set('#target');
+      await fixture.whenStable();
+
       expect(component.updatePosition).toHaveBeenCalled();
-      discardPeriodicTasks();
-    }));
+    });
   });
 
   describe('(nzChange)', () => {
     let changeValue: boolean;
     beforeEach(() => {
-      component.nzChange.subscribe((returnValue: boolean) => {
+      component.nzChange.subscribe(returnValue => {
         changeValue = returnValue;
       });
     });
 
-    it(`emit true when is affixed`, fakeAsync(() => {
-      setupInitialState();
-      emitScroll(window, defaultOffsetTop + startOffset + 1);
+    it(`emit true when is affixed`, async () => {
+      await setupInitialState();
+      await emitScroll(window, defaultOffsetTop + startOffset + 1);
 
       expect(changeValue).toBe(true);
+    });
 
-      discardPeriodicTasks();
-    }));
-
-    it(`emit false when is unaffixed`, fakeAsync(() => {
-      setupInitialState();
-      emitScroll(window, defaultOffsetTop + startOffset + 1);
-      emitScroll(window, defaultOffsetTop + startOffset - 1);
+    it(`emit false when isn't affixed`, async () => {
+      await setupInitialState();
+      await emitScroll(window, defaultOffsetTop + startOffset + 1);
+      await emitScroll(window, defaultOffsetTop + startOffset - 1);
 
       expect(changeValue).toBe(false);
-      setupInitialState();
-      discardPeriodicTasks();
-    }));
+    });
   });
 
   class NzAffixPageObject {
-    offsets: { [key: string]: Offset };
-    scrolls: { [key: string]: Scroll };
+    offsets: Record<string, Offset>;
+    scrolls: Record<string, Scroll>;
 
     constructor() {
-      spyOn(component, 'getOffset').and.callFake(this.getOffset.bind(this));
-      spyOn(scrollService, 'getScroll').and.callFake(this.getScroll.bind(this));
+      vi.spyOn(component, 'getOffset').mockImplementation(this.getOffset.bind(this));
+      vi.spyOn(scrollService, 'getScroll').mockImplementation(this.getScroll.bind(this));
       this.offsets = { undefined: { top: 10, left: 0, height: 0, width: 0 } };
       this.scrolls = { undefined: { top: 10, left: 0 } };
     }
 
-    getScroll(el?: Element | Window, top: boolean = true): number {
+    getScroll(el?: Element | Window | Document | null, top: boolean = true): number {
       const ret = this.scrolls[this.getKey(el)] || { top: 0, left: 0 };
       return top ? ret.top : ret.left;
     }
@@ -412,10 +356,6 @@ describe('affix', () => {
       });
     }
 
-    content(): HTMLElement {
-      return debugElement.query(By.css('#content')).nativeElement;
-    }
-
     elementRef(): HTMLElement {
       return debugElement.query(By.css('nz-affix')).nativeElement;
     }
@@ -428,118 +368,39 @@ describe('affix', () => {
       return debugElement.query(By.css('#target')).nativeElement;
     }
 
-    private getKey(el?: Element | Window): string {
+    private getKey(el?: Element | Window | Document | null): string {
       let key: string;
-      if (el instanceof Window) {
+      if (el instanceof Window || !(el instanceof Element)) {
         key = 'window';
       } else {
-        key = (el && el.id) || 'window';
+        key = el.id || 'window';
       }
 
       return key;
     }
   }
 
-  function setupInitialState(options: { offsetTop?: number } = {}): void {
+  async function setupInitialState(options: { offsetTop?: number } = {}): Promise<void> {
+    fixture.detectChanges();
     componentObject.offsetYTo(componentObject.elementRef(), options.offsetTop || startOffset);
-    tick(20);
-    fixture.detectChanges();
+    await sleep(20);
+    await fixture.whenStable();
     componentObject.emitScroll(window, 0);
-    tick(20);
-    fixture.detectChanges();
+    await sleep(20);
+    await fixture.whenStable();
   }
 
-  function emitScroll(el: Element | Window, offset: number): void {
+  async function emitScroll(el: Element | Window, offset: number): Promise<void> {
     componentObject.emitScroll(el, offset);
-    tick(20);
-    fixture.detectChanges();
+    await sleep(20);
+    await fixture.whenStable();
   }
 });
 
-describe('affix-extra', () => {
-  let fixture: ComponentFixture<TestAffixComponent>;
-  let context: TestAffixComponent;
-  let dl: DebugElement;
-
-  beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [NzAffixModule],
-      declarations: [TestAffixComponent]
-    }).compileComponents();
-    fixture = TestBed.createComponent(TestAffixComponent);
-    context = fixture.componentInstance;
-    dl = fixture.debugElement;
-  });
-  it('#getOffset', () => {
-    const ret = fixture.componentInstance.nzAffixComponent.getOffset(
-      fixture.debugElement.query(By.css('#affix')).nativeElement,
-      window
-    );
-    expect(ret).not.toBeUndefined();
-  });
-  it('with window when scrolled below the bottom offset', fakeAsync(() => {
-    const value = 10;
-    context.newOffsetBottom = value;
-    context.fakeTarget = window;
-    fixture.detectChanges();
-    const el = dl.query(By.css('nz-affix')).nativeElement as HTMLElement;
-    spyOn(el, 'getBoundingClientRect').and.returnValue({
-      top: 1000,
-      left: 5,
-      width: 200,
-      height: 20
-    } as DOMRect);
-    window.dispatchEvent(new Event('scroll'));
-    tick(30);
-    fixture.detectChanges();
-    window.dispatchEvent(new Event('scroll'));
-    tick(30);
-    fixture.detectChanges();
-    const ret = +(el.querySelector('.ant-affix') as HTMLElement).style.bottom!.replace('px', '');
-    expect(ret).toBe(value);
-  }));
-});
-
-describe('affix RTL', () => {
-  let fixture: ComponentFixture<TestAffixRtlComponent>;
-  let context: TestAffixRtlComponent;
-  let dl: DebugElement;
-
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        imports: [BidiModule, NzAffixModule],
-        declarations: [TestAffixRtlComponent]
-      }).compileComponents();
-      fixture = TestBed.createComponent(TestAffixRtlComponent);
-      context = fixture.componentInstance;
-      dl = fixture.debugElement;
-    })
-  );
-  it('should className correct on dir change', fakeAsync(() => {
-    const value = 10;
-    context.newOffsetBottom = value;
-    context.fakeTarget = window;
-    fixture.detectChanges();
-    const el = dl.query(By.css('nz-affix')).nativeElement as HTMLElement;
-    spyOn(el, 'getBoundingClientRect').and.returnValue({
-      top: 1000,
-      left: 5,
-      width: 200,
-      height: 20
-    } as DOMRect);
-    window.dispatchEvent(new Event('scroll'));
-    tick(30);
-    fixture.detectChanges();
-    window.dispatchEvent(new Event('scroll'));
-    tick(30);
-    fixture.detectChanges();
-    expect(el.querySelector('.ant-affix')?.classList).toContain('ant-affix-rtl');
-  }));
-});
 @Component({
+  imports: [NzAffixComponent],
   template: `
-    <nz-affix id="affix" [nzTarget]="fakeTarget" [nzOffsetTop]="newOffset" [nzOffsetBottom]="newOffsetBottom">
+    <nz-affix id="affix" [nzTarget]="fakeTarget()" [nzOffsetTop]="newOffset()" [nzOffsetBottom]="newOffsetBottom()">
       <button id="content">Affix Button</button>
     </nz-affix>
     <div id="target"></div>
@@ -547,27 +408,120 @@ describe('affix RTL', () => {
 })
 class TestAffixComponent {
   @ViewChild(NzAffixComponent, { static: true }) nzAffixComponent!: NzAffixComponent;
-  fakeTarget: string | Element | Window | null = null;
-  newOffset!: number;
-  newOffsetBottom!: number;
+  readonly fakeTarget = signal<string | Element | Window | undefined>(undefined);
+  readonly newOffset = signal<number | undefined>(undefined);
+  readonly newOffsetBottom = signal<number | undefined>(undefined);
 }
 
-@Component({
-  template: `
-    <div [dir]="direction">
-      <nz-affix id="affix" [nzTarget]="fakeTarget" [nzOffsetTop]="newOffset" [nzOffsetBottom]="newOffsetBottom">
-        <button id="content">Affix Button</button>
-      </nz-affix>
-      <div id="target"></div>
-    </div>
-  `
-})
-export class TestAffixRtlComponent {
-  @ViewChild(Dir) dir!: Dir;
-  direction = 'rtl';
+describe('NzAffixComponent', () => {
+  let component: NzAffixComponent;
+  let fixture: ComponentFixture<NzAffixComponent>;
+  let mockPlatform: Platform;
 
-  @ViewChild(NzAffixComponent, { static: true }) nzAffixComponent!: NzAffixComponent;
-  fakeTarget: string | Element | Window | null = null;
-  newOffset!: number;
-  newOffsetBottom!: number;
-}
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [
+        NzAffixComponent,
+        NzScrollService,
+        { provide: Renderer2, useValue: { setStyle: vi.fn(), addClass: vi.fn(), removeClass: vi.fn() } },
+        { provide: ElementRef, useValue: new ElementRef(document.createElement('div')) },
+        { provide: DOCUMENT, useValue: document },
+        { provide: Platform, useValue: { isBrowser: true } }
+      ]
+    });
+
+    fixture = TestBed.createComponent(NzAffixComponent);
+    component = fixture.componentInstance;
+    mockPlatform = TestBed.inject(Platform);
+  });
+
+  it('should register listeners if platform is browser', async () => {
+    vi.spyOn(component as NzSafeAny, 'removeListeners');
+
+    await fixture.whenStable();
+
+    expect(component['removeListeners']).toHaveBeenCalled();
+    expect(component['positionChangeSubscription']).toBeDefined();
+    expect(component['timeout']).toBeDefined();
+  });
+
+  it('should not register listeners if platform is not browser', async () => {
+    mockPlatform.isBrowser = false;
+
+    await fixture.whenStable();
+
+    expect(component['positionChangeSubscription']).toEqual(Subscription.EMPTY);
+  });
+
+  it('should remove listeners on destroy', () => {
+    vi.spyOn(component as NzSafeAny, 'removeListeners');
+    fixture.destroy();
+    expect(component['removeListeners']).toHaveBeenCalled();
+  });
+
+  it('should update position correctly', () => {
+    vi.spyOn(component as NzSafeAny, 'setAffixStyle');
+    vi.spyOn(component as NzSafeAny, 'setPlaceholderStyle');
+
+    const event = new Event('scroll');
+    component.updatePosition(event);
+
+    expect(component['setAffixStyle']).toHaveBeenCalled();
+    expect(component['setPlaceholderStyle']).toHaveBeenCalled();
+  });
+
+  it('should not perform position updates if platform is not browser', () => {
+    mockPlatform.isBrowser = false;
+    vi.spyOn(component as NzSafeAny, 'getOffset');
+
+    component.updatePosition(new Event('scroll'));
+
+    expect(component['getOffset']).not.toHaveBeenCalled();
+  });
+
+  it('should update affixStyle with new width on resize event', () => {
+    mockPlatform.isBrowser = true;
+    vi.spyOn(component, 'getOffset').mockReturnValue({
+      top: 0,
+      left: 0,
+      width: 100,
+      height: 50
+    });
+    vi.spyOn(component as NzSafeAny, 'setAffixStyle');
+    component.nzOffsetTop = 10;
+    component.nzOffsetBottom = 10;
+
+    component.updatePosition(new Event('resize'));
+
+    expect(component['setAffixStyle']).toHaveBeenCalledWith(expect.any(Event), expect.objectContaining({ width: 100 }));
+  });
+
+  it('should update the affix style with the correct width on resize', () => {
+    vi.spyOn(component as NzSafeAny, 'setAffixStyle');
+
+    const scrollTop = 40;
+    vi.spyOn(component['scrollSrv'], 'getScroll').mockReturnValue(scrollTop);
+    const elemOffset = { top: 200, left: 0, width: 200, height: 50 };
+    vi.spyOn(component, 'getOffset').mockReturnValue(elemOffset);
+    component['nzOffsetTop'] = 150;
+    component['nzOffsetBottom'] = 50;
+    vi.spyOn(component['placeholderNode'], 'offsetWidth', 'get').mockReturnValue(120);
+
+    component['affixStyle'] = {
+      position: 'fixed',
+      top: '10px',
+      left: '10px',
+      width: '100px'
+    };
+
+    const mockEvent = new Event('resize');
+    component.updatePosition(mockEvent);
+
+    expect(component['setAffixStyle']).toHaveBeenCalledWith(mockEvent, {
+      position: 'fixed',
+      top: '10px',
+      left: '10px',
+      width: 120
+    });
+  });
+});

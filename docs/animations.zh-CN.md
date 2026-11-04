@@ -1,44 +1,43 @@
 ---
 order: 8
 title: 动画开关
+tag: updated
 ---
+
+> 从 v21 版本开始，NG-ZORRO 完全使用 [native animation](https://angular.cn/guide/animations) 实现动画效果，你可以按需移除 `@angular/animations` 依赖。
 
 NG-ZORRO 允许开发者关闭动画效果，您可以通过添加对应指令或者配置来设置动画的开关，也可以通过全局配置关闭所有动画。
 
-### 在全局关闭
+### 在全局或组件中关闭
 
-在模块中使用 `NoopAnimationsModule` 替换 `BrowserAnimationsModule`。
+`provideNoopAnimations` 已被标记为废弃，你可以通过 `provideNzNoAnimation` 来关闭动画。
 
 ```ts
-@NgModule({
-  imports: [
-   ...
-   NoopAnimationsModule
+import { provideNzNoAnimation } from 'ng-zorro-antd/core/animation';
+
+// 在全局中关闭动画
+export const appConfig: ApplicationConfig = {
+  providers: [
+    // ...
+    provideNzNoAnimation()
+  ]
+};
+
+// 在组件中关闭动画
+@Component({
+  providers: [
+    // ...
+    provideNzNoAnimation()
   ]
 })
 ```
 
 ### 在模版中关闭
 
-引入 `NzNoAnimationModule` 模块。
+引入 `NzNoAnimationDirective` 指令，在期望关闭动画的组件上添加 `nzNoAnimation` 指令。
 
-```ts
-import { NzNoAnimationModule } from 'ng-zorro-antd/core/no-animation';
-
-@NgModule({
-  imports: [
-  ...
-   NzNoAnimationModule
-  ]
-})
-```
-
-在想关闭动画的组件上添加 `nzNoAnimation` 指令。
-
-```HTML
-<nz-modal nzNoAnimation></nz-modal>
-<ul nz-menu nzNoAnimation></ul>
-<nz-form-explain [nzNoAnimation]="true"></nz-form-explain>
+```html
+<nz-modal nzNoAnimation></nz-modal> <ul nz-menu nzNoAnimation></ul>
 ```
 
 ### 在服务中关闭
@@ -49,8 +48,8 @@ import { NzNoAnimationModule } from 'ng-zorro-antd/core/no-animation';
 
 ```ts
 {
-    ...,
-    nzNoAnimation: true
+  // ...
+  nzNoAnimation: true;
 }
 ```
 
@@ -58,26 +57,20 @@ import { NzNoAnimationModule } from 'ng-zorro-antd/core/no-animation';
 
 ```ts
 {
-   ...,
-   nzAnimate: false
+  // ...
+  nzAnimate: false;
 }
 ```
 
 ### 关闭波浪效果
 
-部分组件（如：Button）为了支持波纹效果，使用了动态样式，因此无法直接使用样式覆盖。但是你可以通过设置提供商 `NZ_WAVE_GLOBAL_CONFIG`
-或者使用 `NoopAnimationsModule` 来关闭波浪效果。
+部分组件（如：Button）为了支持波纹效果，使用了动态样式，因此无法直接使用样式覆盖。
+你可以通过 `provideNzWave` 或者使用 `provideNzNoAnimation` 来关闭波浪效果。
 
 ```ts
-@NgModule({
-  ...
-  providers   : [
-      ...,
-      {
-        provide: NZ_WAVE_GLOBAL_CONFIG, useValue: {
-          disabled: true
-        }
-      }
-   ]
-})
+import { provideNzWave } from 'ng-zorro-antd/core/wave';
+
+export const appConfig: ApplicationConfig = {
+  providers: [provideNzWave({ disabled: true })]
+};
 ```

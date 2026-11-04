@@ -1,7 +1,10 @@
 import { Component } from '@angular/core';
 
+import { NzGridModule } from 'ng-zorro-antd/grid';
+
 @Component({
   selector: 'nz-demo-grid-flex-order',
+  imports: [NzGridModule],
   template: `
     <div>
       <div nz-row>
@@ -12,12 +15,10 @@ import { Component } from '@angular/core';
       </div>
     </div>
   `,
-  styles: [
-    `
-      [nz-row] {
-        background-color: rgba(128, 128, 128, 0.08);
-      }
-    `
-  ]
+  styles: `
+    [nz-row] {
+      background-color: rgba(128, 128, 128, 0.08);
+    }
+  `
 })
 export class NzDemoGridFlexOrderComponent {}

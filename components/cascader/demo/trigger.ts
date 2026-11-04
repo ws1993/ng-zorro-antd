@@ -1,8 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
-import { NzCascaderOption } from 'ng-zorro-antd/cascader';
+import { NzCascaderModule, NzCascaderOption } from 'ng-zorro-antd/cascader';
 
-const options = [
+const options: NzCascaderOption[] = [
   {
     value: 'zhejiang',
     label: 'Zhejiang',
@@ -46,13 +47,14 @@ const options = [
 
 @Component({
   selector: 'nz-demo-cascader-trigger',
+  imports: [FormsModule, NzCascaderModule],
   template: `
-    {{ text }}
+    {{ text() }}
     <nz-cascader
       [nzShowInput]="false"
       [nzOptions]="nzOptions"
-      [(ngModel)]="values"
-      (ngModelChange)="onChanges($event)"
+      [ngModel]="values()"
+      (ngModelChange)="values.set($event); onChanges($event)"
       (nzSelectionChange)="onSelectionChange($event)"
     >
       <a href="javascript: void(0)">Change city</a>
@@ -60,15 +62,15 @@ const options = [
   `
 })
 export class NzDemoCascaderTriggerComponent {
-  nzOptions: NzCascaderOption[] = options;
-  values: string[] | null = null;
-  text = 'Unselect';
+  readonly nzOptions: NzCascaderOption[] = options;
+  readonly values = signal<string[] | null>(null);
+  readonly text = signal('Unselect');
 
   onChanges(values: string[]): void {
-    console.log(values, this.values);
+    console.log(values, this.values());
   }
 
   onSelectionChange(selectedOptions: NzCascaderOption[]): void {
-    this.text = selectedOptions.map(o => o.label).join(', ');
+    this.text.set(selectedOptions.map(o => o.label).join(', '));
   }
 }

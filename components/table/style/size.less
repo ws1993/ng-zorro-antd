@@ -1,5 +1,3 @@
-@import './index';
-
 .table-size(@size, @padding-vertical, @padding-horizontal, @font-size) {
   .@{table-prefix-cls}.@{table-prefix-cls}-@{size} {
     font-size: @font-size;
@@ -14,7 +12,7 @@
     }
 
     .@{table-prefix-cls}-filter-trigger {
-      margin-right: -(@padding-horizontal / 2);
+      margin-inline-end: -(@padding-horizontal / 2);
     }
 
     .@{table-prefix-cls}-expanded-row-fixed {
@@ -25,10 +23,15 @@
       // ========================= Nest Table ===========================
       .@{table-prefix-cls}-wrapper:only-child {
         .@{table-prefix-cls} {
-          margin: -@padding-vertical -@padding-horizontal -@padding-vertical (@padding-horizontal +
-                ceil((@font-size-sm * 1.4)));
+          margin: -@padding-vertical -@padding-horizontal -@padding-vertical (@table-expand-column-width -
+                @padding-horizontal);
         }
       }
+    }
+
+    // https://github.com/ant-design/ant-design/issues/35167
+    .@{table-prefix-cls}-selection-column {
+      padding-inline-start: (@padding-horizontal / 4);
     }
   }
 }
@@ -42,13 +45,3 @@
 // =                            Small                             =
 // ================================================================
 .table-size(~'small', @table-padding-vertical-sm, @table-padding-horizontal-sm, @table-font-size-sm);
-
-.@{table-prefix-cls}-small {
-  .@{table-prefix-cls}-thead > tr > th {
-    background-color: @table-header-bg-sm;
-  }
-  .@{table-prefix-cls}-selection-column {
-    width: 46px;
-    min-width: 46px;
-  }
-}

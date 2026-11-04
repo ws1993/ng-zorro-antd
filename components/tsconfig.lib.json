@@ -1,17 +1,14 @@
 {
-  "extends": "../tsconfig.json",
+  "extends": "./tsconfig.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "outDir": "../release",
     "alwaysStrict": true,
     "declaration": true,
     "inlineSources": true,
     "declarationMap": true,
-    "lib": ["es2018", "dom"],
     "sourceMap": true,
     "strictFunctionTypes": true,
-    "stripInternal": true,
-    "target": "es2015"
+    "stripInternal": true
   },
   "angularCompilerOptions": {
     "strictInputAccessModifiers": true,

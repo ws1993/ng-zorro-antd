@@ -3,18 +3,15 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { ChangeDetectionStrategy, Component, ElementRef, Renderer2, ViewEncapsulation } from '@angular/core';
+import { Component, ViewEncapsulation } from '@angular/core';
 
 @Component({
   selector: 'nz-form-split',
   exportAs: 'nzFormSplit',
-  preserveWhitespaces: false,
   encapsulation: ViewEncapsulation.None,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: ` <ng-content></ng-content> `
-})
-export class NzFormSplitComponent {
-  constructor(public elementRef: ElementRef, private renderer: Renderer2) {
-    this.renderer.addClass(this.elementRef.nativeElement, 'ant-form-split');
+  template: `<ng-content />`,
+  host: {
+    class: 'ant-form-split'
   }
-}
+})
+export class NzFormSplitComponent {}

@@ -1,48 +1,55 @@
-import { Component, ElementRef, ViewChild } from '@angular/core';
+import { Component, ElementRef, ViewChild, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+import { NzNoAnimationDirective } from 'ng-zorro-antd/core/animation';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzTagModule } from 'ng-zorro-antd/tag';
 
 @Component({
   selector: 'nz-demo-tag-control',
+  imports: [FormsModule, NzIconModule, NzInputModule, NzTagModule, NzNoAnimationDirective],
   template: `
-    <nz-tag
-      *ngFor="let tag of tags; let i = index"
-      [nzMode]="i === 0 ? 'default' : 'closeable'"
-      (nzOnClose)="handleClose(tag)"
-    >
-      {{ sliceTagName(tag) }}
-    </nz-tag>
-    <nz-tag *ngIf="!inputVisible" class="editable-tag" nzNoAnimation (click)="showInput()">
-      <i nz-icon nzType="plus"></i>
-      New Tag
-    </nz-tag>
-    <input
-      #inputElement
-      nz-input
-      nzSize="small"
-      *ngIf="inputVisible"
-      type="text"
-      [(ngModel)]="inputValue"
-      style="width: 78px;"
-      (blur)="handleInputConfirm()"
-      (keydown.enter)="handleInputConfirm()"
-    />
+    @for (tag of tags(); track tag) {
+      <nz-tag [nzMode]="$first ? 'default' : 'closeable'" (nzOnClose)="handleClose(tag)">
+        {{ sliceTagName(tag) }}
+      </nz-tag>
+    }
+
+    @if (!inputVisible()) {
+      <nz-tag class="editable-tag" nzNoAnimation (click)="showInput()">
+        <nz-icon nzType="plus" />
+        New Tag
+      </nz-tag>
+    } @else {
+      <input
+        #inputElement
+        nz-input
+        nzSize="small"
+        type="text"
+        [ngModel]="inputValue()"
+        (ngModelChange)="inputValue.set($event)"
+        style="width: 78px;"
+        (blur)="handleInputConfirm()"
+        (keydown.enter)="handleInputConfirm()"
+      />
+    }
   `,
-  styles: [
-    `
-      .editable-tag {
-        background: rgb(255, 255, 255);
-        border-style: dashed;
-      }
-    `
-  ]
+  styles: `
+    .editable-tag {
+      background: rgb(255, 255, 255);
+      border-style: dashed;
+    }
+  `
 })
 export class NzDemoTagControlComponent {
-  tags = ['Unremovable', 'Tag 2', 'Tag 3'];
-  inputVisible = false;
-  inputValue = '';
+  readonly tags = signal(['Unremovable', 'Tag 2', 'Tag 3']);
+  readonly inputVisible = signal(false);
+  readonly inputValue = signal('');
   @ViewChild('inputElement', { static: false }) inputElement?: ElementRef;
 
-  handleClose(removedTag: {}): void {
-    this.tags = this.tags.filter(tag => tag !== removedTag);
+  handleClose(removedTag: string): void {
+    this.tags.update(tags => tags.filter(tag => tag !== removedTag));
   }
 
   sliceTagName(tag: string): string {
@@ -51,17 +58,18 @@ export class NzDemoTagControlComponent {
   }
 
   showInput(): void {
-    this.inputVisible = true;
+    this.inputVisible.set(true);
     setTimeout(() => {
       this.inputElement?.nativeElement.focus();
     }, 10);
   }
 
   handleInputConfirm(): void {
-    if (this.inputValue && this.tags.indexOf(this.inputValue) === -1) {
-      this.tags = [...this.tags, this.inputValue];
+    const inputValue = this.inputValue();
+    if (inputValue && this.tags().indexOf(inputValue) === -1) {
+      this.tags.update(tags => [...tags, inputValue]);
     }
-    this.inputValue = '';
-    this.inputVisible = false;
+    this.inputValue.set('');
+    this.inputVisible.set(false);
   }
 }

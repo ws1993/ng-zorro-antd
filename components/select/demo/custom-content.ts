@@ -1,31 +1,31 @@
 import { Component } from '@angular/core';
 
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+
 @Component({
   selector: 'nz-demo-select-custom-content',
+  imports: [NzIconModule, NzSelectModule],
   template: `
-    <nz-select nzShowSearch nzAllowClear nzPlaceHolder="Select OS" [(ngModel)]="selectedOS">
+    <nz-select nzShowSearch nzAllowClear nzPlaceHolder="Select OS">
       <nz-option nzCustomContent nzLabel="Windows" nzValue="windows">
-        <i nz-icon nzType="windows"></i>
+        <nz-icon nzType="windows" />
         Windows
       </nz-option>
       <nz-option nzCustomContent nzLabel="Mac" nzValue="mac">
-        <i nz-icon nzType="apple"></i>
+        <nz-icon nzType="apple" />
         Mac
       </nz-option>
       <nz-option nzCustomContent nzLabel="Android" nzValue="android">
-        <i nz-icon nzType="android"></i>
+        <nz-icon nzType="android" />
         Android
       </nz-option>
     </nz-select>
   `,
-  styles: [
-    `
-      nz-select {
-        width: 200px;
-      }
-    `
-  ]
+  styles: `
+    nz-select {
+      width: 200px;
+    }
+  `
 })
-export class NzDemoSelectCustomContentComponent {
-  selectedOS = null;
-}
+export class NzDemoSelectCustomContentComponent {}

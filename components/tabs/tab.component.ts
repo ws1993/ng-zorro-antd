@@ -4,11 +4,9 @@
  */
 
 import {
-  ChangeDetectionStrategy,
   Component,
   ContentChild,
   EventEmitter,
-  Inject,
   InjectionToken,
   Input,
   OnChanges,
@@ -17,12 +15,13 @@ import {
   SimpleChanges,
   TemplateRef,
   ViewChild,
-  ViewEncapsulation
+  ViewEncapsulation,
+  booleanAttribute,
+  inject
 } from '@angular/core';
 import { Subject } from 'rxjs';
 
-import { BooleanInput, NzSafeAny } from 'ng-zorro-antd/core/types';
-import { InputBoolean } from 'ng-zorro-antd/core/util';
+import { NzSafeAny } from 'ng-zorro-antd/core/types';
 
 import { TabTemplateContext } from './interfaces';
 import { NzTabLinkDirective, NzTabLinkTemplateDirective } from './tab-link.directive';
@@ -31,31 +30,29 @@ import { NzTabDirective } from './tab.directive';
 /**
  * Used to provide a tab set to a tab without causing a circular dependency.
  */
-export const NZ_TAB_SET = new InjectionToken<NzSafeAny>('NZ_TAB_SET');
+export const NZ_TAB_SET = new InjectionToken<NzSafeAny>(typeof ngDevMode !== 'undefined' && ngDevMode ? 'nz-tabs' : '');
 
 @Component({
   selector: 'nz-tab',
   exportAs: 'nzTab',
-  preserveWhitespaces: false,
   encapsulation: ViewEncapsulation.None,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ng-template #tabLinkTemplate>
-      <ng-content select="[nz-tab-link]"></ng-content>
+      <ng-content select="[nz-tab-link]" />
     </ng-template>
-    <ng-template #contentTemplate><ng-content></ng-content></ng-template>
+    <ng-template #contentTemplate>
+      <ng-content />
+    </ng-template>
   `
 })
 export class NzTabComponent implements OnChanges, OnDestroy {
-  static ngAcceptInputType_nzDisabled: BooleanInput;
-  static ngAcceptInputType_nzClosable: BooleanInput;
-  static ngAcceptInputType_nzForceRender: BooleanInput;
+  readonly closestTabSet = inject(NZ_TAB_SET);
 
   @Input() nzTitle: string | TemplateRef<TabTemplateContext> = '';
-  @Input() @InputBoolean() nzClosable = false;
+  @Input({ transform: booleanAttribute }) nzClosable = false;
   @Input() nzCloseIcon: string | TemplateRef<NzSafeAny> = 'close';
-  @Input() @InputBoolean() nzDisabled = false;
-  @Input() @InputBoolean() nzForceRender = false;
+  @Input({ transform: booleanAttribute }) nzDisabled = false;
+  @Input({ transform: booleanAttribute }) nzForceRender = false;
   @Output() readonly nzSelect = new EventEmitter<void>();
   @Output() readonly nzDeselect = new EventEmitter<void>();
   @Output() readonly nzClick = new EventEmitter<void>();
@@ -64,11 +61,13 @@ export class NzTabComponent implements OnChanges, OnDestroy {
   @ContentChild(NzTabLinkTemplateDirective, { static: false }) nzTabLinkTemplateDirective!: NzTabLinkTemplateDirective;
   @ContentChild(NzTabDirective, { static: false, read: TemplateRef }) template: TemplateRef<void> | null = null;
   @ContentChild(NzTabLinkDirective, { static: false }) linkDirective!: NzTabLinkDirective;
-  @ViewChild('contentTemplate', { static: true }) contentTemplate!: TemplateRef<NzSafeAny>;
+  @ViewChild('contentTemplate', { static: true }) contentTemplate!: TemplateRef<void>;
 
-  isActive: boolean = false;
+  isActive = false;
+  hasBeenActive = false;
   position: number | null = null;
   origin: number | null = null;
+
   readonly stateChanges = new Subject<void>();
 
   get content(): TemplateRef<NzSafeAny> {
@@ -79,8 +78,6 @@ export class NzTabComponent implements OnChanges, OnDestroy {
     return this.nzTitle || this.nzTabLinkTemplateDirective?.templateRef;
   }
 
-  constructor(@Inject(NZ_TAB_SET) public closestTabSet: NzSafeAny) {}
-
   ngOnChanges(changes: SimpleChanges): void {
     const { nzTitle, nzDisabled, nzForceRender } = changes;
     if (nzTitle || nzDisabled || nzForceRender) {
@@ -90,5 +87,12 @@ export class NzTabComponent implements OnChanges, OnDestroy {
 
   ngOnDestroy(): void {
     this.stateChanges.complete();
+  }
+
+  setActive(active: boolean): void {
+    this.isActive = active;
+    if (active) {
+      this.hasBeenActive = true;
+    }
   }
 }

@@ -1,22 +1,32 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+import { NzRadioModule } from 'ng-zorro-antd/radio';
 
 @Component({
   selector: 'nz-demo-radio-radiogroup-options',
+  imports: [FormsModule, NzRadioModule],
   template: `
-    <nz-radio-group [(ngModel)]="radioValue">
-      <label nz-radio [nzValue]="o.value" *ngFor="let o of options">{{ o.label }}</label>
+    <nz-radio-group [(ngModel)]="value">
+      @for (o of options; track o.value) {
+        <label nz-radio [nzValue]="o.value">{{ o.label }}</label>
+      }
     </nz-radio-group>
-    <nz-radio-group [(ngModel)]="radioValue">
-      <label nz-radio [nzValue]="o.value" *ngFor="let o of options">{{ o.label }}</label>
+    <nz-radio-group [(ngModel)]="value">
+      @for (o of options; track o.value) {
+        <label nz-radio [nzValue]="o.value">{{ o.label }}</label>
+      }
     </nz-radio-group>
-    <nz-radio-group [(ngModel)]="radioValue">
-      <label nz-radio [nzValue]="o.value" *ngFor="let o of options">{{ o.label }}</label>
+    <nz-radio-group [(ngModel)]="value">
+      @for (o of options; track o.value) {
+        <label nz-radio [nzValue]="o.value">{{ o.label }}</label>
+      }
     </nz-radio-group>
   `
 })
 export class NzDemoRadioRadiogroupOptionsComponent {
-  radioValue = 'Apple';
-  options = [
+  readonly value = signal('Apple');
+  readonly options = [
     { label: 'Apple', value: 'Apple' },
     { label: 'Pear', value: 'Pear' },
     { label: 'Orange', value: 'Orange' }

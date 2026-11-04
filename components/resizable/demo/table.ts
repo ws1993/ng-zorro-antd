@@ -1,62 +1,60 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 
-import { NzResizeEvent } from 'ng-zorro-antd/resizable';
+import { NzResizableModule, NzResizeEvent } from 'ng-zorro-antd/resizable';
+import { NzTableModule } from 'ng-zorro-antd/table';
 
 @Component({
   selector: 'nz-demo-resizable-table',
+  imports: [NzResizableModule, NzTableModule],
   template: `
     <nz-table #basicTable [nzData]="listOfData">
       <thead>
         <tr>
-          <ng-container *ngFor="let col of cols">
-            <th
-              *ngIf="col.width"
-              nz-resizable
-              nzBounds="window"
-              nzPreview
-              [nzWidth]="col.width"
-              [nzMaxWidth]="256"
-              [nzMinWidth]="60"
-              (nzResizeEnd)="onResize($event, col.title)"
-            >
-              {{ col.title }}
-              <nz-resize-handle nzDirection="right">
-                <div class="resize-trigger"></div>
-              </nz-resize-handle>
-            </th>
-            <th *ngIf="!col.width">
-              {{ col.title }}
-            </th>
-          </ng-container>
+          @for (col of cols(); track col) {
+            @if (col.width) {
+              <th
+                nz-resizable
+                nzBounds="window"
+                nzPreview
+                [nzWidth]="col.width"
+                [nzMaxWidth]="256"
+                [nzMinWidth]="60"
+                (nzResizeEnd)="onResize($event, col.title)"
+              >
+                {{ col.title }}
+                <nz-resize-handle nzDirection="right">
+                  <div class="resize-trigger"></div>
+                </nz-resize-handle>
+              </th>
+            } @else {
+              <th>
+                {{ col.title }}
+              </th>
+            }
+          }
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let data of basicTable.data">
-          <td>{{ data.name }}</td>
-          <td>{{ data.age }}</td>
-          <td>{{ data.address }}</td>
-          <td>-</td>
-        </tr>
+        @for (data of basicTable.data; track data) {
+          <tr>
+            <td>{{ data.name }}</td>
+            <td>{{ data.age }}</td>
+            <td>{{ data.address }}</td>
+            <td>-</td>
+          </tr>
+        }
       </tbody>
     </nz-table>
   `,
-  styles: [
-    `
-      .resize-trigger {
-        width: 1px;
-        height: 30px;
-        margin-top: 12px;
-        background: #e8e8e8;
-      }
-      .nz-resizable-preview {
-        border-width: 0;
-        border-right-width: 1px;
-      }
-    `
-  ]
+  styles: `
+    .nz-resizable-preview {
+      border-width: 0;
+      border-right-width: 1px;
+    }
+  `
 })
 export class NzDemoResizableTableComponent {
-  cols = [
+  readonly cols = signal<Array<{ title: string; width?: string }>>([
     {
       title: 'Name',
       width: '180px'
@@ -72,9 +70,9 @@ export class NzDemoResizableTableComponent {
     {
       title: 'Actions'
     }
-  ];
+  ]);
 
-  listOfData = [
+  readonly listOfData = [
     {
       key: '1',
       name: 'John Brown',
@@ -94,7 +92,8 @@ export class NzDemoResizableTableComponent {
       address: 'Sidney No. 1 Lake Park'
     }
   ];
+
   onResize({ width }: NzResizeEvent, col: string): void {
-    this.cols = this.cols.map(e => (e.title === col ? { ...e, width: `${width}px` } : e));
+    this.cols.update(cols => cols.map(e => (e.title === col ? { ...e, width: `${width}px` } : e)));
   }
 }

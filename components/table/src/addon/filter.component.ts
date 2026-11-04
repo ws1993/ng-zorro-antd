@@ -3,29 +3,35 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
+import { NgTemplateOutlet } from '@angular/common';
 import {
-  ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
-  ElementRef,
+  DestroyRef,
   EventEmitter,
+  inject,
   Input,
   OnChanges,
-  OnDestroy,
   OnInit,
   Output,
   SimpleChanges,
   TemplateRef,
   ViewEncapsulation
 } from '@angular/core';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
 
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
 import { NzSafeAny } from 'ng-zorro-antd/core/types';
 import { arraysEqual } from 'ng-zorro-antd/core/util';
+import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
 import { NzI18nService, NzTableI18nInterface } from 'ng-zorro-antd/i18n';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzRadioComponent } from 'ng-zorro-antd/radio';
 
 import { NzTableFilterList } from '../table.types';
+import { NzFilterTriggerComponent } from './filter-trigger.component';
 
 interface NzThItemInterface {
   text: string;
@@ -35,35 +41,43 @@ interface NzThItemInterface {
 
 @Component({
   selector: 'nz-table-filter',
-  preserveWhitespaces: false,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   template: `
     <span class="ant-table-column-title">
-      <ng-template [ngTemplateOutlet]="contentTemplate"></ng-template>
+      <ng-template [ngTemplateOutlet]="contentTemplate" />
     </span>
-    <ng-container *ngIf="!customFilter; else extraTemplate">
+    @if (!customFilter) {
       <nz-filter-trigger
         [nzVisible]="isVisible"
         [nzActive]="isChecked"
         [nzDropdownMenu]="filterMenu"
         (nzVisibleChange)="onVisibleChange($event)"
       >
-        <i nz-icon nzType="filter" nzTheme="fill"></i>
+        <nz-icon nzType="filter" nzTheme="fill" />
       </nz-filter-trigger>
       <nz-dropdown-menu #filterMenu="nzDropdownMenu">
         <div class="ant-table-filter-dropdown">
           <ul nz-menu>
-            <li
-              nz-menu-item
-              [nzSelected]="f.checked"
-              *ngFor="let f of listOfParsedFilter; trackBy: trackByValue"
-              (click)="check(f)"
-            >
-              <label nz-radio *ngIf="!filterMultiple" [ngModel]="f.checked" (ngModelChange)="check(f)"></label>
-              <label nz-checkbox *ngIf="filterMultiple" [ngModel]="f.checked" (ngModelChange)="check(f)"></label>
-              <span>{{ f.text }}</span>
-            </li>
+            @for (f of listOfParsedFilter; track f.value) {
+              <li nz-menu-item [nzSelected]="f.checked" (click)="check(f)">
+                @if (!filterMultiple) {
+                  <label
+                    nz-radio
+                    [ngModel]="f.checked"
+                    [ngModelOptions]="{ standalone: true }"
+                    (ngModelChange)="check(f)"
+                  ></label>
+                } @else {
+                  <label
+                    nz-checkbox
+                    [ngModel]="f.checked"
+                    [ngModelOptions]="{ standalone: true }"
+                    (ngModelChange)="check(f)"
+                  ></label>
+                }
+                <span>{{ f.text }}</span>
+              </li>
+            }
           </ul>
           <div class="ant-table-filter-dropdown-btns">
             <button nz-button nzType="link" nzSize="small" (click)="reset()" [disabled]="!isChecked">
@@ -73,26 +87,38 @@ interface NzThItemInterface {
           </div>
         </div>
       </nz-dropdown-menu>
-    </ng-container>
-  `
+    } @else {
+      <ng-container [ngTemplateOutlet]="extraTemplate" />
+    }
+  `,
+  host: { class: 'ant-table-filter-column' },
+  imports: [
+    NgTemplateOutlet,
+    NzFilterTriggerComponent,
+    NzIconModule,
+    NzDropdownModule,
+    NzRadioComponent,
+    NzCheckboxModule,
+    FormsModule,
+    NzButtonModule
+  ]
 })
-export class NzTableFilterComponent implements OnChanges, OnDestroy, OnInit {
+export class NzTableFilterComponent implements OnChanges, OnInit {
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly i18n = inject(NzI18nService);
+  private readonly destroyRef = inject(DestroyRef);
+
   @Input() contentTemplate: TemplateRef<NzSafeAny> | null = null;
   @Input() customFilter = false;
   @Input() extraTemplate: TemplateRef<NzSafeAny> | null = null;
   @Input() filterMultiple = true;
   @Input() listOfFilter: NzTableFilterList = [];
   @Output() readonly filterChange = new EventEmitter<NzSafeAny[] | NzSafeAny>();
-  private destroy$ = new Subject();
   locale!: NzTableI18nInterface;
   isChecked = false;
   isVisible = false;
   listOfParsedFilter: NzThItemInterface[] = [];
   listOfChecked: NzSafeAny[] = [];
-
-  trackByValue(_: number, item: NzThItemInterface): NzSafeAny {
-    return item.value;
-  }
 
   check(filter: NzThItemInterface): void {
     if (this.filterMultiple) {
@@ -153,13 +179,8 @@ export class NzTableFilterComponent implements OnChanges, OnDestroy, OnInit {
     return listOfParsedFilter.some(item => item.checked);
   }
 
-  constructor(private cdr: ChangeDetectorRef, private i18n: NzI18nService, private elementRef: ElementRef) {
-    // TODO: move to host after View Engine deprecation
-    this.elementRef.nativeElement.classList.add('ant-table-filter-column');
-  }
-
   ngOnInit(): void {
-    this.i18n.localeChange.pipe(takeUntil(this.destroy$)).subscribe(() => {
+    this.i18n.localeChange.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.locale = this.i18n.getLocaleData('Table');
       this.cdr.markForCheck();
     });
@@ -171,9 +192,5 @@ export class NzTableFilterComponent implements OnChanges, OnDestroy, OnInit {
       this.listOfParsedFilter = this.parseListOfFilter(this.listOfFilter);
       this.isChecked = this.getCheckedStatus(this.listOfParsedFilter);
     }
-  }
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 }

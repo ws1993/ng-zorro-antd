@@ -1,8 +1,11 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
-import { NzCascaderOption } from 'ng-zorro-antd/cascader';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCascaderModule, NzCascaderOption } from 'ng-zorro-antd/cascader';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 
-const options = [
+const options: NzCascaderOption[] = [
   {
     value: 'zhejiang',
     label: 'Zhejiang',
@@ -46,9 +49,10 @@ const options = [
 
 @Component({
   selector: 'nz-demo-cascader-modal',
+  imports: [FormsModule, NzButtonModule, NzModalModule, NzCascaderModule],
   template: `
     <nz-modal
-      [(nzVisible)]="isVisible"
+      [nzVisible]="isVisible()"
       nzTitle="Please select"
       (nzOnCancel)="handleCancel($event)"
       (nzOnOk)="handleOk($event)"
@@ -56,34 +60,34 @@ const options = [
       <nz-cascader
         *nzModalContent
         [nzOptions]="nzOptions"
-        [(ngModel)]="values"
-        (ngModelChange)="onChanges($event)"
-      ></nz-cascader>
+        [ngModel]="values()"
+        (ngModelChange)="values.set($event); onChanges($event)"
+      />
     </nz-modal>
 
     <button nz-button (click)="open()">Open Dialog</button>
   `
 })
 export class NzDemoCascaderModalComponent {
-  nzOptions: NzCascaderOption[] = options;
-  values: string[] | null = null;
-  isVisible = false;
+  readonly nzOptions: NzCascaderOption[] = options;
+  readonly values = signal<string[] | null>(null);
+  readonly isVisible = signal(false);
 
   onChanges(values: string[]): void {
-    console.log(values, this.values);
+    console.log(values, this.values());
   }
 
   open(): void {
-    this.isVisible = true;
+    this.isVisible.set(true);
   }
 
   handleOk($event: MouseEvent): void {
-    console.log('Button ok clicked!', this.values, $event);
-    this.isVisible = false;
+    console.log('Button ok clicked!', this.values(), $event);
+    this.isVisible.set(false);
   }
 
   handleCancel($event: MouseEvent): void {
     console.log('Button cancel clicked!', $event);
-    this.isVisible = false;
+    this.isVisible.set(false);
   }
 }

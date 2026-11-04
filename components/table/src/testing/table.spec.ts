@@ -1,32 +1,20 @@
-import { BidiModule, Dir } from '@angular/cdk/bidi';
-import { Component, DebugElement, Injector, OnInit, ViewChild, ViewEncapsulation } from '@angular/core';
-import { ComponentFixture, fakeAsync, TestBed, tick, waitForAsync } from '@angular/core/testing';
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
+import { Component, DebugElement, OnInit, signal, ViewChild, ViewEncapsulation } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 
-import { NzI18nService } from 'ng-zorro-antd/i18n';
-import { NzTableComponent } from 'ng-zorro-antd/table';
+import { vi } from 'vitest';
 
-import en_US from '../../../i18n/languages/en_US';
-import { NzTableModule } from '../table.module';
+import { sleep, testDirectionality, updateNonSignalsInput } from 'ng-zorro-antd/core/testing';
+import { NzI18nService } from 'ng-zorro-antd/i18n';
+import en_US from 'ng-zorro-antd/i18n/languages/en_US';
+import { NzTableComponent, NzTableModule, NzTableSize } from 'ng-zorro-antd/table';
 
 describe('nz-table', () => {
-  let injector: Injector;
-
-  beforeEach(
-    waitForAsync(() => {
-      injector = TestBed.configureTestingModule({
-        imports: [BidiModule, NzTableModule],
-        declarations: [
-          NzTestTableBasicComponent,
-          NzTestTableScrollComponent,
-          NzTableSpecCrashComponent,
-          NzTestTableRtlComponent
-        ]
-      });
-      TestBed.compileComponents();
-    })
-  );
-
   describe('basic nz-table', () => {
     let fixture: ComponentFixture<NzTestTableBasicComponent>;
     let testComponent: NzTestTableBasicComponent;
@@ -38,202 +26,224 @@ describe('nz-table', () => {
       testComponent = fixture.debugElement.componentInstance;
       table = fixture.debugElement.query(By.directive(NzTableComponent));
     });
+
     it('should className correct', () => {
       fixture.detectChanges();
       expect(table.nativeElement.classList).toContain('ant-table-wrapper');
     });
+
     it('should pageIndex set work', () => {
       fixture.detectChanges();
-      expect(testComponent.pageIndex).toBe(1);
+      expect(testComponent.pageIndex()).toBe(1);
       expect(testComponent.pageIndexChange).toHaveBeenCalledTimes(0);
       expect(table.nativeElement.querySelector('.ant-pagination-item-active').innerText).toBe('1');
-      testComponent.pageIndex = 2;
+      testComponent.pageIndex.set(2);
       fixture.detectChanges();
       expect(testComponent.pageIndexChange).toHaveBeenCalledTimes(0);
       expect(table.nativeElement.querySelector('.ant-pagination-item-active').innerText).toBe('2');
     });
+
     it('should pageIndex click work', () => {
       fixture.detectChanges();
-      expect(testComponent.pageIndex).toBe(1);
+      expect(testComponent.pageIndex()).toBe(1);
       expect(testComponent.pageIndexChange).toHaveBeenCalledTimes(0);
       table.nativeElement.querySelectorAll('.ant-pagination-item')[1].click();
       fixture.detectChanges();
-      expect(testComponent.pageIndex).toBe(2);
+      expect(testComponent.pageIndex()).toBe(2);
       expect(testComponent.pageIndexChange).toHaveBeenCalledTimes(1);
       expect(table.nativeElement.querySelector('.ant-pagination-item-active').innerText).toBe('2');
     });
+
     it('should pageSize change work', () => {
       fixture.detectChanges();
-      expect(testComponent.pageSize).toBe(10);
+      expect(testComponent.pageSize()).toBe(10);
       expect(testComponent.pageSizeChange).toHaveBeenCalledTimes(0);
       expect(testComponent.pageIndexChange).toHaveBeenCalledTimes(0);
       expect(table.nativeElement.querySelectorAll('.ant-pagination-item').length).toBe(2);
-      testComponent.pageSize = 20;
+      testComponent.pageSize.set(20);
       fixture.detectChanges();
       expect(table.nativeElement.querySelectorAll('.ant-pagination-item').length).toBe(1);
       expect(testComponent.pageIndexChange).toHaveBeenCalledTimes(0);
       expect(testComponent.pageIndexChange).toHaveBeenCalledTimes(0);
     });
-    it('should pageSize change check pageIndex bounding', fakeAsync(() => {
+
+    it('should not crash when pageSize is zero', () => {
+      testComponent.pageSize.set(0);
       fixture.detectChanges();
-      expect(testComponent.pageSize).toBe(10);
-      expect(testComponent.pageIndex).toBe(1);
+      expect(table.nativeElement.querySelectorAll('.ant-table-tbody tr').length).toBe(20);
+      expect(table.nativeElement.querySelectorAll('.ant-pagination-item').length).toBe(1);
+    });
+
+    it('should pageSize change check pageIndex bounding', async () => {
+      fixture.detectChanges();
+      expect(testComponent.pageSize()).toBe(10);
+      expect(testComponent.pageIndex()).toBe(1);
       expect(testComponent.pageSizeChange).toHaveBeenCalledTimes(0);
       expect(testComponent.pageIndexChange).toHaveBeenCalledTimes(0);
-      testComponent.pageIndex = 2;
+      testComponent.pageIndex.set(2);
       fixture.detectChanges();
       expect(testComponent.pageSizeChange).toHaveBeenCalledTimes(0);
       expect(testComponent.pageIndexChange).toHaveBeenCalledTimes(0);
-      testComponent.pageSize = 5;
+
+      testComponent.pageSize.set(5);
       fixture.detectChanges();
-      tick();
+      await updateNonSignalsInput(fixture);
       fixture.detectChanges();
-      expect(testComponent.pageIndex).toBe(2);
+      expect(testComponent.pageIndex()).toBe(2);
       expect(testComponent.pageSizeChange).toHaveBeenCalledTimes(0);
       expect(testComponent.pageIndexChange).toHaveBeenCalledTimes(0);
+
       testComponent.nzTableComponent.onPageIndexChange(1);
       fixture.detectChanges();
-      tick();
+      await updateNonSignalsInput(fixture);
       fixture.detectChanges();
-      expect(testComponent.pageIndex).toBe(1);
+      expect(testComponent.pageIndex()).toBe(1);
       expect(testComponent.pageSizeChange).toHaveBeenCalledTimes(0);
       expect(testComponent.pageIndexChange).toHaveBeenCalledTimes(1);
-      testComponent.nzTableComponent.ngOnDestroy();
-    }));
-    it('should nzData change check pageIndex bounding', fakeAsync(() => {
+      fixture.destroy();
+    });
+
+    it('should nzData change check pageIndex bounding', async () => {
       fixture.detectChanges();
-      expect(testComponent.pageSize).toBe(10);
-      expect(testComponent.pageIndex).toBe(1);
+      expect(testComponent.pageSize()).toBe(10);
+      expect(testComponent.pageIndex()).toBe(1);
       expect(testComponent.pageSizeChange).toHaveBeenCalledTimes(0);
       expect(testComponent.pageIndexChange).toHaveBeenCalledTimes(0);
-      testComponent.pageIndex = 2;
+      testComponent.pageIndex.set(2);
       fixture.detectChanges();
       expect(testComponent.pageSizeChange).toHaveBeenCalledTimes(0);
       expect(testComponent.pageIndexChange).toHaveBeenCalledTimes(0);
-      testComponent.dataSet = [...testComponent.dataSet, ...testComponent.dataSet];
+      testComponent.dataSet.set([...testComponent.dataSet(), ...testComponent.dataSet()]);
       fixture.detectChanges();
-      tick();
+      await updateNonSignalsInput(fixture);
       fixture.detectChanges();
-      expect(testComponent.pageIndex).toBe(2);
+      expect(testComponent.pageIndex()).toBe(2);
       expect(testComponent.pageSizeChange).toHaveBeenCalledTimes(0);
       expect(testComponent.pageIndexChange).toHaveBeenCalledTimes(0);
-      testComponent.dataSet = testComponent.dataSet.slice(0, 10);
+      testComponent.dataSet.set(testComponent.dataSet().slice(0, 10));
       fixture.detectChanges();
-      tick();
+      await updateNonSignalsInput(fixture);
       fixture.detectChanges();
-      expect(testComponent.pageIndex).toBe(1);
+      expect(testComponent.pageIndex()).toBe(1);
       expect(testComponent.pageSizeChange).toHaveBeenCalledTimes(0);
       expect(testComponent.pageIndexChange).toHaveBeenCalledTimes(1);
-      testComponent.nzTableComponent.ngOnDestroy();
-    }));
+      fixture.destroy();
+    });
+
     it('should pagination simple work', () => {
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-pagination-simple')).toBeNull();
-      testComponent.simple = true;
+      testComponent.simple.set(true);
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-pagination-simple')).toBeDefined();
     });
+
     it('should pagination work', () => {
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-pagination')).toBeDefined();
       expect(table.nativeElement.querySelectorAll('.ant-table-tbody tr').length).toBe(10);
-      testComponent.pagination = false;
-      testComponent.front = false;
+      testComponent.pagination.set(false);
+      testComponent.front.set(false);
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-pagination')).toBeNull();
       expect(table.nativeElement.querySelectorAll('.ant-table-tbody tr').length).toBe(20);
     });
+
     it('should bordered work', () => {
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-table').classList).not.toContain('ant-table-bordered');
-      testComponent.bordered = true;
+      testComponent.bordered.set(true);
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-table').classList).toContain('ant-table-bordered');
     });
-    it('should emitPageSize work', () => {
-      // fixture.detectChanges();
-      // expect(testComponent.pageSizeChange).toHaveBeenCalledTimes(0);
-      // testComponent.nzTableComponent.emitPageSizeOrIndex(100, 1);
-      // expect(testComponent.pageSizeChange).toHaveBeenCalledTimes(1);
-    });
+
     it('should size work', () => {
       fixture.detectChanges();
-      expect(testComponent.size).toBe('small');
+      expect(testComponent.size()).toBe('small');
       expect(table.nativeElement.querySelector('.ant-table').classList).toContain('ant-table-small');
-      testComponent.size = 'middle';
+      testComponent.size.set('middle');
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-table').classList).toContain('ant-table-middle');
-      testComponent.size = 'default';
+      testComponent.size.set('default');
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-table').classList).toContain('ant-table');
     });
+
     it('should footer & title work', () => {
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-table-title').innerText).toBe('Here is Title');
       expect(table.nativeElement.querySelector('.ant-table-footer').innerText).toBe('Here is Footer');
-      testComponent.footer = false;
-      testComponent.title = false;
+      testComponent.footer.set(false);
+      testComponent.title.set(false);
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-table-title')).toBeNull();
       expect(table.nativeElement.querySelector('.ant-table-footer')).toBeNull();
     });
+
     it('should noResult work', () => {
-      testComponent.dataSet = [];
+      testComponent.dataSet.set([]);
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-table-placeholder').innerText.trim()).toBe('暂无数据');
-      testComponent.noResult = 'test';
+      testComponent.noResult.set('test');
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-table-placeholder').innerText).toBe('test');
     });
+
     it('should fixed header work', () => {
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-table-scroll')).toBe(null);
-      testComponent.fixHeader = true;
+      testComponent.fixHeader.set(true);
       expect(table.nativeElement.querySelector('.ant-table-scroll')).toBeDefined();
     });
+
     it('should width config', () => {
       fixture.detectChanges();
       expect(table.nativeElement.querySelectorAll('col').length).toBe(4);
-      testComponent.widthConfig = ['100px', '50px'];
+      testComponent.widthConfig.set(['100px', '50px']);
       fixture.detectChanges();
       expect(table.nativeElement.querySelectorAll('col')[0].style.width).toBe('100px');
       expect(table.nativeElement.querySelectorAll('col')[1].style.width).toBe('50px');
     });
+
     it('should showQuickJumper & showSizeChanger work', () => {
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-pagination-options-quick-jumper')).toBe(null);
       expect(table.nativeElement.querySelector('.ant-pagination-options-size-changer')).toBe(null);
-      testComponent.showQuickJumper = true;
-      testComponent.showSizeChanger = true;
+      testComponent.showQuickJumper.set(true);
+      testComponent.showSizeChanger.set(true);
       expect(table.nativeElement.querySelector('.ant-pagination-options-quick-jumper')).toBeDefined();
       expect(table.nativeElement.querySelector('.ant-pagination-options-size-changer')).toBeDefined();
     });
+
     it('should hideOnSinglePage work', () => {
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-pagination').children.length).not.toBe(0);
-      testComponent.hideOnSinglePage = true;
-      testComponent.dataSet = [{}];
+      testComponent.hideOnSinglePage.set(true);
+      testComponent.dataSet.set([{}]);
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-pagination[hidden]')).not.toBeNull();
     });
+
     it('should showPagination work with nzFrontPagination and hideOnSinglePage', () => {
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-pagination').children.length).not.toBe(0);
-      testComponent.front = false;
-      testComponent.hideOnSinglePage = true;
-      testComponent.dataSet = [{}];
+      testComponent.front.set(false);
+      testComponent.hideOnSinglePage.set(true);
+      testComponent.dataSet.set([{}]);
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-pagination').children.length).not.toBe(0);
     });
-    it('#18n', () => {
-      testComponent.dataSet = [];
+
+    it('i18n', () => {
+      testComponent.dataSet.set([]);
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-table-placeholder').innerText.trim()).toBe('暂无数据');
-      injector.get(NzI18nService).setLocale(en_US);
+      TestBed.inject(NzI18nService).setLocale(en_US);
       fixture.detectChanges();
       expect(table.nativeElement.querySelector('.ant-table-placeholder').innerText.trim()).toBe('No Data');
     });
   });
+
   describe('scroll nz-table', () => {
     let fixture: ComponentFixture<NzTestTableScrollComponent>;
     let testComponent: NzTestTableScrollComponent;
@@ -245,15 +255,65 @@ describe('nz-table', () => {
       testComponent = fixture.debugElement.componentInstance;
       table = fixture.debugElement.query(By.directive(NzTableComponent));
     });
+
     it('should change width affect scroll', () => {
       fixture.detectChanges();
-      testComponent.width = 1000;
+      testComponent.width.set(1000);
       window.dispatchEvent(new Event('resize'));
       fixture.detectChanges();
       const tableBody = table.nativeElement.querySelector('.ant-table-body');
       expect(tableBody.scrollWidth).toBe(tableBody.clientWidth);
     });
+
+    it('should stop syncing the header scroll position after destroy', async () => {
+      await sleep(0);
+      const tableHeader: HTMLElement = table.nativeElement.querySelector('.ant-table-header');
+      const tableBody: HTMLElement = table.nativeElement.querySelector('.ant-table-body');
+      const setHeaderScrollLeft = vi.spyOn(tableHeader, 'scrollLeft', 'set');
+
+      tableBody.dispatchEvent(new Event('scroll'));
+      expect(setHeaderScrollLeft).toHaveBeenCalledTimes(1);
+
+      fixture.destroy();
+      tableBody.dispatchEvent(new Event('scroll'));
+      expect(setHeaderScrollLeft).toHaveBeenCalledTimes(1);
+    });
+
+    it('should stop syncing the fixed footer scroll position after destroy', async () => {
+      testComponent.fixedFooter.set(true);
+      fixture.detectChanges();
+      await sleep(0);
+      const tableHeader: HTMLElement = table.nativeElement.querySelector('.ant-table-header');
+      const tableBody: HTMLElement = table.nativeElement.querySelector('.ant-table-body');
+      const tableFoot: HTMLElement = table.nativeElement.querySelector('div.ant-table-summary');
+      const setHeaderScrollLeft = vi.spyOn(tableHeader, 'scrollLeft', 'set');
+      const setFootScrollLeft = vi.spyOn(tableFoot, 'scrollLeft', 'set');
+
+      tableBody.dispatchEvent(new Event('scroll'));
+      expect(setHeaderScrollLeft).toHaveBeenCalledTimes(1);
+      expect(setFootScrollLeft).toHaveBeenCalledTimes(1);
+
+      fixture.destroy();
+      tableBody.dispatchEvent(new Event('scroll'));
+      expect(setHeaderScrollLeft).toHaveBeenCalledTimes(1);
+      expect(setFootScrollLeft).toHaveBeenCalledTimes(1);
+    });
   });
+
+  it('should wrap only fixed ellipsis cells and preserve dynamic content', async () => {
+    const fixture = TestBed.createComponent(NzTestTableFixedEllipsisComponent);
+    const element: HTMLElement = fixture.nativeElement;
+
+    for (const text of ['Initial', '', 'Updated']) {
+      fixture.componentInstance.text.set(text);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const contents = element.querySelectorAll('.ant-table-cell-content');
+      expect(Array.from(contents, content => content.textContent)).toEqual([text, text, text, text]);
+    }
+  });
+
   describe('double binding nz-table', () => {
     let fixture: ComponentFixture<NzTableSpecCrashComponent>;
     let testComponent: NzTableSpecCrashComponent;
@@ -270,28 +330,37 @@ describe('nz-table', () => {
     });
   });
 
-  describe('RTL', () => {
-    let fixture: ComponentFixture<NzTestTableRtlComponent>;
-    let table: DebugElement;
-    let tableElement: HTMLElement;
-
-    beforeEach(() => {
-      fixture = TestBed.createComponent(NzTestTableRtlComponent);
-      table = fixture.debugElement.query(By.directive(NzTableComponent));
-      fixture.detectChanges();
-      tableElement = table.nativeElement;
-    });
-
-    it('should table className correct on dir change', () => {
-      fixture.detectChanges();
-      expect(tableElement.classList).toContain('ant-table-wrapper-rtl');
-
-      fixture.componentInstance.direction = 'ltr';
-      fixture.detectChanges();
-      expect(tableElement.classList).not.toContain('ant-table-wrapper-rtl');
-    });
-  });
+  testDirectionality(() => NzTestTableBasicComponent, By.directive(NzTableComponent), 'ant-table-wrapper');
 });
+
+@Component({
+  imports: [NzTableModule],
+  template: `
+    <nz-table [nzData]="[{}]" [nzScroll]="{ x: '800px' }">
+      <thead>
+        <tr>
+          <th nzLeft nzEllipsis>{{ text() }}</th>
+          <th nzEllipsis>Middle</th>
+          <th nzRight nzEllipsis>{{ text() }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td nzLeft nzEllipsis>
+            @if (text()) {
+              <span>{{ text() }}</span>
+            }
+          </td>
+          <td nzEllipsis>Middle</td>
+          <td nzRight nzEllipsis>{{ text() }}</td>
+        </tr>
+      </tbody>
+    </nz-table>
+  `
+})
+class NzTestTableFixedEllipsisComponent {
+  readonly text = signal('Initial');
+}
 
 interface BasicTestDataItem {
   name?: string;
@@ -302,40 +371,45 @@ interface BasicTestDataItem {
   expand?: boolean;
 }
 
+type NzPageSizeChangeFn = (pageSize: number) => void;
+
 @Component({
+  imports: [NzTableModule],
   template: `
     <nz-table
       #dynamicTable
-      [nzScroll]="fixHeader ? { y: '240px' } : null"
+      [nzScroll]="fixHeader() ? { y: '240px' } : {}"
       [(nzPageIndex)]="pageIndex"
       (nzPageIndexChange)="pageIndexChange($event)"
       [(nzPageSize)]="pageSize"
       (nzPageSizeChange)="pageSizeChange($event)"
-      [nzData]="dataSet"
-      [nzBordered]="bordered"
-      [nzLoading]="loading"
-      [nzShowSizeChanger]="showSizeChanger"
-      [nzSimple]="simple"
-      [nzShowQuickJumper]="showQuickJumper"
-      [nzHideOnSinglePage]="hideOnSinglePage"
-      [nzWidthConfig]="widthConfig"
-      [nzShowPagination]="pagination"
-      [nzFrontPagination]="front"
-      [nzFooter]="footer ? 'Here is Footer' : null"
-      [nzNoResult]="noResult"
-      [nzTitle]="title ? 'Here is Title' : null"
-      [nzSize]="size"
+      [nzData]="dataSet()"
+      [nzBordered]="bordered()"
+      [nzLoading]="loading()"
+      [nzShowSizeChanger]="showSizeChanger()"
+      [nzSimple]="simple()"
+      [nzShowQuickJumper]="showQuickJumper()"
+      [nzHideOnSinglePage]="hideOnSinglePage()"
+      [nzWidthConfig]="widthConfig()"
+      [nzShowPagination]="pagination()"
+      [nzFrontPagination]="front()"
+      [nzFooter]="footer() ? 'Here is Footer' : null"
+      [nzNoResult]="noResult()"
+      [nzTitle]="title() ? 'Here is Title' : null"
+      [nzSize]="size()"
     >
-      <thead *ngIf="header">
-        <tr>
-          <th>Name</th>
-          <th>Age</th>
-          <th>Address</th>
-          <th>Action</th>
-        </tr>
-      </thead>
+      @if (header()) {
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Age</th>
+            <th>Address</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+      }
       <tbody>
-        <ng-template ngFor let-data [ngForOf]="dynamicTable.data">
+        @for (data of dynamicTable.data; track data.age) {
           <tr>
             <td>{{ data.name }}</td>
             <td>{{ data.age }}</td>
@@ -345,37 +419,38 @@ interface BasicTestDataItem {
               <a href="#">Delete</a>
             </td>
           </tr>
-        </ng-template>
+        }
       </tbody>
     </nz-table>
   `
 })
 export class NzTestTableBasicComponent implements OnInit {
   @ViewChild(NzTableComponent, { static: false }) nzTableComponent!: NzTableComponent<BasicTestDataItem>;
-  pageIndex = 1;
-  pageIndexChange = jasmine.createSpy('pageIndex callback');
-  pageSize = 10;
-  pageSizeChange = jasmine.createSpy('pageSize callback');
-  dataSet: BasicTestDataItem[] = [];
-  noResult = '';
-  showSizeChanger = false;
-  showQuickJumper = false;
-  hideOnSinglePage = false;
-  bordered = false;
-  loading = false;
-  pagination = true;
-  header = true;
-  title = true;
-  footer = true;
-  front = true;
-  fixHeader = false;
-  simple = false;
-  size = 'small';
-  widthConfig: string[] = [];
+  readonly pageIndex = signal(1);
+  pageIndexChange = vi.fn<NzPageSizeChangeFn>();
+  readonly pageSize = signal(10);
+  pageSizeChange = vi.fn<NzPageSizeChangeFn>();
+  readonly dataSet = signal<BasicTestDataItem[]>([]);
+  readonly noResult = signal('');
+  readonly showSizeChanger = signal(false);
+  readonly showQuickJumper = signal(false);
+  readonly hideOnSinglePage = signal(false);
+  readonly bordered = signal(false);
+  readonly loading = signal(false);
+  readonly pagination = signal(true);
+  readonly header = signal(true);
+  readonly title = signal(true);
+  readonly footer = signal(true);
+  readonly front = signal(true);
+  readonly fixHeader = signal(false);
+  readonly simple = signal(false);
+  readonly size = signal<NzTableSize>('small');
+  readonly widthConfig = signal<string[]>([]);
 
   ngOnInit(): void {
+    const dataSet: BasicTestDataItem[] = [];
     for (let i = 1; i <= 20; i++) {
-      this.dataSet.push({
+      dataSet.push({
         name: 'John Brown',
         age: `${i}2`,
         address: `New York No. ${i} Lake Park`,
@@ -384,6 +459,7 @@ export class NzTestTableBasicComponent implements OnInit {
         expand: false
       });
     }
+    this.dataSet.set(dataSet);
   }
 }
 
@@ -394,9 +470,10 @@ interface ScrollTestDataItem {
 }
 
 @Component({
+  imports: [NzTableModule],
   template: `
-    <div style="display: block;" [style.width.px]="width">
-      <nz-table #nzTable [nzData]="dataSet" [nzPageSize]="10" [nzScroll]="{ x: '600px', y: '240px' }">
+    <div style="display: block;" [style.width.px]="width()">
+      <nz-table #nzTable [nzData]="dataSet()" [nzPageSize]="10" [nzScroll]="{ x: '600px', y: '240px' }">
         <thead>
           <tr>
             <th>Full Name</th>
@@ -413,53 +490,66 @@ interface ScrollTestDataItem {
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let data of nzTable.data">
-            <td>{{ data.name }}</td>
-            <td>{{ data.age }}</td>
-            <td>{{ data.address }}</td>
-            <td>{{ data.address }}</td>
-            <td>{{ data.address }}</td>
-            <td>{{ data.address }}</td>
-            <td>{{ data.address }}</td>
-            <td>{{ data.address }}</td>
-            <td>{{ data.address }}</td>
-            <td>{{ data.address }}</td>
-            <td>
-              <a>action</a>
-            </td>
-          </tr>
+          @for (data of nzTable.data; track data) {
+            <tr>
+              <td>{{ data.name }}</td>
+              <td>{{ data.age }}</td>
+              <td>{{ data.address }}</td>
+              <td>{{ data.address }}</td>
+              <td>{{ data.address }}</td>
+              <td>{{ data.address }}</td>
+              <td>{{ data.address }}</td>
+              <td>{{ data.address }}</td>
+              <td>{{ data.address }}</td>
+              <td>{{ data.address }}</td>
+              <td>
+                <a>action</a>
+              </td>
+            </tr>
+          }
         </tbody>
+        <tfoot nzSummary [nzFixed]="fixedFooter()">
+          <tr>
+            <td colspan="11">Summary</td>
+          </tr>
+        </tfoot>
       </nz-table>
     </div>
   `,
   encapsulation: ViewEncapsulation.None,
-  styleUrls: ['../../../style/entry.less']
+  styles: `
+    @import './testing.less';
+  `
 })
 export class NzTestTableScrollComponent implements OnInit {
   @ViewChild(NzTableComponent, { static: false }) nzTableComponent!: NzTableComponent<ScrollTestDataItem>;
-  dataSet: ScrollTestDataItem[] = [];
-  width = 300;
+  readonly dataSet = signal<ScrollTestDataItem[]>([]);
+  readonly width = signal(300);
+  readonly fixedFooter = signal(false);
 
   ngOnInit(): void {
+    const dataSet: ScrollTestDataItem[] = [];
     for (let i = 0; i < 100; i++) {
-      this.dataSet.push({
+      dataSet.push({
         name: `Edward King ${i}`,
         age: 32,
         address: `London, Park Lane no. ${i}`
       });
     }
+    this.dataSet.set(dataSet);
   }
 }
 
 /** https://github.com/NG-ZORRO/ng-zorro-antd/issues/3004 **/
 @Component({
+  imports: [NzTableModule],
   template: `
     <nz-table
       #nzTable
-      [nzData]="data"
+      [nzData]="data()"
       [(nzPageIndex)]="pageIndex"
+      (nzPageIndexChange)="pageIndexChange($event)"
       [(nzPageSize)]="pageSize"
-      (nzPageIndexChange)="(pageIndexChange)"
     >
       <thead>
         <tr>
@@ -468,91 +558,30 @@ export class NzTestTableScrollComponent implements OnInit {
         </tr>
       </thead>
       <tbody>
-        <ng-container *ngFor="let item of nzTable.data">
+        @for (item of nzTable.data; track item) {
           <tr>
             <td>{{ item.id }}</td>
             <td>{{ item.name }}</td>
           </tr>
-        </ng-container>
+        }
       </tbody>
     </nz-table>
   `
 })
 export class NzTableSpecCrashComponent {
-  data: Array<{ id: number; name: string }> = [];
-  pageIndex = 1;
-  pageSize = 10;
-  pageIndexChange = jasmine.createSpy('pageSize callback');
+  readonly data = signal<Array<{ id: number; name: string }>>([]);
+  readonly pageIndex = signal(1);
+  readonly pageSize = signal(10);
+  pageIndexChange = vi.fn<NzPageSizeChangeFn>();
 
   constructor() {
     setTimeout(() => {
-      this.data = new Array(100).fill(1).map((_, i) => ({
-        id: i + 1,
-        name: `name ${i + 1}`
-      }));
+      this.data.set(
+        new Array(100).fill(1).map((_, i) => ({
+          id: i + 1,
+          name: `name ${i + 1}`
+        }))
+      );
     }, 1000);
-  }
-}
-
-interface RtlTestDataItem {
-  name?: string;
-  age?: string;
-  address?: string;
-  description?: string;
-  checked?: boolean;
-  expand?: boolean;
-}
-
-@Component({
-  template: `
-    <div [dir]="direction">
-      <nz-table #dynamicTable [nzData]="dataSet" [nzSimple]="simple">
-        <thead *ngIf="header">
-          <tr>
-            <th>Name</th>
-            <th>Age</th>
-            <th>Address</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <ng-template ngFor let-data [ngForOf]="dynamicTable.data">
-            <tr>
-              <td>{{ data.name }}</td>
-              <td>{{ data.age }}</td>
-              <td>{{ data.address }}</td>
-              <td>
-                <a href="#">Action 一 {{ data.name }}</a>
-                <a href="#">Delete</a>
-              </td>
-            </tr>
-          </ng-template>
-        </tbody>
-      </nz-table>
-    </div>
-  `
-})
-export class NzTestTableRtlComponent implements OnInit {
-  @ViewChild(Dir) dir!: Dir;
-  direction = 'rtl';
-
-  @ViewChild(NzTableComponent, { static: false }) nzTableComponent!: NzTableComponent<RtlTestDataItem>;
-  pageIndex = 1;
-  pageSize = 10;
-  dataSet: RtlTestDataItem[] = [];
-  header = true;
-  simple = false;
-
-  ngOnInit(): void {
-    for (let i = 1; i <= 20; i++) {
-      this.dataSet.push({
-        name: 'John Brown',
-        age: `${i}2`,
-        address: `New York No. ${i} Lake Park`,
-        description: `My name is John Brown, I am ${i}2 years old, living in New York No. ${i} Lake Park.`,
-        checked: false,
-        expand: false
-      });
-    }
   }
 }

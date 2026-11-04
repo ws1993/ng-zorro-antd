@@ -3,52 +3,63 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Direction, Directionality } from '@angular/cdk/bidi';
+import { Directionality } from '@angular/cdk/bidi';
 import {
   AfterContentInit,
-  ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
   ContentChildren,
-  ElementRef,
+  DestroyRef,
   EventEmitter,
+  inject,
   Input,
+  NgZone,
   OnChanges,
-  OnDestroy,
   OnInit,
-  Optional,
   Output,
   QueryList,
-  Renderer2,
   SimpleChanges,
   TemplateRef,
   ViewEncapsulation
 } from '@angular/core';
-import { merge, Subject, Subscription } from 'rxjs';
-import { startWith, takeUntil } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subscription, merge } from 'rxjs';
+import { startWith } from 'rxjs/operators';
 
-import { BooleanInput, NgClassType, NzSizeDSType } from 'ng-zorro-antd/core/types';
+import { BooleanInput, NzSizeDSType } from 'ng-zorro-antd/core/types';
 import { toBoolean } from 'ng-zorro-antd/core/util';
 
 import { NzStepComponent } from './step.component';
 
 export type NzDirectionType = 'horizontal' | 'vertical';
 export type NzStatusType = 'wait' | 'process' | 'finish' | 'error';
-export type nzProgressDotTemplate = TemplateRef<{ $implicit: TemplateRef<void>; status: string; index: number }>;
+export type NzProgressDotTemplate = TemplateRef<{ $implicit: TemplateRef<void>; status: string; index: number }>;
+
 @Component({
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  encapsulation: ViewEncapsulation.None,
-  preserveWhitespaces: false,
   selector: 'nz-steps',
   exportAs: 'nzSteps',
-  template: `
-    <div class="ant-steps" [ngClass]="classMap">
-      <ng-content></ng-content>
-    </div>
-  `
+  encapsulation: ViewEncapsulation.None,
+  template: `<ng-content />`,
+  host: {
+    class: 'ant-steps',
+    '[class.ant-steps-horizontal]': `nzDirection === 'horizontal'`,
+    '[class.ant-steps-vertical]': `nzDirection === 'vertical'`,
+    '[class.ant-steps-label-horizontal]': `nzDirection === 'horizontal'`,
+    '[class.ant-steps-label-vertical]': `(showProcessDot || nzLabelPlacement === 'vertical') && nzDirection === 'horizontal'`,
+    '[class.ant-steps-dot]': 'showProcessDot',
+    '[class.ant-steps-small]': `nzSize === 'small'`,
+    '[class.ant-steps-navigation]': `nzType === 'navigation'`,
+    '[class.ant-steps-rtl]': `dir() === 'rtl'`,
+    '[class.ant-steps-with-progress]': 'showProgress'
+  }
 })
-export class NzStepsComponent implements OnChanges, OnInit, OnDestroy, AfterContentInit {
-  static ngAcceptInputType_nzProgressDot: BooleanInput | nzProgressDotTemplate | undefined | null;
+export class NzStepsComponent implements OnChanges, OnInit, AfterContentInit {
+  static ngAcceptInputType_nzProgressDot: BooleanInput | NzProgressDotTemplate | undefined | null;
+
+  private cdr = inject(ChangeDetectorRef);
+  private ngZone = inject(NgZone);
+  protected readonly dir = inject(Directionality).valueSignal;
+  private destroyRef = inject(DestroyRef);
 
   @ContentChildren(NzStepComponent) steps!: QueryList<NzStepComponent>;
 
@@ -61,7 +72,7 @@ export class NzStepsComponent implements OnChanges, OnInit, OnDestroy, AfterCont
   @Input() nzStatus: NzStatusType = 'process';
 
   @Input()
-  set nzProgressDot(value: boolean | nzProgressDotTemplate) {
+  set nzProgressDot(value: boolean | NzProgressDotTemplate | undefined | null) {
     if (value instanceof TemplateRef) {
       this.showProcessDot = true;
       this.customProcessDotTemplate = value;
@@ -73,55 +84,26 @@ export class NzStepsComponent implements OnChanges, OnInit, OnDestroy, AfterCont
 
   @Output() readonly nzIndexChange = new EventEmitter<number>();
 
-  private destroy$ = new Subject<void>();
-  private indexChangeSubscription?: Subscription;
+  private indexChangeSubscription = Subscription.EMPTY;
 
   showProcessDot = false;
+  showProgress = false;
   customProcessDotTemplate?: TemplateRef<{ $implicit: TemplateRef<void>; status: string; index: number }>;
-  classMap: NgClassType = {};
-  dir: Direction = 'ltr';
-
-  constructor(
-    private elementRef: ElementRef,
-    private renderer: Renderer2,
-    private cdr: ChangeDetectorRef,
-    @Optional() private directionality: Directionality
-  ) {
-    this.setClassMap();
-  }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes.nzStartIndex || changes.nzDirection || changes.nzStatus || changes.nzCurrent) {
+    const { nzStartIndex, nzDirection, nzStatus, nzCurrent, nzSize } = changes;
+    if (nzStartIndex || nzDirection || nzStatus || nzCurrent || nzSize) {
       this.updateChildrenSteps();
-    }
-    if (changes.nzDirection || changes.nzProgressDot || changes.nzLabelPlacement || changes.nzSize) {
-      this.setClassMap();
     }
   }
 
   ngOnInit(): void {
-    this.directionality.change?.pipe(takeUntil(this.destroy$)).subscribe((direction: Direction) => {
-      this.dir = direction;
-      this.setClassMap();
-      this.cdr.detectChanges();
-    });
-
-    this.dir = this.directionality.value;
-    this.setClassMap();
     this.updateChildrenSteps();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    if (this.indexChangeSubscription) {
-      this.indexChangeSubscription.unsubscribe();
-    }
   }
 
   ngAfterContentInit(): void {
     if (this.steps) {
-      this.steps.changes.pipe(startWith(null), takeUntil(this.destroy$)).subscribe(() => {
+      this.steps.changes.pipe(startWith(null), takeUntilDestroyed(this.destroyRef)).subscribe(() => {
         this.updateHostProgressClass();
         this.updateChildrenSteps();
       });
@@ -130,14 +112,7 @@ export class NzStepsComponent implements OnChanges, OnInit, OnDestroy, AfterCont
 
   private updateHostProgressClass(): void {
     if (this.steps && !this.showProcessDot) {
-      const hasPercent = !!this.steps.toArray().find(step => step.nzPercentage !== null);
-      const className = 'ant-steps-with-progress';
-      const hasClass = this.elementRef.nativeElement.classList.contains(className);
-      if (hasPercent && !hasClass) {
-        this.renderer.addClass(this.elementRef.nativeElement, className);
-      } else if (!hasPercent && hasClass) {
-        this.renderer.removeClass(this.elementRef.nativeElement, className);
-      }
+      this.showProgress = !!this.steps.toArray().find(step => step.nzPercentage !== null);
     }
   }
 
@@ -146,6 +121,7 @@ export class NzStepsComponent implements OnChanges, OnInit, OnDestroy, AfterCont
       const length = this.steps.length;
       this.steps.toArray().forEach((step, index) => {
         Promise.resolve().then(() => {
+          step.nzSize = this.nzSize;
           step.outStatus = this.nzStatus;
           step.showProcessDot = this.showProcessDot;
           if (this.customProcessDotTemplate) {
@@ -159,25 +135,14 @@ export class NzStepsComponent implements OnChanges, OnInit, OnDestroy, AfterCont
           step.markForCheck();
         });
       });
-      if (this.indexChangeSubscription) {
-        this.indexChangeSubscription.unsubscribe();
-      }
-      this.indexChangeSubscription = merge(...this.steps.map(step => step.click$)).subscribe(index =>
-        this.nzIndexChange.emit(index)
-      );
+      this.indexChangeSubscription.unsubscribe();
+      this.indexChangeSubscription = merge(...this.steps.map(step => step.clickOutsideAngular$))
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(index => {
+          if (this.nzIndexChange.observers.length) {
+            this.ngZone.run(() => this.nzIndexChange.emit(index));
+          }
+        });
     }
-  }
-
-  private setClassMap(): void {
-    this.classMap = {
-      [`ant-steps-${this.nzDirection}`]: true,
-      [`ant-steps-label-horizontal`]: this.nzDirection === 'horizontal',
-      [`ant-steps-label-vertical`]:
-        (this.showProcessDot || this.nzLabelPlacement === 'vertical') && this.nzDirection === 'horizontal',
-      [`ant-steps-dot`]: this.showProcessDot,
-      ['ant-steps-small']: this.nzSize === 'small',
-      ['ant-steps-navigation']: this.nzType === 'navigation',
-      ['ant-steps-rtl']: this.dir === 'rtl'
-    };
   }
 }

@@ -1,31 +1,33 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component } from '@angular/core';
+
+import { NzAvatarModule } from 'ng-zorro-antd/avatar';
+import { NzCommentModule } from 'ng-zorro-antd/comment';
 
 @Component({
   selector: 'nz-demo-comment-nested',
+  imports: [NgTemplateOutlet, NzAvatarModule, NzCommentModule],
   template: `
     <ng-template #commentTemplateRef let-comment="comment">
       <nz-comment [nzAuthor]="comment.author">
-        <nz-avatar nz-comment-avatar nzIcon="user" [nzSrc]="comment.avatar"></nz-avatar>
+        <nz-avatar nz-comment-avatar nzIcon="user" [nzSrc]="comment.avatar" />
         <nz-comment-content>
           <p>{{ comment.content }}</p>
         </nz-comment-content>
         <nz-comment-action>Reply to</nz-comment-action>
-        <ng-container *ngIf="comment.children && comment.children.length">
-          <ng-template ngFor let-child [ngForOf]="comment.children">
-            <ng-template
-              [ngTemplateOutlet]="commentTemplateRef"
-              [ngTemplateOutletContext]="{ comment: child }"
-            ></ng-template>
-          </ng-template>
-        </ng-container>
+        @if (comment.children && comment.children.length) {
+          @for (child of comment.children; track child) {
+            <ng-template [ngTemplateOutlet]="commentTemplateRef" [ngTemplateOutletContext]="{ comment: child }" />
+          }
+        }
       </nz-comment>
     </ng-template>
 
-    <ng-template [ngTemplateOutlet]="commentTemplateRef" [ngTemplateOutletContext]="{ comment: data }"></ng-template>
+    <ng-template [ngTemplateOutlet]="commentTemplateRef" [ngTemplateOutletContext]="{ comment: data }" />
   `
 })
 export class NzDemoCommentNestedComponent {
-  data = {
+  readonly data = {
     author: 'Han Solo',
     avatar: 'https://zos.alipayobjects.com/rmsportal/ODTLcjxAfvqbxHnVXCYX.png',
     content:

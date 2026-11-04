@@ -1,7 +1,10 @@
 import { Component } from '@angular/core';
 
+import { NzBadgeModule } from 'ng-zorro-antd/badge';
+
 @Component({
   selector: 'nz-demo-badge-overflow',
+  imports: [NzBadgeModule],
   template: `
     <nz-badge [nzCount]="99">
       <a class="head-example"></a>
@@ -16,21 +19,19 @@ import { Component } from '@angular/core';
       <a class="head-example"></a>
     </nz-badge>
   `,
-  styles: [
-    `
-      nz-badge {
-        margin-right: 20px;
-      }
+  styles: `
+    nz-badge {
+      margin-inline-end: 20px;
+    }
 
-      .head-example {
-        width: 42px;
-        height: 42px;
-        border-radius: 4px;
-        background: #eee;
-        display: inline-block;
-        vertical-align: middle;
-      }
-    `
-  ]
+    .head-example {
+      width: 42px;
+      height: 42px;
+      border-radius: 4px;
+      background: #eee;
+      display: inline-block;
+      vertical-align: middle;
+    }
+  `
 })
 export class NzDemoBadgeOverflowComponent {}

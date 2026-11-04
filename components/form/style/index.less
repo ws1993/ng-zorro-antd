@@ -3,7 +3,7 @@
 @import '../../input/style/mixin';
 @import '../../button/style/mixin';
 @import '../../grid/style/mixin';
-@import './components';
+@import './animation';
 @import './inline';
 @import './horizontal';
 @import './vertical';
@@ -17,6 +17,10 @@
 .@{form-prefix-cls} {
   .reset-component();
   .reset-form();
+
+  &-rtl {
+    direction: rtl;
+  }
 
   .@{form-prefix-cls}-text {
     display: inline-block;
@@ -39,6 +43,7 @@
   &-small {
     .formSize(@input-height-sm);
   }
+
   &-large {
     .formSize(@input-height-lg);
   }
@@ -63,7 +68,7 @@
   vertical-align: top;
 
   &-with-help {
-    margin-bottom: 0;
+    transition: none;
   }
 
   &-hidden,
@@ -80,11 +85,17 @@
     flex-grow: 0;
     overflow: hidden;
     white-space: nowrap;
-    text-align: right;
+    text-align: end;
     vertical-align: middle;
 
     &-left {
-      text-align: left;
+      text-align: start;
+    }
+
+    &-wrap {
+      overflow: unset;
+      line-height: (@line-height-base - 0.25em);
+      white-space: unset;
     }
 
     > label {
@@ -102,9 +113,11 @@
       }
 
       // Required mark
-      &.@{form-item-prefix-cls}-required:not(.@{form-item-prefix-cls}-required-mark-optional)::before {
+      &.@{form-item-prefix-cls}-required:not(.@{form-item-prefix-cls}-required-mark-optional):not(
+          .@{form-item-prefix-cls}-required-mark-hidden
+        )::before {
         display: inline-block;
-        margin-right: 4px;
+        margin-inline-end: 4px;
         color: @label-required-color;
         font-size: @form-item-label-font-size;
         font-family: SimSun, sans-serif;
@@ -119,7 +132,7 @@
       // Optional mark
       .@{form-item-prefix-cls}-optional {
         display: inline-block;
-        margin-left: @margin-xss;
+        margin-inline-start: @margin-xss;
         color: @text-color-secondary;
 
         .@{form-prefix-cls}-hide-required-mark & {
@@ -145,7 +158,7 @@
 
         position: relative;
         top: -0.5px;
-        margin: 0 @form-item-label-colon-margin-right 0 @form-item-label-colon-margin-left;
+        margin-inline: @form-item-label-colon-margin-left @form-item-label-colon-margin-right;
       }
 
       &.@{form-item-prefix-cls}-no-colon::after {
@@ -179,10 +192,12 @@
     }
   }
 
+  // ==============================================================
+  // =                           Explain                          =
+  // ==============================================================
   &-explain,
   &-extra {
     clear: both;
-    min-height: @form-item-margin-bottom;
     color: @text-color-secondary;
     font-size: @font-size-base;
     line-height: @line-height-base;
@@ -190,43 +205,99 @@
     .explainAndExtraDistance((@form-item-margin-bottom - @form-font-height) / 2);
   }
 
-  .@{ant-prefix}-input-textarea-show-count {
-    &::after {
-      margin-bottom: -22px;
+  &-explain-connected {
+    width: 100%;
+  }
+
+  &-extra {
+    min-height: @form-item-margin-bottom;
+  }
+
+  &-with-help &-explain {
+    height: auto;
+    // min-height: @form-item-margin-bottom;
+    opacity: 1;
+  }
+
+  // ==============================================================
+  // =                        Feedback Icon                       =
+  // ==============================================================
+  &-feedback-icon {
+    font-size: @font-size-base;
+    text-align: center;
+    visibility: visible;
+    animation: zoomIn 0.3s @ease-out-back;
+    pointer-events: none;
+
+    &-success {
+      color: @success-color;
+    }
+
+    &-error {
+      color: @error-color;
+    }
+
+    &-warning {
+      color: @warning-color;
+    }
+
+    &-validating {
+      color: @primary-color;
     }
   }
 }
 
-.show-help-motion(@className, @keyframeName, @duration: @animation-duration-slow) {
-  @name: ~'@{ant-prefix}-@{className}';
-  .make-motion(@name, @keyframeName, @duration);
-  .@{name}-enter,
-  .@{name}-appear {
-    opacity: 0;
-    animation-timing-function: @ease-in-out;
-  }
-  .@{name}-leave {
-    animation-timing-function: @ease-in-out;
-  }
-}
+// >>>>>>>>>> Motion <<<<<<<<<<
+// Explain holder
+.@{ant-prefix}-show-help {
+  transition: opacity @animation-duration-slow @ease-in-out;
 
-.show-help-motion(show-help, antShowHelp, 0.3s);
-
-@keyframes antShowHelpIn {
-  0% {
-    transform: translateY(-5px);
+  &-appear,
+  &-enter {
     opacity: 0;
+
+    &-active {
+      opacity: 1;
+    }
   }
-  100% {
-    transform: translateY(0);
+
+  &-leave {
     opacity: 1;
+
+    &-active {
+      opacity: 0;
+    }
   }
 }
 
-@keyframes antShowHelpOut {
-  to {
+// Explain
+.@{ant-prefix}-show-help-item {
+  overflow: hidden;
+  transition:
+    height @animation-duration-slow @ease-in-out,
+    opacity @animation-duration-slow @ease-in-out,
+    transform @animation-duration-slow @ease-in-out !important;
+
+  &-appear,
+  &-enter {
     transform: translateY(-5px);
     opacity: 0;
+
+    &-active {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  &-leave {
+    transition:
+      height @animation-duration-base @ease-in-out,
+      opacity @animation-duration-base @ease-in-out,
+      transform @animation-duration-base @ease-in-out !important;
+  }
+
+  &-leave-active {
+    transform: translateY(-5px);
   }
 }
 
@@ -237,6 +308,7 @@
     transform: scale(0);
     opacity: 0;
   }
+
   100% {
     transform: scale(1);
     opacity: 1;
@@ -248,6 +320,7 @@
     transform: scale(0);
     opacity: 0;
   }
+
   100% {
     transform: scale(1);
     opacity: 1;
@@ -259,10 +332,9 @@
     transform: scale(0);
     opacity: 0;
   }
+
   100% {
     transform: scale(1);
     opacity: 1;
   }
 }
-
-@import './rtl';

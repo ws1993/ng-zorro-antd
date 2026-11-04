@@ -3,10 +3,13 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
+import { NgZone } from '@angular/core';
+
 import { drag } from 'd3-drag';
 import { pointer, select } from 'd3-selection';
 import { ZoomBehavior, zoomIdentity, ZoomTransform } from 'd3-zoom';
 
+import { requestAnimationFrame } from 'ng-zorro-antd/core/polyfill';
 import { NzSafeAny } from 'ng-zorro-antd/core/types';
 
 import { NzZoomTransform } from '../interface';
@@ -15,7 +18,7 @@ const FRAC_VIEWPOINT_AREA = 0.8;
 
 export class Minimap {
   private canvas: HTMLCanvasElement;
-  private canvasRect: ClientRect;
+  private canvasRect: DOMRect;
   private canvasBuffer: HTMLCanvasElement;
   private minimapSvg: SVGSVGElement;
   private viewpoint: SVGRectElement;
@@ -28,6 +31,7 @@ export class Minimap {
   private unlisteners: VoidFunction[] = [];
 
   constructor(
+    private ngZone: NgZone,
     private svg: SVGSVGElement,
     private zoomG: SVGGElement,
     private mainZoom: ZoomBehavior<NzSafeAny, NzSafeAny>,
@@ -105,7 +109,7 @@ export class Minimap {
         // There is no scene anymore. We have been detached from the dom.
         return;
       }
-    } catch (e) {
+    } catch {
       // Firefox produced NS_ERROR_FAILURE if we have been
       // detached from the dom.
       return;
@@ -113,7 +117,7 @@ export class Minimap {
 
     const svgSelection = select(this.svg);
     // Read all the style rules in the document and embed them into the svg.
-    // The svg needs to be self contained, i.e. all the style rules need to be
+    // The svg needs to be self-contained, i.e. all the style rules need to be
     // embedded so the canvas output matches the origin.
     let stylesText = '';
 
@@ -128,7 +132,7 @@ export class Minimap {
           // Remove tf-* selectors from the styles.
           stylesText += `${cssRules[i].cssText.replace(/ ?tf-[\w-]+ ?/g, '')}\n`;
         }
-      } catch (e) {
+      } catch (e: NzSafeAny) {
         if (e.name !== 'SecurityError') {
           throw e;
         }
@@ -155,7 +159,7 @@ export class Minimap {
     svgSelection.attr('width', sceneSize.width).attr('height', sceneSize.height);
 
     // Since the content inside the svg changed (e.g. a node was expanded),
-    // the aspect ratio have also changed. Thus, we need to update the scale
+    // the aspect ratio has also changed. Thus, we need to update the scale
     // factor of the minimap. The scale factor is determined such that both
     // the width and height of the minimap are <= maximum specified w/h.
     this.scaleMinimap = this.maxWidth / Math.max(sceneSize.width, sceneSize.height);
@@ -174,7 +178,7 @@ export class Minimap {
     if (this.translate != null && this.zoom != null) {
       // Update the viewpoint rectangle shape since the aspect ratio of the
       // map has changed.
-      requestAnimationFrame(() => this.zoom());
+      this.ngZone.runOutsideAngular(() => requestAnimationFrame(() => this.zoom()));
     }
 
     // Serialize the main svg to a string which will be used as the rendering
@@ -196,12 +200,15 @@ export class Minimap {
       context!.clearRect(0, 0, this.canvasBuffer.width, this.canvasBuffer.height);
 
       context!.drawImage(image, minimapOffset.x, minimapOffset.y, this.minimapSize.width, this.minimapSize.height);
-      requestAnimationFrame(() => {
-        // Hide the old canvas and show the new buffer canvas.
-        select(this.canvasBuffer).style('display', 'block');
-        select(this.canvas).style('display', 'none');
-        // Swap the two canvases.
-        [this.canvas, this.canvasBuffer] = [this.canvasBuffer, this.canvas];
+
+      this.ngZone.runOutsideAngular(() => {
+        requestAnimationFrame(() => {
+          // Hide the old canvas and show the new buffer canvas.
+          select(this.canvasBuffer).style('display', 'block');
+          select(this.canvas).style('display', 'none');
+          // Swap the two canvases.
+          [this.canvas, this.canvasBuffer] = [this.canvasBuffer, this.canvas];
+        });
       });
     };
 
@@ -215,7 +222,7 @@ export class Minimap {
 
   /**
    * Handles changes in zooming/panning. Should be called from the main svg
-   * to notify that a zoom/pan was performed and this minimap will update it's
+   * to notify that a zoom/pan was performed, and this minimap will update its
    * viewpoint rectangle.
    *
    * @param transform
@@ -244,8 +251,7 @@ export class Minimap {
       .attr('y', this.viewpointCoord.y + minimapOffset.y)
       .attr('width', viewpointWidth)
       .attr('height', viewpointHeight);
-    // Show/hide the minimap depending on the viewpoint area as fraction of the
-    // whole minimap.
+    // Show/hide the minimap depending on the viewpoint area as a fraction of the whole minimap
     const mapWidth = this.minimapSize.width;
     const mapHeight = this.minimapSize.height;
     const x = this.viewpointCoord.x;

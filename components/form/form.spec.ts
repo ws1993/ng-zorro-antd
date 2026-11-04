@@ -1,43 +1,54 @@
-import { Component, DebugElement } from '@angular/core';
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
+import { NgTemplateOutlet } from '@angular/common';
+import { Component, DebugElement, signal } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
-import { ɵComponentBed as ComponentBed, ɵcreateComponentBed as createComponentBed } from 'ng-zorro-antd/core/testing';
+import { provideNzNoAnimation } from 'ng-zorro-antd/core/animation';
+import { NzFormModule } from 'ng-zorro-antd/form/form.module';
 
-import { NzFormItemComponent } from './form-item.component';
-import { NzFormLabelComponent } from './form-label.component';
-import { NzFormDirective } from './form.directive';
+import { NzFormDirective, NzFormLayoutType } from './form.directive';
+import { NzRequiredMark } from './types';
 
-const testBedOptions = {
-  imports: [NoopAnimationsModule],
-  declarations: [NzFormDirective, NzFormLabelComponent, NzFormItemComponent]
-};
+describe('form', () => {
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideNzNoAnimation()]
+    });
+  });
 
-describe('nz-form', () => {
   describe('default', () => {
-    let testBed: ComponentBed<NzTestFormDirectiveComponent>;
+    let fixture: ComponentFixture<NzTestFormDirectiveComponent>;
     let testComponent: NzTestFormDirectiveComponent;
     let form: DebugElement;
+
     beforeEach(() => {
-      testBed = createComponentBed(NzTestFormDirectiveComponent, testBedOptions);
-      testComponent = testBed.component;
-      form = testBed.fixture.debugElement.query(By.directive(NzFormDirective));
+      fixture = TestBed.createComponent(NzTestFormDirectiveComponent);
+      testComponent = fixture.componentInstance;
+      form = fixture.debugElement.query(By.directive(NzFormDirective));
     });
+
     it('should className correct', () => {
+      fixture.detectChanges();
       expect(form.nativeElement.classList).toContain('ant-form');
       expect(form.nativeElement.classList).toContain('ant-form-horizontal');
     });
-    it('should layout work', () => {
-      testComponent.layout = 'vertical';
 
-      testBed.fixture.detectChanges();
+    it('should layout work', () => {
+      testComponent.layout.set('vertical');
+
+      fixture.detectChanges();
 
       expect(form.nativeElement.classList).toContain('ant-form-vertical');
       expect(form.nativeElement.classList).not.toContain('ant-form-horizontal');
 
-      testComponent.layout = 'inline';
+      testComponent.layout.set('inline');
 
-      testBed.fixture.detectChanges();
+      fixture.detectChanges();
 
       expect(form.nativeElement.classList).not.toContain('ant-form-vertical');
       expect(form.nativeElement.classList).not.toContain('ant-form-horizontal');
@@ -46,19 +57,20 @@ describe('nz-form', () => {
   });
 
   describe('label integrate', () => {
-    let testBed: ComponentBed<NzTestFormLabelIntegrateComponent>;
+    let fixture: ComponentFixture<NzTestFormLabelIntegrateComponent>;
     let testComponent: NzTestFormLabelIntegrateComponent;
     let form: DebugElement;
+
     beforeEach(() => {
-      testBed = createComponentBed(NzTestFormLabelIntegrateComponent, testBedOptions);
-      testComponent = testBed.component;
-      form = testBed.fixture.debugElement.query(By.directive(NzFormDirective));
+      fixture = TestBed.createComponent(NzTestFormLabelIntegrateComponent);
+      testComponent = fixture.componentInstance;
+      form = fixture.debugElement.query(By.directive(NzFormDirective));
     });
 
     afterEach(() => {
-      testComponent.defaultNoColon = false;
-      testComponent.noColon = false;
-      testComponent.testPriority = false;
+      testComponent.defaultNoColon.set(false);
+      testComponent.noColon.set(false);
+      testComponent.testPriority.set(false);
     });
 
     it('should set default `NoColon` value', () => {
@@ -67,9 +79,9 @@ describe('nz-form', () => {
       );
       labels.forEach(label => expect(label.classList).not.toContain('ant-form-item-no-colon'));
 
-      testComponent.defaultNoColon = true;
+      testComponent.defaultNoColon.set(true);
 
-      testBed.fixture.detectChanges();
+      fixture.detectChanges();
 
       labels.forEach(label => expect(label.classList).toContain('ant-form-item-no-colon'));
     });
@@ -80,14 +92,14 @@ describe('nz-form', () => {
       );
       labels.forEach(label => expect(label.classList).not.toContain('ant-form-item-no-colon'));
 
-      testComponent.defaultNoColon = true;
+      testComponent.defaultNoColon.set(true);
 
-      testBed.fixture.detectChanges();
+      fixture.detectChanges();
 
       labels.forEach(label => expect(label.classList).toContain('ant-form-item-no-colon'));
-      testComponent.testPriority = true;
+      testComponent.testPriority.set(true);
 
-      testBed.fixture.detectChanges();
+      fixture.detectChanges();
 
       labels.forEach(label => expect(label.classList).toContain('ant-form-item-no-colon'));
       labels.forEach(label => {
@@ -98,10 +110,10 @@ describe('nz-form', () => {
         }
       });
 
-      testComponent.defaultNoColon = false;
-      testComponent.noColon = true;
+      testComponent.defaultNoColon.set(false);
+      testComponent.noColon.set(true);
 
-      testBed.fixture.detectChanges();
+      fixture.detectChanges();
 
       labels.forEach(label => {
         if (label.innerText === 'TEST_PRIORITY') {
@@ -112,32 +124,149 @@ describe('nz-form', () => {
       });
     });
   });
+
+  describe('required mark', () => {
+    let fixture: ComponentFixture<NzTestFormRequiredMarkComponent>;
+    let testComponent: NzTestFormRequiredMarkComponent;
+    let form: DebugElement;
+
+    beforeEach(() => {
+      fixture = TestBed.createComponent(NzTestFormRequiredMarkComponent);
+      testComponent = fixture.componentInstance;
+      form = fixture.debugElement.query(By.directive(NzFormDirective));
+      fixture.detectChanges();
+    });
+
+    it('should handle boolean required mark (default: true)', () => {
+      const requiredLabel = form.nativeElement.querySelector('.required-label label');
+      const optionalLabel = form.nativeElement.querySelector('.optional-label label');
+
+      expect(requiredLabel.classList).toContain('ant-form-item-required');
+      expect(requiredLabel.classList).not.toContain('ant-form-item-required-mark-optional');
+      expect(optionalLabel.classList).not.toContain('ant-form-item-required');
+    });
+
+    it('should handle boolean required mark (false)', () => {
+      testComponent.requiredMark.set(false);
+      fixture.detectChanges();
+
+      const requiredLabel = form.nativeElement.querySelector('.required-label label');
+      const optionalLabel = form.nativeElement.querySelector('.optional-label label');
+
+      expect(requiredLabel.classList).toContain('ant-form-item-required');
+      expect(requiredLabel.classList).toContain('ant-form-item-required-mark-hidden');
+      expect(optionalLabel.classList).not.toContain('ant-form-item-required');
+      expect(optionalLabel.classList).toContain('ant-form-item-required-mark-hidden');
+    });
+
+    it('should handle optional required mark', () => {
+      testComponent.requiredMark.set('optional');
+      fixture.detectChanges();
+
+      const requiredLabel = form.nativeElement.querySelector('.required-label label');
+      const optionalLabel = form.nativeElement.querySelector('.optional-label label');
+
+      expect(requiredLabel.classList).toContain('ant-form-item-required');
+      expect(requiredLabel.classList).toContain('ant-form-item-required-mark-optional');
+      expect(optionalLabel.classList).not.toContain('ant-form-item-required');
+    });
+
+    it('should handle custom template required mark', () => {
+      testComponent.useCustomTemplate.set(true);
+      fixture.detectChanges();
+
+      const requiredLabel = form.nativeElement.querySelector('.required-label');
+      const optionalLabel = form.nativeElement.querySelector('.optional-label');
+
+      expect(requiredLabel.querySelector('.custom-required')).toBeTruthy();
+      expect(requiredLabel.querySelector('.custom-required').textContent?.trim()).toBe('REQUIRED');
+      expect(optionalLabel.querySelector('.custom-optional')).toBeTruthy();
+      expect(optionalLabel.querySelector('.custom-optional').textContent?.trim()).toBe('OPTIONAL');
+    });
+
+    it('should propagate required mark from form directive to labels', () => {
+      const formDirective = form.injector.get(NzFormDirective);
+      expect(formDirective.nzRequiredMark()).toBe(true);
+
+      testComponent.requiredMark.set('optional');
+      fixture.detectChanges();
+
+      expect(formDirective.nzRequiredMark()).toBe('optional');
+    });
+
+    it('should handle template context correctly', () => {
+      testComponent.useCustomTemplate.set(true);
+      fixture.detectChanges();
+
+      const customTemplateElement = form.nativeElement.querySelector('.custom-required');
+      expect(customTemplateElement).toBeTruthy();
+
+      const labelContent = form.nativeElement.querySelector('.required-label .label-content');
+      expect(labelContent).toBeTruthy();
+      expect(labelContent.textContent?.trim()).toBe('Required Field');
+    });
+  });
 });
 
 @Component({
-  template: ` <form nz-form [nzLayout]="layout"></form> `
+  imports: [NzFormModule],
+  template: `<form nz-form [nzLayout]="layout()"></form>`
 })
 export class NzTestFormDirectiveComponent {
-  layout = 'horizontal';
+  readonly layout = signal<NzFormLayoutType>('horizontal');
 }
 
 @Component({
+  imports: [NzFormModule],
   template: `
-    <form nz-form [nzNoColon]="defaultNoColon">
+    <form nz-form [nzNoColon]="defaultNoColon()">
       <nz-form-item>
         <nz-form-label>Label</nz-form-label>
       </nz-form-item>
       <nz-form-item>
         <nz-form-label>Label</nz-form-label>
       </nz-form-item>
-      <nz-form-item *ngIf="testPriority">
-        <nz-form-label [nzNoColon]="noColon">TEST_PRIORITY</nz-form-label>
-      </nz-form-item>
+      @if (testPriority()) {
+        <nz-form-item>
+          <nz-form-label [nzNoColon]="noColon()">TEST_PRIORITY</nz-form-label>
+        </nz-form-item>
+      }
     </form>
   `
 })
 export class NzTestFormLabelIntegrateComponent {
-  defaultNoColon = false;
-  testPriority = false;
-  noColon = false;
+  readonly defaultNoColon = signal(false);
+  readonly testPriority = signal(false);
+  readonly noColon = signal(false);
+}
+
+@Component({
+  imports: [NzFormModule, NgTemplateOutlet],
+  template: `
+    <form nz-form [nzRequiredMark]="useCustomTemplate() ? customRequiredMarkTemplate : requiredMark()">
+      <nz-form-item class="required-label">
+        <nz-form-label nzRequired>
+          <span class="label-content">Required Field</span>
+        </nz-form-label>
+      </nz-form-item>
+      <nz-form-item class="optional-label">
+        <nz-form-label>
+          <span class="label-content">Optional Field</span>
+        </nz-form-label>
+      </nz-form-item>
+    </form>
+
+    <ng-template #customRequiredMarkTemplate let-label let-required="required">
+      @if (required) {
+        <span class="custom-required">REQUIRED</span>
+      } @else {
+        <span class="custom-optional">OPTIONAL</span>
+      }
+      <ng-container *ngTemplateOutlet="label" />
+    </ng-template>
+  `
+})
+export class NzTestFormRequiredMarkComponent {
+  readonly requiredMark = signal<NzRequiredMark>(true);
+  readonly useCustomTemplate = signal(false);
 }

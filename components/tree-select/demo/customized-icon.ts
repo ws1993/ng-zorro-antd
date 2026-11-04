@@ -1,7 +1,12 @@
 import { Component } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzTreeSelectModule } from 'ng-zorro-antd/tree-select';
 
 @Component({
   selector: 'nz-demo-tree-select-customized-icon',
+  imports: [FormsModule, NzIconModule, NzTreeSelectModule],
   template: `
     <nz-tree-select
       style="width: 250px"
@@ -9,7 +14,7 @@ import { Component } from '@angular/core';
       [nzNodes]="nodes"
       nzPlaceHolder="Please select"
       nzShowIcon
-    ></nz-tree-select>
+    />
     <br />
     <nz-tree-select
       style="width: 250px; margin-top: 20px;"
@@ -20,7 +25,7 @@ import { Component } from '@angular/core';
       <ng-template #nzTreeTemplate let-node>
         <span class="ant-tree-node-content-wrapper" [class.ant-tree-node-selected]="node.isSelected">
           <span>
-            <i nz-icon [nzType]="node.isExpanded ? 'folder-open' : 'folder'"></i>
+            <nz-icon [nzType]="node.isExpanded ? 'folder-open' : 'folder'" />
             {{ node.title }}
           </span>
         </span>
@@ -30,7 +35,7 @@ import { Component } from '@angular/core';
 })
 export class NzDemoTreeSelectCustomizedIconComponent {
   value?: string;
-  nodes = [
+  readonly nodes = [
     {
       title: 'parent 1',
       key: '100',

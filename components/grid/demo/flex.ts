@@ -1,7 +1,10 @@
 import { Component } from '@angular/core';
 
+import { NzGridModule } from 'ng-zorro-antd/grid';
+
 @Component({
   selector: 'nz-demo-grid-flex',
+  imports: [NzGridModule],
   template: `
     <div>
       <p>sub-element align left</p>
@@ -39,14 +42,19 @@ import { Component } from '@angular/core';
         <div nz-col nzSpan="4">col-4</div>
         <div nz-col nzSpan="4">col-4</div>
       </div>
+      <p>sub-element align evenly</p>
+      <div nz-row nzJustify="space-evenly">
+        <div nz-col nzSpan="4">col-4</div>
+        <div nz-col nzSpan="4">col-4</div>
+        <div nz-col nzSpan="4">col-4</div>
+        <div nz-col nzSpan="4">col-4</div>
+      </div>
     </div>
   `,
-  styles: [
-    `
-      [nz-row] {
-        background-color: rgba(128, 128, 128, 0.08);
-      }
-    `
-  ]
+  styles: `
+    [nz-row] {
+      background-color: rgba(128, 128, 128, 0.08);
+    }
+  `
 })
 export class NzDemoGridFlexComponent {}

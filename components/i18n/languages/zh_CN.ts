@@ -15,7 +15,8 @@ export default {
     prev_5: '向前 5 页',
     next_5: '向后 5 页',
     prev_3: '向前 3 页',
-    next_3: '向后 3 页'
+    next_3: '向后 3 页',
+    page_size: '页码'
   },
   DatePicker: {
     lang: {
@@ -26,6 +27,7 @@ export default {
       weekPlaceholder: '请选择周',
       rangePlaceholder: ['开始日期', '结束日期'],
       rangeYearPlaceholder: ['开始年份', '结束年份'],
+      rangeQuarterPlaceholder: ['开始季度', '结束季度'],
       rangeMonthPlaceholder: ['开始月份', '结束月份'],
       rangeWeekPlaceholder: ['开始周', '结束周'],
       locale: 'zh_CN',
@@ -123,7 +125,10 @@ export default {
     collapse: '关闭行',
     triggerDesc: '点击降序',
     triggerAsc: '点击升序',
-    cancelSort: '取消排序'
+    cancelSort: '取消排序',
+    filterCheckall: '全选',
+    filterSearchPlaceholder: '在筛选项中搜索',
+    selectNone: '清空所有'
   },
   Modal: {
     okText: '确定',
@@ -155,6 +160,9 @@ export default {
   Empty: {
     description: '暂无数据'
   },
+  Form: {
+    optional: '(可选)'
+  },
   Icon: {
     icon: '图标'
   },
@@ -166,5 +174,32 @@ export default {
   },
   PageHeader: {
     back: '返回'
+  },
+  Image: {
+    preview: '预览'
+  },
+  CronExpression: {
+    cronError: 'cron 表达式不合法',
+    second: '秒',
+    minute: '分钟',
+    hour: '小时',
+    day: '日',
+    month: '月',
+    week: '周'
+  },
+  QRCode: {
+    expired: '二维码过期',
+    refresh: '点击刷新',
+    scanned: '已扫描'
+  },
+  CheckList: {
+    checkList: '任务清单',
+    checkListFinish: '你已成功完成任务清单！',
+    checkListClose: '关闭',
+    checkListFooter: '不需要操作指引',
+    checkListCheck: '你要关闭操作清单吗',
+    ok: '确定',
+    cancel: '取消',
+    checkListCheckOther: '以后不再需要操作清单'
   }
 };

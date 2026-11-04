@@ -1,14 +1,18 @@
-import { Component } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
 import { NzMessageService } from 'ng-zorro-antd/message';
+import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
+import { NzSwitchModule } from 'ng-zorro-antd/switch';
 
 @Component({
   selector: 'nz-demo-popconfirm-dynamic-trigger',
+  imports: [FormsModule, NzPopconfirmModule, NzSwitchModule],
   template: `
     <a
       nz-popconfirm
       nzPopconfirmTitle="Are you sure delete this task?"
-      [nzCondition]="switchValue"
+      [nzCondition]="switchValue()"
       (nzOnConfirm)="confirm()"
       (nzOnCancel)="cancel()"
     >
@@ -17,11 +21,13 @@ import { NzMessageService } from 'ng-zorro-antd/message';
     <br />
     <br />
     Whether directly execute:
-    <nz-switch [(ngModel)]="switchValue"></nz-switch>
+    <nz-switch [(ngModel)]="switchValue" />
   `
 })
 export class NzDemoPopconfirmDynamicTriggerComponent {
-  switchValue = false;
+  private readonly nzMessageService = inject(NzMessageService);
+
+  readonly switchValue = signal(false);
 
   cancel(): void {
     this.nzMessageService.info('click cancel');
@@ -30,6 +36,4 @@ export class NzDemoPopconfirmDynamicTriggerComponent {
   confirm(): void {
     this.nzMessageService.info('click confirm');
   }
-
-  constructor(private nzMessageService: NzMessageService) {}
 }

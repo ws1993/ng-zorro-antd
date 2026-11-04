@@ -3,16 +3,14 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { readFileSync, writeFileSync } from 'fs-extra';
-import * as sitemap from 'sitemap';
+import { createWriteStream, readFileSync } from 'fs-extra';
+import { EnumChangefreq, SitemapItemLoose, SitemapStream } from 'sitemap';
 
-import * as os from 'os';
 import { resolve } from 'path';
 
 import { buildConfig } from '../build-config';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const priorityMap: any = {
+const priorityMap: Record<string, number> = {
   '/docs/introduce/en': 1,
   '/docs/getting-started/en': 0.8,
   '/docs/schematics/en': 0.8,
@@ -20,15 +18,22 @@ const priorityMap: any = {
   '/docs/faq/en': 0.8
 };
 
-const ROUTES = readFileSync(resolve(__dirname, 'route-paths.txt')).toString().split(os.EOL) as string[];
+const PRERENDERED_ROUTES_PATH = resolve(buildConfig.outputDir, 'prerendered-routes.json');
 
-function generateUrls(lang: 'zh' | 'en'): sitemap.ISitemapItemOptionsLoose[] {
-  const urls = Array.from(new Set(ROUTES.filter(r => r !== '/').map(r => r.replace(/\/(zh|en)$/, ''))));
+function loadRoutes(): string[] {
+  const raw = readFileSync(PRERENDERED_ROUTES_PATH, 'utf8');
+  const parsed = JSON.parse(raw) as { routes: Record<string, unknown> };
+  return Object.keys(parsed.routes);
+}
+
+function generateUrls(lang: 'zh' | 'en'): SitemapItemLoose[] {
+  const routes = loadRoutes();
+  const urls = Array.from(new Set(routes.filter(r => r !== '/').map(r => r.replace(/\/(zh|en)$/, ''))));
   return urls.map((r: string) => {
     const url = `${r}/${lang}`;
     return {
       url,
-      changefreq: sitemap.EnumChangefreq.HOURLY,
+      changefreq: EnumChangefreq.HOURLY,
       priority: priorityMap[url] || 0.6,
       lastmodrealtime: true,
       lastmodISO: new Date().toISOString(),
@@ -42,20 +47,20 @@ function generateUrls(lang: 'zh' | 'en'): sitemap.ISitemapItemOptionsLoose[] {
 }
 
 export function generateSitemap(): void {
-  const sitemapInstance = sitemap.createSitemap({
-    hostname: 'https://ng.ant.design',
-    cacheTime: 600000,
-    urls: [
-      {
-        url: '/',
-        changefreq: sitemap.EnumChangefreq.HOURLY,
-        priority: 1,
-        lastmodrealtime: true,
-        lastmodISO: new Date().toISOString()
-      },
-      ...generateUrls('en'),
-      ...generateUrls('zh')
-    ]
-  });
-  writeFileSync(resolve(`${buildConfig.outputDir}/browser`, 'sitemap.xml'), sitemapInstance.toString(true));
+  const sms = new SitemapStream({ hostname: 'https://ng.ant.design' });
+  sms.pipe(createWriteStream(resolve(`${buildConfig.outputDir}/browser`, 'sitemap.xml')));
+
+  const urls: SitemapItemLoose[] = [
+    {
+      url: '/',
+      changefreq: EnumChangefreq.HOURLY,
+      priority: 1,
+      lastmodrealtime: true,
+      lastmodISO: new Date().toISOString()
+    },
+    ...generateUrls('en'),
+    ...generateUrls('zh')
+  ];
+  urls.forEach(url => sms.write(url));
+  sms.end();
 }

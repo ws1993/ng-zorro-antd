@@ -13,6 +13,10 @@
 
   &-wrap {
     z-index: @zindex-modal;
+
+    &-rtl {
+      direction: rtl;
+    }
   }
 
   &-title {
@@ -21,7 +25,7 @@
     font-weight: 500;
     font-size: @modal-header-title-font-size;
     line-height: @modal-header-title-line-height;
-    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
   &-content {
@@ -29,7 +33,7 @@
     background-color: @modal-content-bg;
     background-clip: padding-box;
     border: 0;
-    border-radius: @border-radius-base;
+    border-radius: @modal-border-radius;
     box-shadow: @shadow-2;
     pointer-events: auto;
   }
@@ -37,7 +41,7 @@
   &-close {
     position: absolute;
     top: 0;
-    right: 0;
+    inset-inline-end: 0;
     z-index: @zindex-popup-close;
     padding: 0;
     color: @modal-close-color;
@@ -75,27 +79,27 @@
     background: @modal-header-bg;
     border-bottom: @modal-header-border-width @modal-header-border-style
       @modal-header-border-color-split;
-    border-radius: @border-radius-base @border-radius-base 0 0;
+    border-radius: @modal-border-radius @modal-border-radius 0 0;
   }
 
   &-body {
     padding: @modal-body-padding;
     font-size: @font-size-base;
     line-height: @line-height-base;
-    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
   &-footer {
     padding: @modal-footer-padding-vertical @modal-footer-padding-horizontal;
-    text-align: right;
+    text-align: end;
     background: @modal-footer-bg;
     border-top: @modal-footer-border-width @modal-footer-border-style
       @modal-footer-border-color-split;
-    border-radius: 0 0 @border-radius-base @border-radius-base;
+    border-radius: 0 0 @modal-border-radius @modal-border-radius;
 
     .@{ant-prefix}-btn + .@{ant-prefix}-btn:not(.@{ant-prefix}-dropdown-trigger) {
       margin-bottom: 0;
-      margin-left: 8px;
+      margin-inline-start: 8px;
     }
   }
 
@@ -106,6 +110,7 @@
 
 .@{dialog-prefix-cls}-centered {
   text-align: center;
+
   &::before {
     display: inline-block;
     width: 0;
@@ -116,6 +121,7 @@
   .@{dialog-prefix-cls} {
     top: 0;
     display: inline-block;
+    padding-bottom: 0;
     text-align: left;
     vertical-align: middle;
   }

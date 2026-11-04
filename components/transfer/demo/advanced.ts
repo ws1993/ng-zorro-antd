@@ -1,13 +1,15 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 
+import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzMessageService } from 'ng-zorro-antd/message';
-import { TransferItem } from 'ng-zorro-antd/transfer';
+import { NzTransferModule, TransferItem } from 'ng-zorro-antd/transfer';
 
 @Component({
   selector: 'nz-demo-transfer-advanced',
+  imports: [NzButtonModule, NzTransferModule],
   template: `
     <nz-transfer
-      [nzDataSource]="list"
+      [nzDataSource]="list()"
       nzShowSearch
       [nzOperations]="['to right', 'to left']"
       [nzListStyle]="{ 'width.px': 250, 'height.px': 300 }"
@@ -18,7 +20,7 @@ import { TransferItem } from 'ng-zorro-antd/transfer';
     >
       <ng-template #render let-item>{{ item.title }}-{{ item.description }}</ng-template>
       <ng-template #footer let-direction>
-        <button nz-button (click)="reload(direction)" [nzSize]="'small'" style="float: right; margin: 5px;">
+        <button nz-button (click)="reload(direction)" nzSize="small" style="float: right; margin: 5px;">
           reload
         </button>
       </ng-template>
@@ -26,13 +28,15 @@ import { TransferItem } from 'ng-zorro-antd/transfer';
   `
 })
 export class NzDemoTransferAdvancedComponent implements OnInit {
-  list: TransferItem[] = [];
+  private readonly messageService = inject(NzMessageService);
+
+  readonly list = signal<TransferItem[]>([]);
 
   ngOnInit(): void {
-    this.getData();
+    this.list.set(this.getData());
   }
 
-  getData(): void {
+  getData(): TransferItem[] {
     const ret: TransferItem[] = [];
     for (let i = 0; i < 20; i++) {
       ret.push({
@@ -42,12 +46,12 @@ export class NzDemoTransferAdvancedComponent implements OnInit {
         direction: Math.random() * 2 > 1 ? 'right' : undefined
       });
     }
-    this.list = ret;
+    return ret;
   }
 
   reload(direction: string): void {
-    this.getData();
-    this.msg.success(`your clicked ${direction}!`);
+    this.list.set(this.getData());
+    this.messageService.success(`your clicked ${direction}!`);
   }
 
   select(ret: {}): void {
@@ -57,6 +61,4 @@ export class NzDemoTransferAdvancedComponent implements OnInit {
   change(ret: {}): void {
     console.log('nzChange', ret);
   }
-
-  constructor(public msg: NzMessageService) {}
 }

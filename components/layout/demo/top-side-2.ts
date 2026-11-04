@@ -1,7 +1,13 @@
 import { Component } from '@angular/core';
 
+import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzLayoutModule } from 'ng-zorro-antd/layout';
+import { NzMenuModule } from 'ng-zorro-antd/menu';
+
 @Component({
   selector: 'nz-demo-layout-top-side-2',
+  imports: [NzBreadCrumbModule, NzIconModule, NzMenuModule, NzLayoutModule],
   template: `
     <nz-layout>
       <nz-header>
@@ -52,39 +58,38 @@ import { Component } from '@angular/core';
       </nz-layout>
     </nz-layout>
   `,
-  styles: [
-    `
-      .logo {
-        width: 120px;
-        height: 31px;
-        background: rgba(255, 255, 255, 0.2);
-        margin: 16px 30px 16px 0;
-        float: left;
-      }
+  styles: `
+    .logo {
+      width: 120px;
+      height: 31px;
+      background: rgba(255, 255, 255, 0.2);
+      margin-block: 16px;
+      margin-inline-end: 24px;
+      float: inline-start;
+    }
 
-      .header-menu {
-        line-height: 64px;
-      }
+    .header-menu {
+      line-height: 64px;
+    }
 
-      .sider-menu {
-        height: 100%;
-        border-right: 0;
-      }
+    .sider-menu {
+      height: 100%;
+      border-right: 0;
+    }
 
-      .inner-layout {
-        padding: 0 24px 24px;
-      }
+    .inner-layout {
+      padding: 0 24px 24px;
+    }
 
-      nz-breadcrumb {
-        margin: 16px 0;
-      }
+    nz-breadcrumb {
+      margin: 16px 0;
+    }
 
-      nz-content {
-        background: #fff;
-        padding: 24px;
-        min-height: 280px;
-      }
-    `
-  ]
+    nz-content {
+      background: #fff;
+      padding: 24px;
+      min-height: 280px;
+    }
+  `
 })
 export class NzDemoLayoutTopSide2Component {}

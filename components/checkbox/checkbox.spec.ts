@@ -1,33 +1,22 @@
-import { BidiModule, Dir } from '@angular/cdk/bidi';
-import { Component, DebugElement, ViewChild } from '@angular/core';
-import { ComponentFixture, fakeAsync, flush, TestBed, waitForAsync } from '@angular/core/testing';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
+import { ApplicationRef, Component, DebugElement, signal, ViewChild } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { By } from '@angular/platform-browser';
 
-import { NzCheckboxGroupComponent } from './checkbox-group.component';
-import { NzCheckboxWrapperComponent } from './checkbox-wrapper.component';
+import { vi } from 'vitest';
+
+import { testDirectionality, updateNonSignalsInput } from 'ng-zorro-antd/core/testing';
+
 import { NzCheckboxComponent } from './checkbox.component';
 import { NzCheckboxModule } from './checkbox.module';
 
 describe('checkbox', () => {
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        imports: [BidiModule, NzCheckboxModule, FormsModule, ReactiveFormsModule],
-        declarations: [
-          NzTestCheckboxSingleComponent,
-          NzTestCheckboxGroupComponent,
-          NzTestCheckboxFormComponent,
-          NzTestCheckboxGroupFormComponent,
-          NzTestCheckboxWrapperComponent,
-          NzTestCheckboxSingleRtlComponent,
-          NzTestCheckboxGroupRtlComponent
-        ]
-      });
-      TestBed.compileComponents();
-    })
-  );
-  describe('checkbox basic', () => {
+  describe('basic', () => {
     let fixture: ComponentFixture<NzTestCheckboxSingleComponent>;
     let testComponent: NzTestCheckboxSingleComponent;
     let checkbox: DebugElement;
@@ -49,73 +38,79 @@ describe('checkbox', () => {
       expect(checkbox.nativeElement.firstElementChild.lastElementChild.classList.contains('ant-checkbox-inner')).toBe(
         true
       );
-      expect(checkbox.nativeElement.lastElementChild.innerText).toBe(' Checkbox');
+      expect(checkbox.nativeElement.lastElementChild.innerText.trim()).toBe('Checkbox');
     });
+
     it('should click change', () => {
       fixture.detectChanges();
-      expect(testComponent.checked).toBe(false);
+      expect(testComponent.checked()).toBe(false);
       expect(checkbox.nativeElement.firstElementChild!.classList.contains('ant-checkbox-checked')).toBe(false);
       expect(testComponent.modelChange).toHaveBeenCalledTimes(0);
       checkbox.nativeElement.click();
       fixture.detectChanges();
-      expect(testComponent.checked).toBe(true);
+      expect(testComponent.checked()).toBe(true);
       expect(checkbox.nativeElement.firstElementChild!.classList.contains('ant-checkbox-checked')).toBe(true);
       expect(testComponent.modelChange).toHaveBeenCalledTimes(1);
     });
-    it('should click input a11y correct', () => {
+
+    it('should click input a11y correct', async () => {
       fixture.detectChanges();
       const inputElement = checkbox.nativeElement.querySelector('input');
-      expect(testComponent.checked).toBe(false);
+      expect(testComponent.checked()).toBe(false);
       expect(inputElement.checked).toBe(false);
       expect(checkbox.nativeElement.firstElementChild.classList.contains('ant-checkbox-checked')).toBe(false);
       expect(testComponent.modelChange).toHaveBeenCalledTimes(0);
-      inputElement.click();
-      fixture.detectChanges();
-      expect(testComponent.checked).toBe(true);
+      inputElement.checked = true;
+      inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+      await stabilize(fixture);
+      expect(testComponent.checked()).toBe(true);
       expect(checkbox.nativeElement.firstElementChild.classList.contains('ant-checkbox-checked')).toBe(true);
       expect(inputElement.checked).toBe(true);
       expect(testComponent.modelChange).toHaveBeenCalledTimes(1);
     });
-    it('should ngModel change', fakeAsync(() => {
-      testComponent.checked = true;
-      fixture.detectChanges();
-      flush();
-      fixture.detectChanges();
-      expect(testComponent.checked).toBe(true);
+
+    it('should ngModel change', async () => {
+      testComponent.checked.set(true);
+      await stabilize(fixture);
+      expect(testComponent.checked()).toBe(true);
       expect(checkbox.nativeElement.firstElementChild!.classList.contains('ant-checkbox-checked')).toBe(true);
       expect(testComponent.modelChange).toHaveBeenCalledTimes(0);
-    }));
+    });
+
     it('should disabled work', () => {
       fixture.detectChanges();
-      testComponent.disabled = true;
+      testComponent.disabled.set(true);
       fixture.detectChanges();
-      expect(testComponent.checked).toBe(false);
+      expect(testComponent.checked()).toBe(false);
       expect(checkbox.nativeElement.firstElementChild!.classList.contains('ant-checkbox-checked')).toBe(false);
       expect(testComponent.modelChange).toHaveBeenCalledTimes(0);
       checkbox.nativeElement.click();
       fixture.detectChanges();
-      expect(testComponent.checked).toBe(false);
+      expect(testComponent.checked()).toBe(false);
       expect(checkbox.nativeElement.firstElementChild!.classList.contains('ant-checkbox-checked')).toBe(false);
       expect(testComponent.modelChange).toHaveBeenCalledTimes(0);
     });
+
     it('should indeterminate work', () => {
       fixture.detectChanges();
-      testComponent.indeterminate = true;
+      testComponent.indeterminate.set(true);
       fixture.detectChanges();
       expect(checkbox.nativeElement.firstElementChild!.classList.contains('ant-checkbox-indeterminate')).toBe(true);
-      testComponent.checked = true;
+      testComponent.checked.set(true);
       fixture.detectChanges();
       expect(checkbox.nativeElement.firstElementChild!.classList.contains('ant-checkbox-indeterminate')).toBe(true);
     });
+
     it('should autofocus work', () => {
       fixture.detectChanges();
-      testComponent.autoFocus = true;
+      testComponent.autoFocus.set(true);
       fixture.detectChanges();
       expect(checkbox.nativeElement.querySelector('input').attributes.getNamedItem('autofocus').name).toBe('autofocus');
-      testComponent.autoFocus = false;
+      testComponent.autoFocus.set(false);
       fixture.detectChanges();
       expect(checkbox.nativeElement.querySelector('input').attributes.getNamedItem('autofocus')).toBe(null);
     });
+
     it('should focus and blur function work', () => {
       fixture.detectChanges();
       expect(checkbox.nativeElement.querySelector('input') === document.activeElement).toBe(false);
@@ -126,221 +121,120 @@ describe('checkbox', () => {
       fixture.detectChanges();
       expect(checkbox.nativeElement.querySelector('input') === document.activeElement).toBe(false);
     });
-  });
-  describe('checkbox group basic', () => {
-    let fixture: ComponentFixture<NzTestCheckboxGroupComponent>;
-    let testComponent: NzTestCheckboxGroupComponent;
-    let checkboxGroup: DebugElement;
-    let checkboxs: HTMLElement[];
 
-    beforeEach(fakeAsync(() => {
-      fixture = TestBed.createComponent(NzTestCheckboxGroupComponent);
-      fixture.detectChanges();
-      flush();
-      fixture.detectChanges();
-      testComponent = fixture.debugElement.componentInstance;
-      checkboxGroup = fixture.debugElement.query(By.directive(NzCheckboxGroupComponent));
-      checkboxs = checkboxGroup.nativeElement.children;
-    }));
-    it('should className correct', fakeAsync(() => {
-      fixture.detectChanges();
-      flush();
-      fixture.detectChanges();
-      expect(checkboxGroup.nativeElement.classList).toContain('ant-checkbox-group');
-      expect(checkboxs[0].firstElementChild!.classList).toContain('ant-checkbox-checked');
-      expect(checkboxs[1].firstElementChild!.classList).toContain('ant-checkbox-disabled');
-      expect(checkboxs[1].firstElementChild!.classList).not.toContain('ant-checkbox-checked');
-      expect(checkboxs[2].firstElementChild!.classList).not.toContain('ant-checkbox-checked');
-    }));
-    it('should click correct', () => {
-      fixture.detectChanges();
-      fixture.detectChanges();
-      checkboxs[0].click();
-      fixture.detectChanges();
-      expect(testComponent.modelChange).toHaveBeenCalledTimes(1);
-      expect(checkboxs[0].firstElementChild!.classList).not.toContain('ant-checkbox-checked');
+    describe('change detection behavior', () => {
+      it('should not run change detection when the `input` is clicked', () => {
+        const appRef = TestBed.inject(ApplicationRef);
+        const event = new MouseEvent('click');
+
+        vi.spyOn(appRef, 'tick');
+        vi.spyOn(event, 'stopPropagation');
+
+        const nzCheckbox = fixture.debugElement.query(By.directive(NzCheckboxComponent));
+        nzCheckbox.nativeElement.querySelector('.ant-checkbox-input').dispatchEvent(event);
+
+        expect(appRef.tick).not.toHaveBeenCalled();
+        expect(event.stopPropagation).toHaveBeenCalled();
+      });
+
+      it('should not run change detection when the `nz-checkbox` is clicked and it is disabled', () => {
+        testComponent.disabled.set(true);
+        fixture.detectChanges();
+
+        const appRef = TestBed.inject(ApplicationRef);
+        const event = new MouseEvent('click');
+
+        vi.spyOn(appRef, 'tick');
+        vi.spyOn(event, 'preventDefault');
+
+        const nzCheckbox = fixture.debugElement.query(By.directive(NzCheckboxComponent));
+        nzCheckbox.nativeElement.dispatchEvent(event);
+
+        expect(appRef.tick).not.toHaveBeenCalled();
+        expect(event.preventDefault).toHaveBeenCalled();
+      });
     });
-    it('should sub disabled work', () => {
-      fixture.detectChanges();
-      fixture.detectChanges();
-      checkboxs[1].click();
-      fixture.detectChanges();
-      expect(testComponent.modelChange).toHaveBeenCalledTimes(0);
-      expect(checkboxs[1].firstElementChild!.classList).not.toContain('ant-checkbox-checked');
-    });
-    it('should all disabled work', () => {
-      testComponent.disabled = true;
-      fixture.detectChanges();
-      fixture.detectChanges();
-      checkboxs[2].click();
-      fixture.detectChanges();
-      expect(testComponent.modelChange).toHaveBeenCalledTimes(0);
-      expect(checkboxs[2].firstElementChild!.classList).not.toContain('ant-checkbox-checked');
-    });
-    it('should ngModel work', fakeAsync(() => {
-      fixture.detectChanges();
-      testComponent.options[0].checked = false;
-      fixture.detectChanges();
-      flush();
-      fixture.detectChanges();
-      expect(checkboxs[0].firstElementChild!.classList).not.toContain('ant-checkbox-checked');
-      expect(testComponent.modelChange).toHaveBeenCalledTimes(0);
-    }));
   });
-  describe('checkbox form', () => {
+
+  describe('form', () => {
     let fixture: ComponentFixture<NzTestCheckboxFormComponent>;
     let testComponent: NzTestCheckboxFormComponent;
-    let checkbox: DebugElement;
-    let inputElement: HTMLInputElement;
 
-    beforeEach(fakeAsync(() => {
+    beforeEach(() => {
       fixture = TestBed.createComponent(NzTestCheckboxFormComponent);
-      fixture.detectChanges();
-      flush();
-      fixture.detectChanges();
-      testComponent = fixture.debugElement.componentInstance;
-      checkbox = fixture.debugElement.query(By.directive(NzCheckboxComponent));
-      inputElement = checkbox.nativeElement.querySelector('input') as HTMLInputElement;
-    }));
-    it('should be in pristine, untouched, and valid states initially', fakeAsync(() => {
-      flush();
-      expect(testComponent.formGroup.valid).toBe(true);
-      expect(testComponent.formGroup.pristine).toBe(true);
-      expect(testComponent.formGroup.touched).toBe(false);
-    }));
-    it('should set disabled work', fakeAsync(() => {
-      flush();
-      expect(testComponent.formGroup.get('checkbox')!.value).toBe(false);
-      inputElement.click();
-      flush();
-      fixture.detectChanges();
-      expect(testComponent.formGroup.get('checkbox')!.value).toBe(true);
-      testComponent.disable();
-      inputElement.click();
-      flush();
-      fixture.detectChanges();
-      expect(testComponent.formGroup.get('checkbox')!.value).toBe(true);
-    }));
-  });
-  describe('checkbox group form', () => {
-    let fixture: ComponentFixture<NzTestCheckboxGroupFormComponent>;
-    let testComponent: NzTestCheckboxGroupFormComponent;
-    let checkboxGroup: DebugElement;
-    let inputElement: HTMLInputElement;
+      testComponent = fixture.componentInstance;
+    });
 
-    beforeEach(fakeAsync(() => {
-      fixture = TestBed.createComponent(NzTestCheckboxGroupFormComponent);
-      fixture.detectChanges();
-      flush();
-      fixture.detectChanges();
-      testComponent = fixture.debugElement.componentInstance;
-      checkboxGroup = fixture.debugElement.query(By.directive(NzCheckboxGroupComponent));
-      inputElement = checkboxGroup.nativeElement.querySelector('input') as HTMLInputElement;
-    }));
-    it('should be in pristine, untouched, and valid states initially', fakeAsync(() => {
-      flush();
-      expect(testComponent.formGroup.get('checkboxGroup')!.valid).toBe(true);
-      expect(testComponent.formGroup.get('checkboxGroup')!.pristine).toBe(true);
-      expect(testComponent.formGroup.get('checkboxGroup')!.touched).toBe(false);
-    }));
-    it('should set disabled work', fakeAsync(() => {
-      flush();
-      expect(JSON.stringify(testComponent.formGroup.get('checkboxGroup')!.value)).toBe(
-        JSON.stringify([
-          { label: 'Apple', value: 'Apple', checked: true },
-          { label: 'Pear', value: 'Pear', disabled: true },
-          { label: 'Orange', value: 'Orange' }
-        ])
-      );
-      inputElement.click();
-      fixture.detectChanges();
-      flush();
-      fixture.detectChanges();
-      expect(JSON.stringify(testComponent.formGroup.get('checkboxGroup')!.value)).toBe(
-        JSON.stringify([
-          { label: 'Apple', value: 'Apple', checked: false },
-          { label: 'Pear', value: 'Pear', disabled: true },
-          { label: 'Orange', value: 'Orange' }
-        ])
-      );
-      testComponent.disable();
-      fixture.detectChanges();
-      flush();
-      fixture.detectChanges();
-      inputElement.click();
-      flush();
-      fixture.detectChanges();
-      expect(JSON.stringify(testComponent.formGroup.get('checkboxGroup')!.value)).toBe(
-        JSON.stringify([
-          { label: 'Apple', value: 'Apple', checked: false },
-          { label: 'Pear', value: 'Pear', disabled: true },
-          { label: 'Orange', value: 'Orange' }
-        ])
-      );
-    }));
-  });
-  describe('checkbox wrapper', () => {
-    let fixture: ComponentFixture<NzTestCheckboxWrapperComponent>;
-    let testComponent: NzTestCheckboxWrapperComponent;
-    let checkboxWrapper: DebugElement;
-    let inputElement: HTMLInputElement;
-
-    beforeEach(fakeAsync(() => {
-      fixture = TestBed.createComponent(NzTestCheckboxWrapperComponent);
-      fixture.detectChanges();
-      flush();
-      fixture.detectChanges();
-      testComponent = fixture.debugElement.componentInstance;
-      checkboxWrapper = fixture.debugElement.query(By.directive(NzCheckboxWrapperComponent));
-      inputElement = checkboxWrapper.nativeElement.querySelector('input') as HTMLInputElement;
-    }));
-    it('should className correct', fakeAsync(() => {
-      expect(checkboxWrapper.nativeElement.classList).toContain('ant-checkbox-group');
-    }));
-    it('should onChange correct', fakeAsync(() => {
-      inputElement.click();
-      flush();
-      fixture.detectChanges();
-      expect(testComponent.onChange).toHaveBeenCalledWith([]);
-      expect(testComponent.onChange).toHaveBeenCalledTimes(1);
-    }));
-  });
-  describe('RTL', () => {
-    it('should single checkbox className correct on dir change', () => {
-      const fixture = TestBed.createComponent(NzTestCheckboxSingleRtlComponent);
+    it('should be in pristine, untouched, and valid states and enable initially', async () => {
+      await stabilize(fixture);
       const checkbox = fixture.debugElement.query(By.directive(NzCheckboxComponent));
-      fixture.detectChanges();
-      expect(checkbox.nativeElement.classList).toContain('ant-checkbox-rtl');
-
-      fixture.componentInstance.direction = 'ltr';
-      fixture.detectChanges();
-      expect(checkbox.nativeElement.classList).not.toContain('ant-checkbox-rtl');
+      const inputElement = checkbox.nativeElement.querySelector('input') as HTMLInputElement;
+      expect(checkbox.nativeElement.firstElementChild!.classList).not.toContain('ant-checkbox-disabled');
+      expect(inputElement.disabled).toBeFalsy();
+      expect(testComponent.formControl.valid).toBe(true);
+      expect(testComponent.formControl.pristine).toBe(true);
+      expect(testComponent.formControl.touched).toBe(false);
     });
 
-    it('should group checkbox className correct on dir change', () => {
-      const fixture = TestBed.createComponent(NzTestCheckboxGroupRtlComponent);
-      const checkbox = fixture.debugElement.query(By.directive(NzCheckboxGroupComponent));
-      fixture.detectChanges();
-      expect(checkbox.nativeElement.classList).toContain('ant-checkbox-group-rtl');
+    it('should be disable if form is disable and nzDisable set to false', async () => {
+      testComponent.disable();
+      await stabilize(fixture);
+      const checkbox = fixture.debugElement.query(By.directive(NzCheckboxComponent));
+      const inputElement = checkbox.nativeElement.querySelector('input') as HTMLInputElement;
+      expect(checkbox.nativeElement.firstElementChild!.classList).toContain('ant-checkbox-disabled');
+      expect(inputElement.disabled).toBeTruthy();
+    });
 
-      fixture.componentInstance.direction = 'ltr';
-      fixture.detectChanges();
-      expect(checkbox.nativeElement.classList).not.toContain('ant-checkbox-group-rtl');
+    it('should set disabled work', async () => {
+      testComponent.disabled = true;
+      await stabilize(fixture);
+      const checkbox = fixture.debugElement.query(By.directive(NzCheckboxComponent));
+      const inputElement = checkbox.nativeElement.querySelector('input') as HTMLInputElement;
+
+      expect(checkbox.nativeElement.firstElementChild!.classList).toContain('ant-checkbox-disabled');
+      expect(inputElement.disabled).toBeTruthy();
+      inputElement.click();
+      await stabilize(fixture);
+      expect(testComponent.formControl.value).toBe(false);
+
+      testComponent.enable();
+      await stabilize(fixture);
+      expect(checkbox.nativeElement.firstElementChild!.classList).not.toContain('ant-checkbox-disabled');
+      expect(inputElement.disabled).toBeFalsy();
+      inputElement.click();
+      await stabilize(fixture);
+      expect(testComponent.formControl.value).toBe(true);
+
+      testComponent.disable();
+      await stabilize(fixture);
+      expect(checkbox.nativeElement.firstElementChild!.classList).toContain('ant-checkbox-disabled');
+      expect(inputElement.disabled).toBeTruthy();
+      inputElement.click();
+      await stabilize(fixture);
+      expect(testComponent.formControl.value).toBe(true);
     });
   });
+
+  testDirectionality(() => NzTestCheckboxSingleComponent, By.directive(NzCheckboxComponent), 'ant-checkbox');
 });
 
+async function stabilize<T>(fixture: ComponentFixture<T>): Promise<void> {
+  fixture.detectChanges();
+  await updateNonSignalsInput(fixture);
+  fixture.detectChanges();
+}
+
 @Component({
-  // eslint-disable-next-line
+  imports: [FormsModule, NzCheckboxModule],
   selector: 'nz-test-single-checkbox',
   template: `
     <label
       nz-checkbox
-      [nzDisabled]="disabled"
+      [nzDisabled]="disabled()"
       [(ngModel)]="checked"
-      [nzAutoFocus]="autoFocus"
-      [nzIndeterminate]="indeterminate"
       (ngModelChange)="modelChange($event)"
+      [nzAutoFocus]="autoFocus()"
+      [nzIndeterminate]="indeterminate()"
     >
       Checkbox
     </label>
@@ -348,117 +242,51 @@ describe('checkbox', () => {
 })
 export class NzTestCheckboxSingleComponent {
   @ViewChild(NzCheckboxComponent, { static: false }) nzCheckboxComponent!: NzCheckboxComponent;
-  disabled = false;
-  autoFocus = false;
-  checked = false;
-  indeterminate = false;
-  modelChange = jasmine.createSpy('change callback');
+  readonly disabled = signal(false);
+  readonly autoFocus = signal(false);
+  readonly checked = signal(false);
+  readonly indeterminate = signal(false);
+  modelChange = vi.fn();
 }
 
 @Component({
-  // eslint-disable-next-line
-  selector: 'nz-test-group-checkbox',
+  imports: [ReactiveFormsModule, NzCheckboxModule],
   template: `
-    <nz-checkbox-group
-      [nzDisabled]="disabled"
-      [ngModel]="options"
-      (ngModelChange)="modelChange($event)"
-    ></nz-checkbox-group>
-  `
-})
-export class NzTestCheckboxGroupComponent {
-  options = [
-    { label: 'Apple', value: 'Apple', checked: true },
-    { label: 'Pear', value: 'Pear', disabled: true },
-    { label: 'Orange', value: 'Orange' }
-  ];
-  disabled = false;
-  modelChange = jasmine.createSpy('change callback');
-}
-
-@Component({
-  template: `
-    <nz-checkbox-wrapper (nzOnChange)="onChange($event)">
-      <div><label nz-checkbox nzValue="A" [ngModel]="true">A</label></div>
-      <div><label nz-checkbox nzValue="B">B</label></div>
-      <div><label nz-checkbox nzValue="C">C</label></div>
-      <div><label nz-checkbox nzValue="D">D</label></div>
-      <div><label nz-checkbox nzValue="E">E</label></div>
-    </nz-checkbox-wrapper>
-  `
-})
-export class NzTestCheckboxWrapperComponent {
-  onChange = jasmine.createSpy('change callback');
-}
-
-@Component({
-  template: `
-    <form [formGroup]="formGroup">
-      <label nz-checkbox formControlName="checkbox"></label>
+    <form>
+      <label nz-checkbox [formControl]="formControl" [nzDisabled]="disabled"></label>
     </form>
   `
 })
 export class NzTestCheckboxFormComponent {
-  formGroup: FormGroup;
-
-  constructor(private formBuilder: FormBuilder) {
-    this.formGroup = this.formBuilder.group({
-      checkbox: [false]
-    });
-  }
+  formControl = new FormControl(false);
+  disabled = false;
 
   disable(): void {
-    this.formGroup.disable();
+    this.formControl.disable();
+  }
+
+  enable(): void {
+    this.formControl.enable();
   }
 }
 
-@Component({
-  template: `
-    <form [formGroup]="formGroup">
-      <nz-checkbox-group formControlName="checkboxGroup"></nz-checkbox-group>
-    </form>
-  `
-})
-export class NzTestCheckboxGroupFormComponent {
-  formGroup: FormGroup;
+describe('checkbox component', () => {
+  let fixture: ComponentFixture<NzCheckboxComponent>;
+  let component: NzCheckboxComponent;
 
-  constructor(private formBuilder: FormBuilder) {
-    this.formGroup = this.formBuilder.group({
-      checkboxGroup: [
-        [
-          { label: 'Apple', value: 'Apple', checked: true },
-          { label: 'Pear', value: 'Pear', disabled: true },
-          { label: 'Orange', value: 'Orange' }
-        ]
-      ]
-    });
-  }
+  beforeEach(() => {
+    fixture = TestBed.createComponent(NzCheckboxComponent);
+    component = fixture.componentInstance;
+  });
 
-  disable(): void {
-    this.formGroup.disable();
-  }
-}
+  it('focus should be called in afterViewInit if nzAutoFocus is set', () => {
+    vi.spyOn(component, 'focus');
+    component.nzAutoFocus = false;
+    component.ngAfterViewInit();
+    expect(component.focus).not.toHaveBeenCalled();
 
-@Component({
-  template: `
-    <div [dir]="direction">
-      <nz-test-single-checkbox></nz-test-single-checkbox>
-    </div>
-  `
-})
-export class NzTestCheckboxSingleRtlComponent {
-  @ViewChild(Dir) dir!: Dir;
-  direction = 'rtl';
-}
-
-@Component({
-  template: `
-    <div [dir]="direction">
-      <nz-test-group-checkbox></nz-test-group-checkbox>
-    </div>
-  `
-})
-export class NzTestCheckboxGroupRtlComponent {
-  @ViewChild(Dir) dir!: Dir;
-  direction = 'rtl';
-}
+    component.nzAutoFocus = true;
+    component.ngAfterViewInit();
+    expect(component.focus).toHaveBeenCalled();
+  });
+});

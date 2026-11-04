@@ -1,5 +1,5 @@
 ---
-order: 12
+order: 10
 title:
   zh-CN: 表单联动
   en-US: Coordinated Controls
@@ -12,4 +12,3 @@ title:
 ## en-US
 
 Use `setValue` to set other control's value programmaticly.
-

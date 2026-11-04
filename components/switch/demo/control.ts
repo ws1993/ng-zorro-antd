@@ -1,22 +1,26 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+import { NzSwitchModule } from 'ng-zorro-antd/switch';
 
 @Component({
   selector: 'nz-demo-switch-control',
-  template: `
-    <nz-switch [(ngModel)]="switchValue" [nzControl]="true" (click)="clickSwitch()" [nzLoading]="loading"></nz-switch>
-  `
+  imports: [FormsModule, NzSwitchModule],
+  template: `<nz-switch [(ngModel)]="value" nzControl (click)="clickSwitch()" [nzLoading]="loading()" />`
 })
 export class NzDemoSwitchControlComponent {
-  switchValue = false;
-  loading = false;
+  readonly value = signal(false);
+  readonly loading = signal(false);
 
   clickSwitch(): void {
-    if (!this.loading) {
-      this.loading = true;
-      setTimeout(() => {
-        this.switchValue = !this.switchValue;
-        this.loading = false;
-      }, 3000);
+    if (this.loading()) {
+      return;
     }
+
+    this.loading.set(true);
+    setTimeout(() => {
+      this.value.update(value => !value);
+      this.loading.set(false);
+    }, 3000);
   }
 }

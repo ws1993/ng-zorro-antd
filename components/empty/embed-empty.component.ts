@@ -3,15 +3,14 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { ComponentPortal, Portal, TemplatePortal } from '@angular/cdk/portal';
+import { ComponentPortal, Portal, PortalModule } from '@angular/cdk/portal';
 import {
-  ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  inject,
   Injector,
   Input,
   OnChanges,
-  OnDestroy,
   OnInit,
   SimpleChanges,
   TemplateRef,
@@ -19,13 +18,13 @@ import {
   ViewContainerRef,
   ViewEncapsulation
 } from '@angular/core';
-import { Subject } from 'rxjs';
-import { startWith, takeUntil } from 'rxjs/operators';
 
-import { NzConfigService } from 'ng-zorro-antd/core/config';
+import { NzConfigService, onConfigChangeEventForComponent } from 'ng-zorro-antd/core/config';
+import { NzOutletModule } from 'ng-zorro-antd/core/outlet';
 import { NzSafeAny } from 'ng-zorro-antd/core/types';
 
-import { NzEmptyCustomContent, NzEmptySize, NZ_EMPTY_COMPONENT_NAME } from './config';
+import { NZ_EMPTY_COMPONENT_NAME, NzEmptyCustomContent, NzEmptySize } from './config';
+import { NzEmptyComponent } from './empty.component';
 
 function getEmptySize(componentName: string): NzEmptySize {
   switch (componentName) {
@@ -45,25 +44,42 @@ function getEmptySize(componentName: string): NzEmptySize {
 type NzEmptyContentType = 'component' | 'template' | 'string';
 
 @Component({
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  encapsulation: ViewEncapsulation.None,
   selector: 'nz-embed-empty',
   exportAs: 'nzEmbedEmpty',
+  encapsulation: ViewEncapsulation.None,
   template: `
-    <ng-container *ngIf="!content && specificContent !== null" [ngSwitch]="size">
-      <nz-empty *ngSwitchCase="'normal'" class="ant-empty-normal" [nzNotFoundImage]="'simple'"></nz-empty>
-      <nz-empty *ngSwitchCase="'small'" class="ant-empty-small" [nzNotFoundImage]="'simple'"></nz-empty>
-      <nz-empty *ngSwitchDefault></nz-empty>
-    </ng-container>
-    <ng-container *ngIf="content">
-      <ng-template *ngIf="contentType !== 'string'" [cdkPortalOutlet]="contentPortal"></ng-template>
-      <ng-container *ngIf="contentType === 'string'">
-        {{ content }}
-      </ng-container>
-    </ng-container>
-  `
+    @if (content) {
+      @if (contentType === 'template' || contentType === 'string') {
+        <ng-container *nzStringTemplateOutlet="content; context: { $implicit: this.nzComponentName }">{{
+          content
+        }}</ng-container>
+      } @else {
+        <ng-template [cdkPortalOutlet]="contentPortal" />
+      }
+    } @else {
+      @if (specificContent !== null) {
+        @switch (size) {
+          @case ('normal') {
+            <nz-empty class="ant-empty-normal" nzNotFoundImage="simple" />
+          }
+          @case ('small') {
+            <nz-empty class="ant-empty-small" nzNotFoundImage="simple" />
+          }
+          @default {
+            <nz-empty />
+          }
+        }
+      }
+    }
+  `,
+  imports: [NzEmptyComponent, PortalModule, NzOutletModule]
 })
-export class NzEmbedEmptyComponent implements OnChanges, OnInit, OnDestroy {
+export class NzEmbedEmptyComponent implements OnChanges, OnInit {
+  private configService = inject(NzConfigService);
+  private viewContainerRef = inject(ViewContainerRef);
+  private cdr = inject(ChangeDetectorRef);
+  private injector = inject(Injector);
+
   @Input() nzComponentName?: string;
   @Input() specificContent?: NzEmptyCustomContent;
 
@@ -72,14 +88,12 @@ export class NzEmbedEmptyComponent implements OnChanges, OnInit, OnDestroy {
   contentPortal?: Portal<NzSafeAny>;
   size: NzEmptySize = '';
 
-  private destroy$ = new Subject<void>();
-
-  constructor(
-    private configService: NzConfigService,
-    private viewContainerRef: ViewContainerRef,
-    private cdr: ChangeDetectorRef,
-    private injector: Injector
-  ) {}
+  constructor() {
+    onConfigChangeEventForComponent('empty', () => {
+      this.content = this.specificContent || this.getUserDefaultEmptyContent();
+      this.renderEmpty();
+    });
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes.nzComponentName) {
@@ -93,12 +107,8 @@ export class NzEmbedEmptyComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.subscribeDefaultEmptyContentChange();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+    this.content = this.specificContent || this.getUserDefaultEmptyContent();
+    this.renderEmpty();
   }
 
   private renderEmpty(): void {
@@ -107,9 +117,8 @@ export class NzEmbedEmptyComponent implements OnChanges, OnInit, OnDestroy {
     if (typeof content === 'string') {
       this.contentType = 'string';
     } else if (content instanceof TemplateRef) {
-      const context = { $implicit: this.nzComponentName } as NzSafeAny;
       this.contentType = 'template';
-      this.contentPortal = new TemplatePortal(content, this.viewContainerRef, context);
+      this.contentPortal = undefined;
     } else if (content instanceof Type) {
       const injector = Injector.create({
         parent: this.injector,
@@ -123,16 +132,6 @@ export class NzEmbedEmptyComponent implements OnChanges, OnInit, OnDestroy {
     }
 
     this.cdr.detectChanges();
-  }
-
-  private subscribeDefaultEmptyContentChange(): void {
-    this.configService
-      .getConfigChangeEventForComponent('empty')
-      .pipe(startWith(true), takeUntil(this.destroy$))
-      .subscribe(() => {
-        this.content = this.specificContent || this.getUserDefaultEmptyContent();
-        this.renderEmpty();
-      });
   }
 
   private getUserDefaultEmptyContent(): Type<NzSafeAny> | TemplateRef<string> | string | undefined {

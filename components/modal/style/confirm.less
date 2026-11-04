@@ -23,7 +23,7 @@
       overflow: hidden;
       color: @heading-color;
       font-weight: 500;
-      font-size: @font-size-lg;
+      font-size: @modal-confirm-title-font-size;
       line-height: 1.4;
     }
 
@@ -34,24 +34,24 @@
     }
 
     > .@{iconfont-css-prefix} {
-      float: left;
-      margin-right: 16px;
+      float: inline-start;
+      margin-inline-end: 16px;
       font-size: 22px;
 
       // `content` after `icon` should set marginLeft
       + .@{confirm-prefix-cls}-title + .@{confirm-prefix-cls}-content {
-        margin-left: 38px;
+        margin-inline-start: 38px;
       }
     }
   }
 
   .@{confirm-prefix-cls}-btns {
-    float: right;
     margin-top: 24px;
+    text-align: end;
 
     .@{ant-prefix}-btn + .@{ant-prefix}-btn {
       margin-bottom: 0;
-      margin-left: 8px;
+      margin-inline-start: 8px;
     }
   }
 
@@ -70,5 +70,10 @@
 
   &-success &-body > .@{iconfont-css-prefix} {
     color: @success-color;
+  }
+
+  // https://github.com/ant-design/ant-design/issues/37329
+  .@{ant-prefix}-zoom-leave .@{confirm-prefix-cls}-btns {
+    pointer-events: none;
   }
 }

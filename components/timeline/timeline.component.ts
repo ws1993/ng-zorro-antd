@@ -3,38 +3,39 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Direction, Directionality } from '@angular/cdk/bidi';
+import { Directionality } from '@angular/cdk/bidi';
+import { NgTemplateOutlet } from '@angular/common';
 import {
   AfterContentInit,
-  ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
   ContentChildren,
   Input,
   OnChanges,
-  OnDestroy,
   OnInit,
-  Optional,
   QueryList,
   SimpleChange,
   SimpleChanges,
   TemplateRef,
-  ViewEncapsulation
+  ViewEncapsulation,
+  booleanAttribute,
+  inject,
+  DestroyRef
 } from '@angular/core';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+
+import { NzOutletModule } from 'ng-zorro-antd/core/outlet';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 
 import { NzTimelineItemComponent } from './timeline-item.component';
 import { TimelineService } from './timeline.service';
 import { NzTimelineMode, NzTimelinePosition } from './typings';
 
 @Component({
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  encapsulation: ViewEncapsulation.None,
-  preserveWhitespaces: false,
   selector: 'nz-timeline',
-  providers: [TimelineService],
   exportAs: 'nzTimeline',
+  encapsulation: ViewEncapsulation.None,
+  providers: [TimelineService],
   template: `
     <ul
       class="ant-timeline"
@@ -43,57 +44,62 @@ import { NzTimelineMode, NzTimelinePosition } from './typings';
       [class.ant-timeline-alternate]="nzMode === 'alternate' || nzMode === 'custom'"
       [class.ant-timeline-pending]="!!nzPending"
       [class.ant-timeline-reverse]="nzReverse"
-      [class.ant-timeline-rtl]="dir === 'rtl'"
+      [class.ant-timeline-rtl]="dir() === 'rtl'"
     >
       <!-- pending dot (reversed) -->
-      <ng-container *ngIf="nzReverse" [ngTemplateOutlet]="pendingTemplate"></ng-container>
+      @if (nzReverse) {
+        <ng-container [ngTemplateOutlet]="pendingTemplate" />
+      }
       <!-- timeline items -->
-      <ng-container *ngFor="let item of timelineItems">
-        <ng-template [ngTemplateOutlet]="item.template"></ng-template>
-      </ng-container>
-      <ng-container *ngIf="!nzReverse" [ngTemplateOutlet]="pendingTemplate"></ng-container>
+      @for (item of timelineItems; track item) {
+        <ng-template [ngTemplateOutlet]="item.template" />
+      }
+      @if (!nzReverse) {
+        <ng-container [ngTemplateOutlet]="pendingTemplate" />
+      }
       <!-- pending dot -->
     </ul>
     <ng-template #pendingTemplate>
-      <li *ngIf="nzPending" class="ant-timeline-item ant-timeline-item-pending">
-        <div class="ant-timeline-item-tail"></div>
-        <div class="ant-timeline-item-head ant-timeline-item-head-custom ant-timeline-item-head-blue">
-          <ng-container *nzStringTemplateOutlet="nzPendingDot">
-            {{ nzPendingDot }}
-            <i *ngIf="!nzPendingDot" nz-icon nzType="loading"></i>
-          </ng-container>
-        </div>
-        <div class="ant-timeline-item-content">
-          <ng-container *nzStringTemplateOutlet="nzPending">
-            {{ isPendingBoolean ? '' : nzPending }}
-          </ng-container>
-        </div>
-      </li>
+      @if (nzPending) {
+        <li class="ant-timeline-item ant-timeline-item-pending">
+          <div class="ant-timeline-item-tail"></div>
+          <div class="ant-timeline-item-head ant-timeline-item-head-custom ant-timeline-item-head-blue">
+            <ng-container *nzStringTemplateOutlet="nzPendingDot">
+              {{ nzPendingDot }}
+              @if (!nzPendingDot) {
+                <nz-icon nzType="loading" />
+              }
+            </ng-container>
+          </div>
+          <div class="ant-timeline-item-content">
+            <ng-container *nzStringTemplateOutlet="nzPending">
+              {{ isPendingBoolean ? '' : nzPending }}
+            </ng-container>
+          </div>
+        </li>
+      }
     </ng-template>
     <!-- Grasp items -->
-    <ng-content></ng-content>
-  `
+    <ng-content />
+  `,
+  imports: [NgTemplateOutlet, NzOutletModule, NzIconModule]
 })
-export class NzTimelineComponent implements AfterContentInit, OnChanges, OnDestroy, OnInit {
+export class NzTimelineComponent implements AfterContentInit, OnChanges, OnInit {
+  private cdr = inject(ChangeDetectorRef);
+  private timelineService = inject(TimelineService);
+  protected readonly dir = inject(Directionality).valueSignal;
+  private destroyRef = inject(DestroyRef);
+
   @ContentChildren(NzTimelineItemComponent) listOfItems!: QueryList<NzTimelineItemComponent>;
 
   @Input() nzMode: NzTimelineMode = 'left';
   @Input() nzPending?: string | boolean | TemplateRef<void>;
   @Input() nzPendingDot?: string | TemplateRef<void>;
-  @Input() nzReverse: boolean = false;
+  @Input({ transform: booleanAttribute }) nzReverse: boolean = false;
 
   isPendingBoolean: boolean = false;
   timelineItems: NzTimelineItemComponent[] = [];
-  dir: Direction = 'ltr';
   hasLabelItem = false;
-
-  private destroy$ = new Subject<void>();
-
-  constructor(
-    private cdr: ChangeDetectorRef,
-    private timelineService: TimelineService,
-    @Optional() private directionality: Directionality
-  ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     const { nzMode, nzReverse, nzPending } = changes;
@@ -108,29 +114,17 @@ export class NzTimelineComponent implements AfterContentInit, OnChanges, OnDestr
   }
 
   ngOnInit(): void {
-    this.timelineService.check$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+    this.timelineService.check$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.cdr.markForCheck();
     });
-
-    this.directionality.change?.pipe(takeUntil(this.destroy$)).subscribe((direction: Direction) => {
-      this.dir = direction;
-      this.cdr.detectChanges();
-    });
-
-    this.dir = this.directionality.value;
   }
 
   ngAfterContentInit(): void {
     this.updateChildren();
 
-    this.listOfItems.changes.pipe(takeUntil(this.destroy$)).subscribe(() => {
+    this.listOfItems.changes.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.updateChildren();
     });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 
   private updateChildren(): void {
@@ -151,6 +145,9 @@ export class NzTimelineComponent implements AfterContentInit, OnChanges, OnDestr
 
       this.timelineItems = this.nzReverse ? this.listOfItems.toArray().reverse() : this.listOfItems.toArray();
       this.hasLabelItem = hasLabelItem;
+    } else {
+      this.timelineItems = [];
+      this.hasLabelItem = false;
     }
 
     this.cdr.markForCheck();
@@ -162,13 +159,11 @@ function simpleChangeActivated(simpleChange?: SimpleChange): boolean {
 }
 
 function getInferredTimelineItemPosition(index: number, mode: NzTimelineMode): NzTimelinePosition | undefined {
-  return mode === 'custom'
-    ? undefined
-    : mode === 'left'
-    ? 'left'
-    : mode === 'right'
-    ? 'right'
-    : mode === 'alternate' && index % 2 === 0
-    ? 'left'
-    : 'right';
+  if (mode === 'custom') {
+    return undefined;
+  } else if (mode === 'left' || mode === 'right') {
+    return mode;
+  } else {
+    return mode === 'alternate' && index % 2 === 0 ? 'left' : 'right';
+  }
 }

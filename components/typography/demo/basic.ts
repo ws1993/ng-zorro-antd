@@ -1,7 +1,11 @@
 import { Component } from '@angular/core';
 
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzTypographyModule } from 'ng-zorro-antd/typography';
+
 @Component({
   selector: 'nz-demo-typography-basic',
+  imports: [NzDividerModule, NzTypographyModule],
   template: `
     <article nz-typography>
       <h1 nz-typography>Introduction</h1>
@@ -48,7 +52,7 @@ import { Component } from '@angular/core';
         to exist...
       </p>
     </article>
-    <nz-divider></nz-divider>
+    <nz-divider />
     <article nz-typography>
       <h1 nz-typography>介绍</h1>
       <p nz-typography>

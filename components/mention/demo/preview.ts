@@ -1,15 +1,24 @@
-import { Component, ViewEncapsulation } from '@angular/core';
+import { CdkTextareaAutosize } from '@angular/cdk/text-field';
+import { Component, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzMentionModule } from 'ng-zorro-antd/mention';
+import { NzTabsModule } from 'ng-zorro-antd/tabs';
+
 @Component({
   selector: 'nz-demo-mention-preview',
-  encapsulation: ViewEncapsulation.None,
+  imports: [FormsModule, NzInputModule, NzMentionModule, NzTabsModule, CdkTextareaAutosize],
   template: `
-    <nz-tabset>
+    <nz-tabs>
       <nz-tab nzTitle="Write">
         <nz-mention [nzSuggestions]="suggestions">
           <textarea
             nz-input
-            [nzAutosize]="{ minRows: 4, maxRows: 4 }"
+            cdkTextareaAutosize
+            cdkAutosizeMinRows="4"
+            cdkAutosizeMaxRows="4"
             [(ngModel)]="inputValue"
             (ngModelChange)="renderPreView()"
             nzMentionTrigger
@@ -17,17 +26,19 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
         </nz-mention>
       </nz-tab>
       <nz-tab nzTitle="Preview">
-        <pre [innerHTML]="preview"></pre>
+        <pre [innerHTML]="preview()"></pre>
       </nz-tab>
-    </nz-tabset>
+    </nz-tabs>
   `
 })
 export class NzDemoMentionPreviewComponent {
-  inputValue: string = 'Switch tab view preview @NG-ZORRO ';
-  preview?: SafeHtml;
-  suggestions = ['NG-ZORRO', 'angular', 'Reactive-Extensions'];
+  private readonly sanitizer = inject(DomSanitizer);
 
-  constructor(private sanitizer: DomSanitizer) {
+  readonly inputValue = signal('Switch tab view preview @NG-ZORRO ');
+  readonly preview = signal<SafeHtml | undefined>(undefined);
+  readonly suggestions = ['NG-ZORRO', 'angular', 'Reactive-Extensions'];
+
+  constructor() {
     this.renderPreView();
   }
 
@@ -43,13 +54,14 @@ export class NzDemoMentionPreviewComponent {
   }
 
   renderPreView(): void {
-    if (this.inputValue) {
+    const inputValue = this.inputValue();
+    if (inputValue) {
       const regex = this.getRegExp('@');
-      const previewValue = this.inputValue.replace(
+      const previewValue = inputValue.replace(
         regex,
         match => `<a target="_blank" href="https://github.com/${match.trim().substring(1)}">${match}</a>`
       );
-      this.preview = this.sanitizer.bypassSecurityTrustHtml(previewValue);
+      this.preview.set(this.sanitizer.bypassSecurityTrustHtml(previewValue));
     }
   }
 }

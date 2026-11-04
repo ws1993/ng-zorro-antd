@@ -44,13 +44,21 @@ export interface NzUploadChangeParam {
   type?: string;
 }
 
+export type NzShowUploadListIcon = boolean | ((file: NzUploadFile) => boolean);
 export interface NzShowUploadList {
-  showRemoveIcon?: boolean;
-  showPreviewIcon?: boolean;
-  showDownloadIcon?: boolean;
+  showRemoveIcon?: NzShowUploadListIcon;
+  showPreviewIcon?: NzShowUploadListIcon;
+  showDownloadIcon?: NzShowUploadListIcon;
+  extra?: TemplateRef<{ $implicit: NzUploadFile }>;
+  downloadIcon?: TemplateRef<{ $implicit: NzUploadFile }>;
+  removeIcon?: TemplateRef<{ $implicit: NzUploadFile }>;
+  previewIcon?: TemplateRef<{ $implicit: NzUploadFile }>;
 }
 
-export type NzUploadTransformFileType = string | Blob | NzUploadFile | Observable<string | Blob | File>;
+export type NzBeforeUploadFileType =
+  | boolean
+  | Observable<boolean | NzUploadFile | Blob | File | boolean>
+  | Promise<boolean | NzUploadFile | Blob | File | boolean>;
 
 export interface ZipButtonOptions {
   disabled?: boolean;
@@ -58,7 +66,7 @@ export interface ZipButtonOptions {
   action?: string | ((file: NzUploadFile) => string | Observable<string>);
   directory?: boolean;
   openFileDialogOnClick?: boolean;
-  beforeUpload?(file: NzUploadFile, fileList: NzUploadFile[]): boolean | Observable<NzSafeAny>;
+  beforeUpload?(file: NzUploadFile, fileList: NzUploadFile[]): NzBeforeUploadFileType;
   customRequest?(item: NzSafeAny): Subscription;
   data?: {} | ((file: NzUploadFile) => {} | Observable<{}>);
   headers?: {} | ((file: NzUploadFile) => {} | Observable<{}>);
@@ -66,7 +74,6 @@ export interface ZipButtonOptions {
   multiple?: boolean;
   withCredentials?: boolean;
   filters?: UploadFilter[];
-  transformFile?(file: NzUploadFile): NzUploadTransformFileType;
   onStart?(file: NzUploadFile): void;
   onProgress?(e: NzSafeAny, file: NzUploadFile): void;
   onSuccess?(ret: NzSafeAny, file: NzUploadFile, xhr: NzSafeAny): void;

@@ -1,110 +1,179 @@
-import { BidiModule, Dir } from '@angular/cdk/bidi';
-import { Component, ViewChild } from '@angular/core';
-import { fakeAsync, tick } from '@angular/core/testing';
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
+import { Directionality } from '@angular/cdk/bidi';
+import { Component, signal, WritableSignal } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 
-import { ɵComponentBed as ComponentBed, ɵcreateComponentBed as createComponentBed } from 'ng-zorro-antd/core/testing';
+import { ResponsiveLike } from 'ng-zorro-antd/core/services';
+import { provideMockDirectionality, sleep } from 'ng-zorro-antd/core/testing';
 import { NzSafeAny } from 'ng-zorro-antd/core/types';
 
-import { NzColDirective } from './col.directive';
+import { ColSize, NzColDirective } from './col.directive';
 import { NzGridModule } from './grid.module';
-import { NzRowDirective } from './row.directive';
+import { NzAlign, Gutter, NzJustify, NzRowDirective } from './row.directive';
 
 declare const viewport: NzSafeAny;
-const setWindowWidth = (width: number): void => {
-  viewport.set(width);
-  window.dispatchEvent(new Event('resize'));
-  tick(100);
-};
 
 describe('grid', () => {
   describe('row', () => {
+    let fixture: ComponentFixture<TestGridComponent>;
+    let component: TestGridComponent;
     let rowElement: HTMLElement;
     let colElement: HTMLElement;
-    let testBed: ComponentBed<TestGridComponent>;
+
     beforeEach(() => {
-      testBed = createComponentBed(TestGridComponent, { imports: [NzGridModule] });
-      rowElement = testBed.debugElement.query(By.directive(NzRowDirective)).nativeElement;
-      colElement = testBed.debugElement.query(By.directive(NzColDirective)).nativeElement;
+      fixture = TestBed.createComponent(TestGridComponent);
+      component = fixture.componentInstance;
+      rowElement = fixture.debugElement.query(By.directive(NzRowDirective)).nativeElement;
+      colElement = fixture.debugElement.query(By.directive(NzColDirective)).nativeElement;
     });
+
+    async function setWindowWidth(width: number): Promise<void> {
+      viewport.set(width);
+      window.dispatchEvent(new Event('resize'));
+      await sleep(100);
+      fixture.detectChanges();
+      await fixture.whenStable();
+    }
+
     it('should apply className', () => {
       expect(rowElement.className).toBe('ant-row');
     });
+
     it('should apply className according to align', () => {
-      const listOfAlign = ['top', 'middle', 'bottom'];
+      const listOfAlign: NzAlign[] = ['top', 'middle', 'bottom'];
       listOfAlign.forEach(align => {
-        testBed.component.align = align;
-        testBed.fixture.detectChanges();
+        component.align.set(align);
+        fixture.detectChanges();
         expect(rowElement.classList).toContain(`ant-row-${align}`);
       });
     });
+
     it('should apply className according to justify', () => {
-      const listOfJustify = ['start', 'end', 'center', 'space-around', 'space-between'];
+      const listOfJustify: NzJustify[] = ['start', 'end', 'center', 'space-around', 'space-between'];
       listOfJustify.forEach(justify => {
-        testBed.component.justify = justify;
-        testBed.fixture.detectChanges();
+        component.justify.set(justify);
+        fixture.detectChanges();
         expect(rowElement.classList).toContain(`ant-row-${justify}`);
       });
     });
+
+    it('should not apply ant-row-no-wrap class by default', () => {
+      expect(rowElement.classList).not.toContain('ant-row-no-wrap');
+    });
+
+    it('should apply ant-row-no-wrap class when nzWrap is false', () => {
+      component.wrap.set(false);
+      fixture.detectChanges();
+      expect(rowElement.classList).toContain('ant-row-no-wrap');
+    });
+
+    it('should not apply ant-row-no-wrap class when nzWrap is true', () => {
+      component.wrap.set(true);
+      fixture.detectChanges();
+      expect(rowElement.classList).not.toContain('ant-row-no-wrap');
+    });
+
+    it('should apply className according to responsive align', async () => {
+      component.align.set({ xs: 'top', sm: 'middle', md: 'bottom' });
+      await setWindowWidth(480);
+      expect(rowElement.classList).toContain('ant-row-top');
+      expect(rowElement.classList).not.toContain('ant-row-middle');
+      await setWindowWidth(600);
+      expect(rowElement.classList).toContain('ant-row-middle');
+      expect(rowElement.classList).not.toContain('ant-row-top');
+      await setWindowWidth(800);
+      expect(rowElement.classList).toContain('ant-row-bottom');
+      expect(rowElement.classList).not.toContain('ant-row-middle');
+    });
+
+    it('should apply className according to responsive justify', async () => {
+      component.justify.set({ xs: 'start', sm: 'center', md: 'space-between' });
+      await setWindowWidth(480);
+      expect(rowElement.classList).toContain('ant-row-start');
+      expect(rowElement.classList).not.toContain('ant-row-center');
+      await setWindowWidth(600);
+      expect(rowElement.classList).toContain('ant-row-center');
+      expect(rowElement.classList).not.toContain('ant-row-start');
+      await setWindowWidth(800);
+      expect(rowElement.classList).toContain('ant-row-space-between');
+      expect(rowElement.classList).not.toContain('ant-row-center');
+    });
+
     it('should gutter number work', () => {
       expect(rowElement.style.cssText).toBe('');
       expect(colElement.style.cssText).toBe('');
-      testBed.component.gutter = 16;
-      testBed.fixture.detectChanges();
-      expect(rowElement.style.cssText).toBe('margin-left: -8px; margin-right: -8px;');
-      expect(colElement.style.cssText).toBe('padding-left: 8px; padding-right: 8px;');
+      component.gutter.set(16);
+      fixture.detectChanges();
+      expect(rowElement.style.marginInline).toBe('-8px');
+      expect(colElement.style.paddingInline).toBe('8px');
     });
-    it('should gutter string work', () => {
-      expect(rowElement.style.cssText).toBe('');
-      expect(colElement.style.cssText).toBe('');
-      testBed.component.gutter = '16';
-      testBed.fixture.detectChanges();
-      expect(rowElement.style.cssText).toBe('margin-left: -8px; margin-right: -8px;');
-      expect(colElement.style.cssText).toBe('padding-left: 8px; padding-right: 8px;');
+
+    it('should gutter string css unit work', () => {
+      component.gutter.set('1rem');
+      fixture.detectChanges();
+      expect(rowElement.style.marginInline).toBe('calc(-0.5rem)');
+      expect(colElement.style.paddingInline).toBe('calc(0.5rem)');
     });
+
     it('should gutter number array work', () => {
-      testBed.component.gutter = [16, 16];
-      testBed.fixture.detectChanges();
-      expect(rowElement.style.cssText).toBe('margin: -8px;');
-      expect(colElement.style.cssText).toBe('padding: 8px;');
+      component.gutter.set([16, 16]);
+      fixture.detectChanges();
+      expect(rowElement.style.marginInline).toBe('-8px');
+      expect(rowElement.style.rowGap).toBe('16px');
+      expect(colElement.style.paddingInline).toBe('8px');
     });
-    it('should gutter responsive work', fakeAsync(() => {
-      testBed.component.gutter = { xs: 8, sm: 16, md: 24 };
-      setWindowWidth(480);
-      testBed.fixture.detectChanges();
-      expect(rowElement.style.cssText).toBe('margin-left: -4px; margin-right: -4px;');
-      expect(colElement.style.cssText).toBe('padding-left: 4px; padding-right: 4px;');
-      setWindowWidth(600);
-      testBed.fixture.detectChanges();
-      expect(rowElement.style.cssText).toBe('margin-left: -8px; margin-right: -8px;');
-      expect(colElement.style.cssText).toBe('padding-left: 8px; padding-right: 8px;');
-      setWindowWidth(800);
-      testBed.fixture.detectChanges();
-      expect(rowElement.style.cssText).toBe('margin-left: -12px; margin-right: -12px;');
-      expect(colElement.style.cssText).toBe('padding-left: 12px; padding-right: 12px;');
-    }));
-    it('should gutter responsive array work', fakeAsync(() => {
-      testBed.component.gutter = [
+
+    it('should gutter string css unit array work', () => {
+      component.gutter.set(['1rem', '0.5rem']);
+      fixture.detectChanges();
+      expect(rowElement.style.marginInline).toBe('calc(-0.5rem)');
+      expect(rowElement.style.rowGap).toBe('0.5rem');
+      expect(colElement.style.paddingInline).toBe('calc(0.5rem)');
+    });
+
+    it('should gutter responsive work', async () => {
+      component.gutter.set({ xs: 8, sm: 16, md: 24 });
+      await setWindowWidth(480);
+      expect(rowElement.style.marginInline).toBe('-4px');
+      expect(colElement.style.paddingInline).toBe('4px');
+      await setWindowWidth(600);
+      expect(rowElement.style.marginInline).toBe('-8px');
+      expect(colElement.style.paddingInline).toBe('8px');
+      await setWindowWidth(800);
+      expect(rowElement.style.marginInline).toBe('-12px');
+      expect(colElement.style.paddingInline).toBe('12px');
+    });
+
+    it('should gutter responsive array work', async () => {
+      component.gutter.set([
         { xs: 8, sm: 16, md: 24 },
         { xs: 4, sm: 8, md: 12 }
-      ];
-      setWindowWidth(480);
-      testBed.fixture.detectChanges();
-      expect(rowElement.style.cssText).toBe('margin: -2px -4px;');
-      expect(colElement.style.cssText).toBe('padding: 2px 4px;');
-      setWindowWidth(600);
-      testBed.fixture.detectChanges();
-      expect(rowElement.style.cssText).toBe('margin: -4px -8px;');
-      expect(colElement.style.cssText).toBe('padding: 4px 8px;');
-      setWindowWidth(800);
-      testBed.fixture.detectChanges();
-      expect(rowElement.style.cssText).toBe('margin: -6px -12px;');
-      expect(colElement.style.cssText).toBe('padding: 6px 12px;');
-    }));
+      ]);
+      await setWindowWidth(480);
+      await fixture.whenStable();
+      expect(rowElement.style.marginInline).toBe('-4px');
+      expect(rowElement.style.rowGap).toBe('4px');
+      expect(colElement.style.paddingInline).toBe('4px');
+      await setWindowWidth(600);
+      expect(rowElement.style.marginInline).toBe('-8px');
+      expect(rowElement.style.rowGap).toBe('8px');
+      expect(colElement.style.paddingInline).toBe('8px');
+      await setWindowWidth(800);
+      expect(rowElement.style.marginInline).toBe('-12px');
+      expect(rowElement.style.rowGap).toBe('12px');
+      expect(colElement.style.paddingInline).toBe('12px');
+    });
   });
+
   describe('col', () => {
+    let fixture: ComponentFixture<TestColComponent>;
+    let component: TestColComponent;
     let colElement: HTMLElement;
-    let testBed: ComponentBed<TestColComponent>;
     const sizeMatch = (name: string, count: number, size?: string): boolean => {
       const middle = size ? `-${size}-` : '-';
       if (name === 'span') {
@@ -113,25 +182,31 @@ describe('grid', () => {
         return colElement.classList.contains(`ant-col${middle}${name}-${count}`);
       }
     };
+
     beforeEach(() => {
-      testBed = createComponentBed(TestColComponent, { imports: [NzGridModule] });
-      colElement = testBed.debugElement.query(By.directive(NzColDirective)).nativeElement;
+      fixture = TestBed.createComponent(TestColComponent);
+      colElement = fixture.debugElement.query(By.directive(NzColDirective)).nativeElement;
+      component = fixture.componentInstance;
+      fixture.detectChanges();
     });
+
     it('should apply className', () => {
       expect(colElement.className).toBe('ant-col');
     });
+
     it('should apply style according to flex', () => {
-      testBed.component.flex = 1;
-      testBed.fixture.detectChanges();
+      component.flex.set(1);
+      fixture.detectChanges();
       expect(colElement.style.cssText).toBe('flex: 1 1 auto;');
-      testBed.component.flex = '100px';
-      testBed.fixture.detectChanges();
+      component.flex.set('100px');
+      fixture.detectChanges();
       expect(colElement.style.cssText).toBe('flex: 0 0 100px;');
     });
+
     it('should apply className according to property', () => {
       const propertySizeMatch = (name: keyof TestColComponent, count: number): boolean => {
-        testBed.component[name] = count;
-        testBed.fixture.detectChanges();
+        (component[name] as WritableSignal<NzSafeAny>).set(count);
+        fixture.detectChanges();
         return sizeMatch(name, count);
       };
       expect(propertySizeMatch('span', 8)).toBe(true);
@@ -145,7 +220,9 @@ describe('grid', () => {
       expect(propertySizeMatch('lg', 8)).toBe(true);
       expect(propertySizeMatch('xl', 8)).toBe(true);
       expect(propertySizeMatch('xxl', 8)).toBe(true);
+      expect(propertySizeMatch('xxxl', 8)).toBe(true);
     });
+
     it('should apply className according to responsive size object', () => {
       const batchSizeMatch = (count: number, size: string): boolean =>
         sizeMatch('span', count, size) &&
@@ -153,122 +230,115 @@ describe('grid', () => {
         sizeMatch('order', count, size) &&
         sizeMatch('pull', count, size) &&
         sizeMatch('push', count, size);
-      testBed.component.xs = { span: 1, offset: 1, order: 1, pull: 1, push: 1 };
-      testBed.component.sm = { span: 2, offset: 2, order: 2, pull: 2, push: 2 };
-      testBed.component.md = { span: 3, offset: 3, order: 3, pull: 3, push: 3 };
-      testBed.component.lg = { span: 4, offset: 4, order: 4, pull: 4, push: 4 };
-      testBed.component.xl = { span: 5, offset: 5, order: 5, pull: 5, push: 5 };
-      testBed.component.xxl = { span: 6, offset: 6, order: 6, pull: 6, push: 6 };
-      testBed.fixture.detectChanges();
+      component.xs.set({ span: 1, offset: 1, order: 1, pull: 1, push: 1 });
+      component.sm.set({ span: 2, offset: 2, order: 2, pull: 2, push: 2 });
+      component.md.set({ span: 3, offset: 3, order: 3, pull: 3, push: 3 });
+      component.lg.set({ span: 4, offset: 4, order: 4, pull: 4, push: 4 });
+      component.xl.set({ span: 5, offset: 5, order: 5, pull: 5, push: 5 });
+      component.xxl.set({ span: 6, offset: 6, order: 6, pull: 6, push: 6 });
+      component.xxxl.set({ span: 7, offset: 7, order: 7, pull: 7, push: 7 });
+      fixture.detectChanges();
       expect(batchSizeMatch(1, 'xs')).toBe(true);
       expect(batchSizeMatch(2, 'sm')).toBe(true);
       expect(batchSizeMatch(3, 'md')).toBe(true);
       expect(batchSizeMatch(4, 'lg')).toBe(true);
       expect(batchSizeMatch(5, 'xl')).toBe(true);
       expect(batchSizeMatch(6, 'xxl')).toBe(true);
-      testBed.component.xs = { span: 2, offset: 2, order: 2, pull: 2, push: 2 };
-      testBed.fixture.detectChanges();
+      expect(batchSizeMatch(7, 'xxxl')).toBe(true);
+      component.xs.set({ span: 2, offset: 2, order: 2, pull: 2, push: 2 });
+      fixture.detectChanges();
       expect(batchSizeMatch(1, 'xs')).toBe(false);
     });
   });
+
   describe('RTL', () => {
+    let fixture: ComponentFixture<TestGridComponent>;
     let rowElement: HTMLElement;
     let colElement: HTMLElement;
-    let testBed: ComponentBed<NzTestGridRtlComponent>;
+    let mockDirectionality: Directionality;
+
     beforeEach(() => {
-      testBed = createComponentBed(NzTestGridRtlComponent, { imports: [BidiModule, NzGridModule] });
-      rowElement = testBed.debugElement.query(By.directive(NzRowDirective)).nativeElement;
-      colElement = testBed.debugElement.query(By.directive(NzColDirective)).nativeElement;
+      TestBed.configureTestingModule({
+        providers: [provideMockDirectionality()]
+      });
+      mockDirectionality = TestBed.inject(Directionality);
+      fixture = TestBed.createComponent(TestGridComponent);
+      rowElement = fixture.debugElement.query(By.directive(NzRowDirective)).nativeElement;
+      colElement = fixture.debugElement.query(By.directive(NzColDirective)).nativeElement;
+      fixture.detectChanges();
     });
+
     describe('row', () => {
       it('should className correct on dir change', () => {
-        expect(rowElement.className).toBe('ant-row ant-row-rtl');
-
-        testBed.fixture.componentInstance.direction = 'ltr';
-        testBed.fixture.detectChanges();
-
         expect(rowElement.className).toBe('ant-row');
+        mockDirectionality.valueSignal.set('rtl');
+        fixture.detectChanges();
+        expect(rowElement.className).toBe('ant-row ant-row-rtl');
       });
     });
+
     describe('col', () => {
       it('should className correct on dir change', () => {
-        expect(colElement.className).toBe('ant-col ant-col-rtl');
-
-        testBed.fixture.componentInstance.direction = 'ltr';
-        testBed.fixture.detectChanges();
-
         expect(colElement.className).toBe('ant-col');
+        mockDirectionality.valueSignal.set('rtl');
+        fixture.detectChanges();
+        expect(colElement.className).toBe('ant-col ant-col-rtl');
       });
     });
   });
 });
 
 @Component({
+  imports: [NzGridModule],
   template: `
-    <div nz-row [nzGutter]="gutter" [nzJustify]="justify" [nzAlign]="align">
+    <div nz-row [nzGutter]="gutter()" [nzJustify]="justify()" [nzAlign]="align()" [nzWrap]="wrap()">
       <div nz-col></div>
     </div>
   `
 })
 export class TestGridComponent {
-  gutter:
-    | string
-    | number
-    | null
-    | [number, number]
-    | { [key: string]: number }
-    | [{ [key: string]: number }, { [key: string]: number }] = null;
-  flex: string | null = null;
-  justify: string | null = null;
-  align: string | null = null;
+  gutter = signal<Gutter | [Gutter, Gutter] | null>(null);
+  flex = signal<string | null>(null);
+  justify = signal<NzJustify | Partial<ResponsiveLike<NzJustify>> | null>(null);
+  align = signal<NzAlign | Partial<ResponsiveLike<NzAlign>> | null>(null);
+  wrap = signal<boolean>(true);
 }
 
 @Component({
+  imports: [NzGridModule],
   template: `
     <div nz-row>
       <div
         nz-col
-        [nzSpan]="span"
-        [nzFlex]="flex"
-        [nzOffset]="offset"
-        [nzOrder]="order"
-        [nzPull]="pull"
-        [nzPush]="push"
-        [nzXs]="xs"
-        [nzSm]="sm"
-        [nzMd]="md"
-        [nzLg]="lg"
-        [nzXl]="xl"
-        [nzXXl]="xxl"
+        [nzSpan]="span()"
+        [nzFlex]="flex()"
+        [nzOffset]="offset()"
+        [nzOrder]="order()"
+        [nzPull]="pull()"
+        [nzPush]="push()"
+        [nzXs]="xs()"
+        [nzSm]="sm()"
+        [nzMd]="md()"
+        [nzLg]="lg()"
+        [nzXl]="xl()"
+        [nzXXl]="xxl()"
+        [nzXXXl]="xxxl()"
       ></div>
     </div>
   `
 })
 export class TestColComponent {
-  span: number | null = null;
-  flex: string | null | number = null;
-  offset: number | null = null;
-  order: number | null = null;
-  pull: number | null = null;
-  push: number | null = null;
-  xs: number | null | { [key: string]: number } = null;
-  sm: number | null | { [key: string]: number } = null;
-  md: number | null | { [key: string]: number } = null;
-  lg: number | null | { [key: string]: number } = null;
-  xl: number | null | { [key: string]: number } = null;
-  xxl: number | null | { [key: string]: number } = null;
-}
-
-@Component({
-  template: `
-    <div [dir]="direction">
-      <div nz-row>
-        <div nz-col></div>
-      </div>
-    </div>
-  `
-})
-export class NzTestGridRtlComponent {
-  @ViewChild(Dir) dir!: Dir;
-  direction = 'rtl';
+  span = signal<number | null>(null);
+  flex = signal<string | number | null>(null);
+  offset = signal<number | null>(null);
+  order = signal<number | null>(null);
+  pull = signal<number | null>(null);
+  push = signal<number | null>(null);
+  xs = signal<string | number | ColSize | null>(null);
+  sm = signal<string | number | ColSize | null>(null);
+  md = signal<string | number | ColSize | null>(null);
+  lg = signal<string | number | ColSize | null>(null);
+  xl = signal<string | number | ColSize | null>(null);
+  xxl = signal<string | number | ColSize | null>(null);
+  xxxl = signal<string | number | ColSize | null>(null);
 }

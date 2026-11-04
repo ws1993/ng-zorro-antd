@@ -1,12 +1,14 @@
 import { Component } from '@angular/core';
 
-import { NzPlacementType } from 'ng-zorro-antd/dropdown';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzDropdownModule, NzPlacementType } from 'ng-zorro-antd/dropdown';
 
 @Component({
   selector: 'nz-demo-dropdown-placement',
+  imports: [NzDropdownModule, NzButtonModule],
   template: `
     <div>
-      <ng-container *ngFor="let position of listOfPosition">
+      @for (position of listOfPosition; track position) {
         <button nz-button nz-dropdown [nzDropdownMenu]="menu" [nzPlacement]="position">{{ position }}</button>
         <nz-dropdown-menu #menu="nzDropdownMenu">
           <ul nz-menu>
@@ -15,18 +17,23 @@ import { NzPlacementType } from 'ng-zorro-antd/dropdown';
             <li nz-menu-item>3rd menu item length</li>
           </ul>
         </nz-dropdown-menu>
-      </ng-container>
+      }
     </div>
   `,
-  styles: [
-    `
-      [nz-button] {
-        margin-right: 8px;
-        margin-bottom: 8px;
-      }
-    `
-  ]
+  styles: `
+    [nz-button] {
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+  `
 })
 export class NzDemoDropdownPlacementComponent {
-  listOfPosition: NzPlacementType[] = ['bottomLeft', 'bottomCenter', 'bottomRight', 'topLeft', 'topCenter', 'topRight'];
+  readonly listOfPosition: NzPlacementType[] = [
+    'bottomLeft',
+    'bottomCenter',
+    'bottomRight',
+    'topLeft',
+    'topCenter',
+    'topRight'
+  ];
 }

@@ -1,22 +1,28 @@
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
 
-import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
+import { vi } from 'vitest';
 
-import { NzDemoCodeEditorBasicComponent } from './demo/basic';
+import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
 
 // eslint-disable-next-line  @typescript-eslint/no-explicit-any
 declare const monaco: any;
 
 @Component({
+  imports: [FormsModule, NzCodeEditorModule],
   template: `
     <nz-code-editor
       class="editor"
       [ngModel]="code"
       [nzFullControl]="true"
       (nzEditorInitialized)="onEditorInit($event)"
-    ></nz-code-editor>
+    />
   `
 })
 export class NzTestCodeEditorFullControlComponent {
@@ -33,35 +39,24 @@ export class NzTestCodeEditorFullControlComponent {
 }
 
 describe('code editor', () => {
-  describe('basic', () => {
-    // let fixture: ComponentFixture<NzDemoCodeEditorBasicComponent>;
+  // describe('basic', () => {
+  //   // let fixture: ComponentFixture<NzDemoCodeEditorBasicComponent>;
 
-    beforeEach(
-      waitForAsync(() => {
-        TestBed.configureTestingModule({
-          imports: [FormsModule, NzCodeEditorModule],
-          declarations: [NzDemoCodeEditorBasicComponent]
-        }).compileComponents();
-      })
-    );
+  //   beforeEach(waitForAsync(() => {
+  //     TestBed.configureTestingModule({
+  //       imports: [FormsModule, NzCodeEditorModule],
+  //       declarations: [NzDemoCodeEditorBasicComponent]
+  //     });
+  //   }));
 
-    beforeEach(() => {
-      // fixture = TestBed.createComponent(NzDemoCodeEditorBasicComponent);
-    });
-  });
+  //   beforeEach(() => {
+  //     // fixture = TestBed.createComponent(NzDemoCodeEditorBasicComponent);
+  //   });
+  // });
 
   describe('full control', () => {
     let fixture: ComponentFixture<NzTestCodeEditorFullControlComponent>;
     let testComponent: NzTestCodeEditorFullControlComponent;
-
-    beforeEach(
-      waitForAsync(() => {
-        TestBed.configureTestingModule({
-          imports: [FormsModule, NzCodeEditorModule],
-          declarations: [NzTestCodeEditorFullControlComponent]
-        }).compileComponents();
-      })
-    );
 
     beforeEach(() => {
       fixture = TestBed.createComponent(NzTestCodeEditorFullControlComponent);
@@ -69,17 +64,14 @@ describe('code editor', () => {
     });
 
     // It seems that there is no way to waiting for monaco editor to load.
-    xit(
-      'should raise error when user try to set value in full control mode',
-      waitForAsync(() => {
-        const spy = spyOn(console, 'warn');
-        testComponent.code = '123';
-        fixture.detectChanges();
-        expect(spy).toHaveBeenCalledWith(
-          '[NG-ZORRO]',
-          'should not set value when you are using full control mode! It would result in ambiguous data flow!'
-        );
-      })
-    );
+    it.skip('should raise error when user try to set value in full control mode', waitForAsync(() => {
+      const spy = vi.spyOn(console, 'warn');
+      testComponent.code = '123';
+      fixture.detectChanges();
+      expect(spy).toHaveBeenCalledWith(
+        '[NG-ZORRO]',
+        'should not set value when you are using full control mode! It would result in ambiguous data flow!'
+      );
+    }));
   });
 });

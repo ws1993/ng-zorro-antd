@@ -1,38 +1,35 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+import { NzSelectModule } from 'ng-zorro-antd/select';
+
+interface Option {
+  label: string;
+  value: string;
+}
 
 @Component({
   selector: 'nz-demo-select-label-in-value',
+  imports: [FormsModule, NzSelectModule],
   template: `
-    <p>The selected option's age is {{ selectedValue?.age }}</p>
-    <br />
-    <nz-select
-      [(ngModel)]="selectedValue"
-      [compareWith]="compareFn"
-      (ngModelChange)="log($event)"
-      nzAllowClear
-      nzPlaceHolder="Choose"
-    >
-      <nz-option *ngFor="let option of optionList" [nzValue]="option" [nzLabel]="option.label"></nz-option>
+    <nz-select [(ngModel)]="value" [compareWith]="compareFn" nzAllowClear nzPlaceHolder="Choose">
+      @for (option of options; track option) {
+        <nz-option [nzValue]="option" [nzLabel]="option.label" />
+      }
+      <nz-select />
     </nz-select>
   `,
-  styles: [
-    `
-      nz-select {
-        width: 120px;
-      }
-    `
-  ]
+  styles: `
+    nz-select {
+      width: 120px;
+    }
+  `
 })
 export class NzDemoSelectLabelInValueComponent {
-  optionList = [
-    { label: 'Lucy', value: 'lucy', age: 20 },
-    { label: 'Jack', value: 'jack', age: 22 }
+  readonly options: Option[] = [
+    { label: 'Lucy (101)', value: 'lucy' },
+    { label: 'Jack (100)', value: 'jack' }
   ];
-  selectedValue = { label: 'Jack', value: 'jack', age: 22 };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  compareFn = (o1: any, o2: any): boolean => (o1 && o2 ? o1.value === o2.value : o1 === o2);
-
-  log(value: { label: string; value: string; age: number }): void {
-    console.log(value);
-  }
+  readonly compareFn = (o1: Option, o2: Option): boolean => (o1 && o2 ? o1.value === o2.value : o1 === o2);
+  readonly value = signal({ label: 'Jack (100)', value: 'jack' });
 }

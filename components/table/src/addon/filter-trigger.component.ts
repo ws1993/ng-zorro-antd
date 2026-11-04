@@ -4,30 +4,30 @@
  */
 
 import {
-  ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  ElementRef,
   EventEmitter,
   Input,
-  OnChanges,
+  OnInit,
   Output,
-  SimpleChanges,
-  ViewEncapsulation
+  ViewChild,
+  ViewEncapsulation,
+  booleanAttribute,
+  DestroyRef,
+  inject
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { NzConfigKey, NzConfigService, WithConfig } from 'ng-zorro-antd/core/config';
-import { warnDeprecation } from 'ng-zorro-antd/core/logger';
-import { BooleanInput } from 'ng-zorro-antd/core/types';
-import { InputBoolean } from 'ng-zorro-antd/core/util';
-import { NzDropdownMenuComponent } from 'ng-zorro-antd/dropdown';
+import { fromEventOutsideAngular } from 'ng-zorro-antd/core/util';
+import { NzDropdownDirective, NzDropdownModule, NzDropdownMenuComponent } from 'ng-zorro-antd/dropdown';
 
 const NZ_CONFIG_MODULE_NAME: NzConfigKey = 'filterTrigger';
 
 @Component({
   selector: 'nz-filter-trigger',
   exportAs: `nzFilterTrigger`,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  preserveWhitespaces: false,
   encapsulation: ViewEncapsulation.None,
   template: `
     <span
@@ -35,45 +35,39 @@ const NZ_CONFIG_MODULE_NAME: NzConfigKey = 'filterTrigger';
       class="ant-table-filter-trigger"
       nzTrigger="click"
       nzPlacement="bottomRight"
-      [nzBackdrop]="nzBackdrop || nzHasBackdrop"
+      [nzBackdrop]="nzBackdrop"
       [nzClickHide]="false"
       [nzDropdownMenu]="nzDropdownMenu"
       [class.active]="nzActive"
       [class.ant-table-filter-open]="nzVisible"
       [nzVisible]="nzVisible"
       (nzVisibleChange)="onVisibleChange($event)"
-      (click)="onFilterClick($event)"
     >
-      <ng-content></ng-content>
+      <ng-content />
     </span>
-  `
+  `,
+  imports: [NzDropdownModule]
 })
-export class NzFilterTriggerComponent implements OnChanges {
+export class NzFilterTriggerComponent implements OnInit {
   readonly _nzModuleName: NzConfigKey = NZ_CONFIG_MODULE_NAME;
 
-  static ngAcceptInputType_nzBackdrop: BooleanInput;
-  static ngAcceptInputType_nzHasBackdrop: BooleanInput;
+  public readonly nzConfigService = inject(NzConfigService);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly destroyRef = inject(DestroyRef);
 
   @Input() nzActive = false;
   @Input() nzDropdownMenu!: NzDropdownMenuComponent;
   @Input() nzVisible = false;
 
-  /**
-   * @deprecated Not supported, use `nzBackdrop` instead.
-   * @breaking-change 13.0.0
-   */
-  @Input() @InputBoolean() nzHasBackdrop = false;
-  @Input() @WithConfig<boolean>() @InputBoolean() nzBackdrop = false;
+  @Input({ transform: booleanAttribute }) @WithConfig() nzBackdrop = false;
 
   @Output() readonly nzVisibleChange = new EventEmitter<boolean>();
+
+  @ViewChild(NzDropdownDirective, { static: true, read: ElementRef }) nzDropdown!: ElementRef<HTMLElement>;
 
   onVisibleChange(visible: boolean): void {
     this.nzVisible = visible;
     this.nzVisibleChange.next(visible);
-  }
-
-  onFilterClick($event: MouseEvent): void {
-    $event.stopPropagation();
   }
 
   hide(): void {
@@ -86,14 +80,9 @@ export class NzFilterTriggerComponent implements OnChanges {
     this.cdr.markForCheck();
   }
 
-  constructor(public readonly nzConfigService: NzConfigService, private cdr: ChangeDetectorRef) {}
-
-  ngOnChanges(changes: SimpleChanges): void {
-    const { nzHasBackdrop } = changes;
-    if (nzHasBackdrop) {
-      warnDeprecation(
-        '`nzHasBackdrop` in nz-filter-trigger component will be removed in 13.0.0, please use `nzBackdrop` instead.'
-      );
-    }
+  ngOnInit(): void {
+    fromEventOutsideAngular(this.nzDropdown.nativeElement, 'click')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(event => event.stopPropagation());
   }
 }

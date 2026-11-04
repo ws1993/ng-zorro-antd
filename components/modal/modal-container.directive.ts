@@ -1,0 +1,400 @@
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
+import { FocusTrap, FocusTrapFactory } from '@angular/cdk/a11y';
+import { Direction } from '@angular/cdk/bidi';
+import { OverlayRef } from '@angular/cdk/overlay';
+import { BasePortalOutlet, CdkPortalOutlet, ComponentPortal, TemplatePortal } from '@angular/cdk/portal';
+import {
+  ANIMATION_MODULE_TYPE,
+  ChangeDetectorRef,
+  ComponentRef,
+  DestroyRef,
+  Directive,
+  DOCUMENT,
+  ElementRef,
+  EmbeddedViewRef,
+  EventEmitter,
+  inject,
+  NgZone,
+  Renderer2
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+
+import { NzConfigService, onConfigChangeEventForComponent } from 'ng-zorro-antd/core/config';
+import { requestAnimationFrame } from 'ng-zorro-antd/core/polyfill';
+import { fromEventOutsideAngular, getElementOffset, isNotNil } from 'ng-zorro-antd/core/util';
+
+import { FADE_CLASS_NAME_MAP, MODAL_MASK_CLASS_NAME, NZ_CONFIG_MODULE_NAME, ZOOM_CLASS_NAME_MAP } from './modal-config';
+import { NzModalRef } from './modal-ref';
+import { ModalOptions } from './modal-types';
+import { getValueWithConfig } from './utils';
+
+export function throwNzModalContentAlreadyAttachedError(): never {
+  throw Error('Attempting to attach modal content after content is already attached');
+}
+
+type AnimationState = 'enter-start' | 'enter-active' | 'leave-start' | 'leave-active' | 'void';
+
+@Directive()
+export class BaseModalContainerComponent extends BasePortalOutlet {
+  readonly document = inject(DOCUMENT);
+  readonly cdr = inject(ChangeDetectorRef);
+  readonly config = inject(ModalOptions);
+  protected readonly ngZone = inject(NgZone);
+  protected readonly host: ElementRef<HTMLElement> = inject(ElementRef);
+  protected readonly focusTrapFactory = inject(FocusTrapFactory);
+  protected readonly renderer = inject(Renderer2);
+  protected readonly overlayRef = inject(OverlayRef);
+  protected readonly nzConfigService = inject(NzConfigService);
+  protected readonly animationType = inject(ANIMATION_MODULE_TYPE, { optional: true });
+  protected readonly destroyRef = inject(DestroyRef);
+
+  portalOutlet!: CdkPortalOutlet;
+  modalElementRef!: ElementRef<HTMLDivElement>;
+
+  animationStateChanged = new EventEmitter<AnimationState>();
+  containerClick = new EventEmitter<void>();
+  cancelTriggered = new EventEmitter<void>();
+  okTriggered = new EventEmitter<void>();
+
+  modalRef!: NzModalRef;
+  isStringContent: boolean = false;
+  dir: Direction = 'ltr';
+  private elementFocusedBeforeModalWasOpened: HTMLElement | null = null;
+  private focusTrap!: FocusTrap;
+  private mouseDown = false;
+  private oldMaskStyle: Record<string, string> | null = null;
+
+  get showMask(): boolean {
+    const defaultConfig = this.nzConfigService.getConfigForComponent(NZ_CONFIG_MODULE_NAME) || {};
+    return !!getValueWithConfig<boolean>(this.config.nzMask, defaultConfig.nzMask, true);
+  }
+
+  get maskClosable(): boolean {
+    const defaultConfig = this.nzConfigService.getConfigForComponent(NZ_CONFIG_MODULE_NAME) || {};
+    return !!getValueWithConfig<boolean>(this.config.nzMaskClosable, defaultConfig.nzMaskClosable, true);
+  }
+
+  constructor() {
+    super();
+    this.dir = this.overlayRef.getDirection();
+    this.isStringContent = typeof this.config.nzContent === 'string';
+
+    onConfigChangeEventForComponent(NZ_CONFIG_MODULE_NAME, () => this.updateMaskClassname());
+
+    this.destroyRef.onDestroy(() => {
+      this.setMaskExitAnimationClass(this.overlayRef.backdropElement, true);
+    });
+  }
+
+  onContainerClick(e: MouseEvent): void {
+    if (e.target === e.currentTarget && !this.mouseDown && this.showMask && this.maskClosable) {
+      this.containerClick.emit();
+    }
+  }
+
+  onCloseClick(): void {
+    this.cancelTriggered.emit();
+  }
+
+  onOkClick(): void {
+    this.okTriggered.emit();
+  }
+
+  markForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
+  attachComponentPortal<T>(portal: ComponentPortal<T>): ComponentRef<T> {
+    if (this.portalOutlet.hasAttached()) {
+      throwNzModalContentAlreadyAttachedError();
+    }
+    this.savePreviouslyFocusedElement();
+    this.setZIndexForBackdrop();
+    const result = this.portalOutlet.attachComponentPortal(portal);
+    // Trigger animation after content is attached and focus is saved
+    this._startEnterAnimation();
+    return result;
+  }
+
+  attachTemplatePortal<C>(portal: TemplatePortal<C>): EmbeddedViewRef<C> {
+    if (this.portalOutlet.hasAttached()) {
+      throwNzModalContentAlreadyAttachedError();
+    }
+    this.savePreviouslyFocusedElement();
+    this.setZIndexForBackdrop();
+    const result = this.portalOutlet.attachTemplatePortal(portal);
+    // Trigger animation after content is attached and focus is saved
+    this._startEnterAnimation();
+    return result;
+  }
+
+  attachStringContent(): void {
+    this.savePreviouslyFocusedElement();
+    this.setZIndexForBackdrop();
+    // Trigger animation after focus is saved
+    this._startEnterAnimation();
+  }
+
+  getNativeElement(): HTMLElement {
+    return this.host.nativeElement;
+  }
+
+  private animationDisabled(): boolean {
+    return this.config.nzNoAnimation || this.animationType === 'NoopAnimations';
+  }
+
+  private setModalTransformOrigin(): void {
+    const modalElement = this.modalElementRef.nativeElement;
+    if (this.elementFocusedBeforeModalWasOpened as HTMLElement) {
+      const previouslyDOMRect = this.elementFocusedBeforeModalWasOpened!.getBoundingClientRect();
+      const lastPosition = getElementOffset(this.elementFocusedBeforeModalWasOpened!);
+      const x = lastPosition.left + previouslyDOMRect.width / 2;
+      const y = lastPosition.top + previouslyDOMRect.height / 2;
+      const transformOrigin = `${x - modalElement.offsetLeft}px ${y - modalElement.offsetTop}px 0px`;
+      this.renderer.setStyle(modalElement, 'transform-origin', transformOrigin);
+    }
+  }
+
+  private savePreviouslyFocusedElement(): void {
+    if (!this.focusTrap) {
+      this.focusTrap = this.focusTrapFactory.create(this.host.nativeElement);
+    }
+
+    if (this.document) {
+      this.elementFocusedBeforeModalWasOpened = this.document.activeElement as HTMLElement;
+      if (this.host.nativeElement.focus) {
+        this.ngZone.runOutsideAngular(() => requestAnimationFrame(() => this.host.nativeElement.focus()));
+      }
+    }
+  }
+
+  private trapFocus(): void {
+    const element = this.host.nativeElement;
+
+    if (this.config.nzAutofocus) {
+      this.focusTrap.focusInitialElementWhenReady();
+    } else {
+      const activeElement = this.document.activeElement;
+      if (activeElement !== element && !element.contains(activeElement)) {
+        element.focus();
+      }
+    }
+  }
+
+  private restoreFocus(): void {
+    this.elementFocusedBeforeModalWasOpened?.focus();
+    this.focusTrap?.destroy();
+  }
+
+  private setEnterInitialClass(): void {
+    if (this.animationDisabled()) {
+      return;
+    }
+    const modalElement = this.modalElementRef.nativeElement;
+    const backdropElement = this.overlayRef.backdropElement;
+    // Add enter class immediately to hide the modal (scale(0), opacity: 0)
+    // This prevents the flicker when the modal is first rendered
+    modalElement.classList.add(ZOOM_CLASS_NAME_MAP.enter);
+    if (backdropElement) {
+      backdropElement.classList.add(FADE_CLASS_NAME_MAP.enter);
+    }
+  }
+
+  private setEnterActiveClass(): void {
+    if (this.animationDisabled()) {
+      return;
+    }
+    // Make sure to set the `TransformOrigin` style before set the enter-active class names
+    this.setModalTransformOrigin();
+    const modalElement = this.modalElementRef.nativeElement;
+    const backdropElement = this.overlayRef.backdropElement;
+    // Add enter-active class to trigger the animation
+    modalElement.classList.add(ZOOM_CLASS_NAME_MAP.enterActive);
+    if (backdropElement) {
+      backdropElement.classList.add(FADE_CLASS_NAME_MAP.enterActive);
+    }
+  }
+
+  private setExitAnimationClass(backdropElement: HTMLElement | null): void {
+    const modalElement = this.modalElementRef.nativeElement;
+
+    modalElement.classList.add(ZOOM_CLASS_NAME_MAP.leave);
+    modalElement.classList.add(ZOOM_CLASS_NAME_MAP.leaveActive);
+
+    this.setMaskExitAnimationClass(backdropElement);
+  }
+
+  private setMaskExitAnimationClass(backdropElement: HTMLElement | null, force: boolean = false): void {
+    if (backdropElement) {
+      if (this.animationDisabled() || force) {
+        // https://github.com/angular/components/issues/18645
+        backdropElement.classList.remove(MODAL_MASK_CLASS_NAME);
+        return;
+      }
+      backdropElement.classList.add(FADE_CLASS_NAME_MAP.leave);
+      backdropElement.classList.add(FADE_CLASS_NAME_MAP.leaveActive);
+    }
+  }
+
+  private cleanAnimationClass(): void {
+    if (this.animationDisabled()) {
+      return;
+    }
+    const backdropElement = this.overlayRef.backdropElement;
+    const modalElement = this.modalElementRef.nativeElement;
+    if (backdropElement) {
+      backdropElement.classList.remove(FADE_CLASS_NAME_MAP.enter);
+      backdropElement.classList.remove(FADE_CLASS_NAME_MAP.enterActive);
+    }
+    modalElement.classList.remove(ZOOM_CLASS_NAME_MAP.enter);
+    modalElement.classList.remove(ZOOM_CLASS_NAME_MAP.enterActive);
+    modalElement.classList.remove(ZOOM_CLASS_NAME_MAP.leave);
+    modalElement.classList.remove(ZOOM_CLASS_NAME_MAP.leaveActive);
+  }
+
+  private setZIndexForBackdrop(): void {
+    const backdropElement = this.overlayRef.backdropElement;
+    if (backdropElement) {
+      if (isNotNil(this.config.nzZIndex)) {
+        this.renderer.setStyle(backdropElement, 'z-index', this.config.nzZIndex);
+      }
+    }
+  }
+
+  bindBackdropStyle(): void {
+    const backdropElement = this.overlayRef.backdropElement;
+    if (backdropElement) {
+      if (this.oldMaskStyle) {
+        const styles = this.oldMaskStyle as Record<string, string>;
+        Object.keys(styles).forEach(key => {
+          this.renderer.removeStyle(backdropElement, key);
+        });
+        this.oldMaskStyle = null;
+      }
+
+      this.setZIndexForBackdrop();
+
+      if (typeof this.config.nzMaskStyle === 'object' && Object.keys(this.config.nzMaskStyle).length) {
+        const styles: Record<string, string> = { ...this.config.nzMaskStyle };
+        Object.keys(styles).forEach(key => {
+          this.renderer.setStyle(backdropElement, key, styles[key]);
+        });
+        this.oldMaskStyle = styles;
+      }
+    }
+  }
+
+  updateMaskClassname(): void {
+    const backdropElement = this.overlayRef.backdropElement;
+    if (backdropElement) {
+      if (this.showMask) {
+        backdropElement.classList.add(MODAL_MASK_CLASS_NAME);
+      } else {
+        backdropElement.classList.remove(MODAL_MASK_CLASS_NAME);
+      }
+    }
+  }
+
+  _startEnterAnimation(): void {
+    this.bindBackdropStyle();
+    this.animationStateChanged.emit('enter-start');
+
+    if (this.animationDisabled()) {
+      this.trapFocus();
+      this.animationStateChanged.emit('enter-active');
+    } else {
+      // Immediately add enter class to hide the modal (prevents flicker)
+      // The enter class sets scale(0) and opacity(0) so the modal is invisible
+      this.setEnterInitialClass();
+
+      // In the next frame, add enter-active class to trigger the animation
+      requestAnimationFrame(() => this.setEnterActiveClass());
+
+      const element = this.modalElementRef.nativeElement;
+      const onAnimationEnd = (): void => {
+        element.removeEventListener('animationend', onAnimationEnd);
+        this.trapFocus();
+        this.cleanAnimationClass();
+        this.animationStateChanged.emit('enter-active');
+      };
+
+      element.addEventListener('animationend', onAnimationEnd);
+    }
+  }
+
+  _startLeaveAnimation(backdropElement: HTMLElement | null): void {
+    this.animationStateChanged.emit('leave-start');
+
+    if (this.animationDisabled()) {
+      this.restoreFocus();
+      this.animationStateChanged.emit('leave-active');
+    } else {
+      this.setExitAnimationClass(backdropElement);
+      const element = this.modalElementRef.nativeElement;
+      let pendingAnimations = backdropElement ? 2 : 1;
+      const finish = (): void => {
+        if (--pendingAnimations > 0) {
+          return;
+        }
+        this.restoreFocus();
+        this.cleanAnimationClass();
+        this.animationStateChanged.emit('leave-active');
+      };
+
+      const onModalAnimationEnd = (event: AnimationEvent): void => {
+        if (event.target !== element || event.animationName !== 'antZoomOut') {
+          return;
+        }
+        element.removeEventListener('animationend', onModalAnimationEnd);
+        finish();
+      };
+      element.addEventListener('animationend', onModalAnimationEnd);
+
+      if (backdropElement) {
+        const backdropParent = backdropElement.parentNode;
+        const observer = new MutationObserver(() => {
+          if (!backdropElement.isConnected) {
+            finishBackdrop();
+          }
+        });
+        const finishBackdrop = (): void => {
+          backdropElement.removeEventListener('animationend', onBackdropAnimationEnd);
+          observer.disconnect();
+          finish();
+        };
+        const onBackdropAnimationEnd = (event: AnimationEvent): void => {
+          if (event.target !== backdropElement || event.animationName !== 'antFadeOut') {
+            return;
+          }
+          finishBackdrop();
+        };
+        backdropElement.addEventListener('animationend', onBackdropAnimationEnd);
+        if (backdropParent) {
+          observer.observe(backdropParent, { childList: true });
+        }
+      }
+    }
+  }
+
+  protected setupMouseListeners(modalContainer: ElementRef<HTMLElement>): void {
+    fromEventOutsideAngular(this.host.nativeElement, 'mouseup')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        if (this.mouseDown) {
+          setTimeout(() => {
+            this.mouseDown = false;
+          });
+        }
+      });
+
+    fromEventOutsideAngular(modalContainer.nativeElement, 'mousedown')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.mouseDown = true;
+      });
+  }
+}

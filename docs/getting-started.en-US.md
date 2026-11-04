@@ -5,24 +5,26 @@ title: Getting Started
 
 Ant Design of Angular is dedicated to providing a **good development experience** for programmers.
 
-> The prerequisite of Ant Design Angular is a solid background knowledge of [Angular](https://angular.io/) and [JavaScript ES2015](http://babeljs.io/docs/learn-es2015/).
+> The prerequisite of Ant Design Angular is a solid background knowledge of [Angular](https://angular.dev) and [JavaScript ES2015](http://babeljs.io/docs/learn-es2015/).
 
 ## Playground
 
-The following StackBlitz link demonstrates a basic use case, and it is recommended to fork this demo as a baseline while doing `Bug Report`. However, please do not use this demo as a scaffold on real production environment.
+The following StackBlitz link demonstrates a basic use case, and it is recommended to fork this demo as a baseline while doing `Bug Report`. However, please do not use this demo as a scaffold in a real production environment.
 
 - [NG-ZORRO StackBlitz](https://stackblitz.com/edit/ng-zorro-antd-ivy)
 
 ## First Local Development
 
-During development, there are several engineering requirements including compiling, debugging, proxying and packaging codes in TypeScript. We strongly encourage you to develop your project with the help of Angular official CLI `@angular/cli`. To be concise, a simple example is demonstrating below.
+There are several engineering requirements during development, including compiling, debugging, proxying, and packaging codes in TypeScript. We strongly encourage you to develop your project with the help of Angular official CLI `@angular/cli`. To be concise, a simple example is demonstrated below.
 
 ### Installation
 
-> Read the documentation of [Angular](https://angular.io/cli) to explore more features.
+> Read the documentation of [Angular](https://angular.dev/cli) to explore more features.
 
 ```bash
 $ npm install -g @angular/cli
+# Or if you use yarn
+$ yarn global add @angular/cli
 ```
 
 ### Create a New Project
@@ -33,18 +35,18 @@ The following command allows `@angular/cli` to create a folder called `PROJECT-N
 $ ng new PROJECT-NAME
 ```
 
-`@angular/cli` will run `npm install` after a project is created. If it fails, you can run `npm install` by yourself.
+`@angular/cli` will run `npm install` or `yarn` after a project is created. You can run `npm install` or `yarn` by yourself if it fails.
 
 ### Install ng-zorro-antd
 
-After changing directory to the newly created project, you can run the following commands to initialize project's configuration automatically, including importing i18n files and stylesheets, and loading initial modules.
+After changing the directory to the newly created project, you can automatically run the following commands to initialize the project's configuration, including importing i18n files and stylesheets and loading initial modules.
 
 ```bash
 $ cd PROJECT-NAME
 $ ng add ng-zorro-antd
 ```
 
-<img style="display: block; border-radius: 4px; box-shadow: 1px 1px 4px 0px rgba(0, 0, 0, 0.2);" src="https://img.alicdn.com/tfs/TB19fFHdkxz61VjSZFtXXaDSVXa-680-243.svg">
+<img alt="CLI" style="display: block; border-radius: 4px; box-shadow: 1px 1px 4px 0px rgba(0, 0, 0, 0.2);" src="https://img.alicdn.com/tfs/TB19fFHdkxz61VjSZFtXXaDSVXa-680-243.svg">
 
 `ng-zorro-antd` supports initializing configuration with schematics, more information is available in the [schematics](/docs/schematics/en) section.
 
@@ -56,7 +58,7 @@ Your project is now ready to run. After running the following command, a welcome
 $ ng serve --port 0 --open
 ```
 
-<img style="display: block;padding: 30px 30%;height: 260px;" src="https://img.alicdn.com/tfs/TB1X.qJJgHqK1RjSZFgXXa7JXXa-89-131.svg">
+<img alt="welcome" style="display: block;padding: 30px 30%;height: 260px;" src="https://img.alicdn.com/tfs/TB1X.qJJgHqK1RjSZFgXXa7JXXa-89-131.svg">
 
 ### Building & Deployment
 
@@ -68,12 +70,14 @@ Project files are built and generated in the `dist` directory by default.
 
 ## Customized Build
 
-You may use any existing scaffold tools in the Angular ecosystem in order to customize the building process. When you encounter problems, please refer to [configure](https://github.com/NG-ZORRO/ng-zorro-antd/tree/master/integration) section.
+You may use any existing scaffold tools in the Angular ecosystem in order to customize the building process. Please refer to [configure](https://github.com/NG-ZORRO/ng-zorro-antd/tree/master/integration) section if you encounter any issues.
 
 ### Install ng-zorro-antd
 
 ```bash
 $ npm install ng-zorro-antd --save
+# Or if you use yarn
+$ yarn add ng-zorro-antd
 ```
 
 ### Import Styles
@@ -87,22 +91,20 @@ Import the pre-built stylesheet in `angular.json`
 
 ```json
 {
-  "styles": [
-    "node_modules/ng-zorro-antd/ng-zorro-antd.min.css"
-  ]
+  "styles": ["node_modules/ng-zorro-antd/ng-zorro-antd.min.css"]
 }
 ```
 
 Import the pre-built stylesheet in `style.css`
 
 ```css
-@import "~ng-zorro-antd/ng-zorro-antd.min.css";
+@import '~ng-zorro-antd/ng-zorro-antd.min.css';
 ```
 
 Import the less stylesheet in `style.less`
 
 ```less
-@import "~ng-zorro-antd/ng-zorro-antd.less";
+@import '~ng-zorro-antd/ng-zorro-antd.less';
 ```
 
 #### Use only certain component styles
@@ -114,37 +116,31 @@ It is necessary to import base styles (common to all components) before using ce
 Import the pre-build styles in `style.css`
 
 ```css
-@import "~ng-zorro-antd/style/index.min.css"; /* Import base styles */
-@import "~ng-zorro-antd/button/style/index.min.css";  /* Import one component's styles */
+@import '~ng-zorro-antd/style/index.min.css'; /* Import base styles */
+@import '~ng-zorro-antd/button/style/index.min.css'; /* Import one component's styles */
 ```
 
 Import the less styles in `style.less`
 
 ```less
-@import "~ng-zorro-antd/style/entry.less"; /* Import base styles */
-@import "~ng-zorro-antd/button/style/entry.less";  /* Import one component's styles */
+@import '~ng-zorro-antd/style/entry.less'; /* Import base styles */
+@import '~ng-zorro-antd/button/style/entry.less'; /* Import one component's styles */
 ```
 
 #### Import component module
 
-Finally, you need to import the component modules that you want to use into the `app.module.ts` file and [feature modules](https://angular.io/guide/feature-modules).
+Finally, you need to import the component modules that you want to use into your components.
 
 Taking the following `NzButtonModule` module as an example, first import the component module:
 
 ```ts
-import { NgModule } from '@angular/core';
+import { Component } from '@angular/core';
 import { NzButtonModule } from 'ng-zorro-antd/button';
-import { AppComponent } from './app.component';
 
-@NgModule({
-  declarations: [
-    AppComponent
-  ],
-  imports: [
-    NzButtonModule
-  ]
+@Component({
+  imports: [NzButtonModule]
 })
-export class AppModule { }
+export class AppComponent {}
 ```
 
 Then use the component inside the template:
@@ -152,6 +148,10 @@ Then use the component inside the template:
 ```html
 <button nz-button nzType="primary">Primary</button>
 ```
+
+# Precautions
+
+- `ng-zorro-antd` already contains `@angular/cdk/overlay-prebuilt.css` overlay style, no additional import is required.
 
 ## Other
 

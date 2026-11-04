@@ -40,13 +40,13 @@
     "!/**/stackblitz",
     "!/version/**",
     "!/issue-helper/**",
-    "!/iframe/**",
     "!/blog/**",
     "!/docs/**/*",
     "!/docs/?*",
     "!/components/**/*",
     "!/components/?*",
     "!/experimental/**/*",
-    "!/experimental/?*"
+    "!/experimental/?*",
+    "!/x/**/*"
   ]
 }

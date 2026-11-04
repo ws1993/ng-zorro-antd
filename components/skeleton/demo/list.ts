@@ -1,27 +1,34 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzListModule } from 'ng-zorro-antd/list';
+import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
+import { NzSwitchModule } from 'ng-zorro-antd/switch';
 
 @Component({
   selector: 'nz-demo-skeleton-list',
+  imports: [FormsModule, NzIconModule, NzListModule, NzSkeletonModule, NzSwitchModule],
   template: `
-    <nz-switch [(ngModel)]="loading"></nz-switch>
-    <nz-list [nzDataSource]="listData" [nzRenderItem]="item" [nzItemLayout]="'vertical'">
+    <nz-switch [(ngModel)]="loading" />
+    <nz-list [nzDataSource]="listData" [nzRenderItem]="item" nzItemLayout="vertical">
       <ng-template #item let-item>
         <nz-list-item
-          [nzContent]="loading ? ' ' : item.content"
-          [nzActions]="loading ? [] : [starAction, likeAction, msgAction]"
-          [nzExtra]="loading ? null : extra"
+          [nzContent]="loading() ? ' ' : item.content"
+          [nzActions]="loading() ? [] : [starAction, likeAction, msgAction]"
+          [nzExtra]="loading() ? null : extra"
         >
-          <nz-skeleton [nzLoading]="loading" [nzActive]="true" [nzAvatar]="true">
+          <nz-skeleton [nzLoading]="loading()" [nzActive]="true" [nzAvatar]="true">
             <ng-template #starAction>
-              <i nz-icon nzType="star-o" style="margin-right: 8px;"></i>
+              <nz-icon nzType="star-o" style="margin-right: 8px;" />
               156
             </ng-template>
             <ng-template #likeAction>
-              <i nz-icon nzType="like-o" style="margin-right: 8px;"></i>
+              <nz-icon nzType="like-o" style="margin-right: 8px;" />
               156
             </ng-template>
             <ng-template #msgAction>
-              <i nz-icon nzType="message" style="margin-right: 8px;"></i>
+              <nz-icon nzType="message" style="margin-right: 8px;" />
               2
             </ng-template>
             <nz-list-item-meta [nzAvatar]="item.avatar" [nzTitle]="nzTitle" [nzDescription]="item.description">
@@ -39,9 +46,9 @@ import { Component } from '@angular/core';
   `
 })
 export class NzDemoSkeletonListComponent {
-  loading = true;
-  listData = new Array(3).fill({}).map((_i, index) => ({
-    href: 'http://ng.ant.design',
+  readonly loading = signal(true);
+  readonly listData = new Array(3).fill({}).map((_i, index) => ({
+    href: 'https://ng.ant.design',
     title: `ant design part ${index}`,
     avatar: 'https://zos.alipayobjects.com/rmsportal/ODTLcjxAfvqbxHnVXCYX.png',
     description: 'Ant Design, a design language for background applications, is refined by Ant UED Team.',

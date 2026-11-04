@@ -1,66 +1,88 @@
-import { Component } from '@angular/core';
-import { ComponentFixture, fakeAsync, flush, TestBed, waitForAsync } from '@angular/core/testing';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
+import { Component, signal } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FormsModule } from '@angular/forms';
+import { form, FormField } from '@angular/forms/signals';
 import { By } from '@angular/platform-browser';
 
+import { dispatchFakeEvent, updateNonSignalsInput } from 'ng-zorro-antd/core/testing';
 import { NzInputModule } from 'ng-zorro-antd/input/input.module';
 import { NzTextareaCountComponent } from 'ng-zorro-antd/input/textarea-count.component';
 
 describe('textarea-count', () => {
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        imports: [NzInputModule, FormsModule, ReactiveFormsModule],
-        declarations: [NzTestInputTextareaCountWithoutMaxComponent, NzTestInputTextareaCountWithMaxComponent],
-        providers: []
-      }).compileComponents();
-    })
-  );
   describe('without-max-length', () => {
     let fixture: ComponentFixture<NzTestInputTextareaCountWithoutMaxComponent>;
     let testComponent: NzTestInputTextareaCountWithoutMaxComponent;
     let textareaCountElement: HTMLElement;
+
     beforeEach(() => {
       fixture = TestBed.createComponent(NzTestInputTextareaCountWithoutMaxComponent);
       testComponent = fixture.debugElement.componentInstance;
       fixture.detectChanges();
       textareaCountElement = fixture.debugElement.query(By.directive(NzTextareaCountComponent)).nativeElement;
     });
+
     it('should count work', () => {
       expect(textareaCountElement.getAttribute('data-count')).toBe('0');
     });
-    it('should count update work', fakeAsync(() => {
-      testComponent.inputValue = 'test';
+
+    it('should count update work', async () => {
+      testComponent.inputValue.set('test');
       fixture.detectChanges();
-      flush();
+      await updateNonSignalsInput(fixture);
 
       expect(textareaCountElement.getAttribute('data-count')).toBe('4');
-    }));
+    });
   });
+
   describe('with-max-length', () => {
     let fixture: ComponentFixture<NzTestInputTextareaCountWithMaxComponent>;
     let testComponent: NzTestInputTextareaCountWithMaxComponent;
     let textareaCountElement: HTMLElement;
+
     beforeEach(() => {
       fixture = TestBed.createComponent(NzTestInputTextareaCountWithMaxComponent);
       testComponent = fixture.debugElement.componentInstance;
       fixture.detectChanges();
       textareaCountElement = fixture.debugElement.query(By.directive(NzTextareaCountComponent)).nativeElement;
     });
+
     it('should count with max length work', () => {
       expect(textareaCountElement.getAttribute('data-count')).toBe('0/100');
     });
-    it('should count update with max length work', fakeAsync(() => {
-      testComponent.inputValue = 'test';
+
+    it('should count update with max length work', async () => {
+      testComponent.inputValue.set('test');
       fixture.detectChanges();
-      flush();
+      await updateNonSignalsInput(fixture);
 
       expect(textareaCountElement.getAttribute('data-count')).toBe('4/100');
-    }));
+    });
+  });
+
+  describe('with Signal Forms', () => {
+    it('should update the count when the field value changes', async () => {
+      const fixture = TestBed.createComponent(NzTestInputTextareaCountWithSignalFormComponent);
+      fixture.autoDetectChanges();
+      await fixture.whenStable();
+
+      const textarea = fixture.nativeElement.querySelector('textarea') as HTMLTextAreaElement;
+      const textareaCountElement = fixture.debugElement.query(By.directive(NzTextareaCountComponent)).nativeElement;
+      textarea.value = 'Signal Forms';
+      dispatchFakeEvent(textarea, 'input');
+      await fixture.whenStable();
+
+      expect(textareaCountElement.getAttribute('data-count')).toBe('12/50');
+    });
   });
 });
 
 @Component({
+  imports: [FormsModule, NzInputModule],
   template: `
     <nz-textarea-count>
       <textarea rows="4" nz-input [(ngModel)]="inputValue"></textarea>
@@ -68,10 +90,11 @@ describe('textarea-count', () => {
   `
 })
 export class NzTestInputTextareaCountWithoutMaxComponent {
-  inputValue = '';
+  readonly inputValue = signal('');
 }
 
 @Component({
+  imports: [FormsModule, NzInputModule],
   template: `
     <nz-textarea-count [nzMaxCharacterCount]="100">
       <textarea rows="4" nz-input [(ngModel)]="inputValue"></textarea>
@@ -79,5 +102,18 @@ export class NzTestInputTextareaCountWithoutMaxComponent {
   `
 })
 export class NzTestInputTextareaCountWithMaxComponent {
-  inputValue = '';
+  readonly inputValue = signal('');
+}
+
+@Component({
+  imports: [FormField, NzInputModule],
+  template: `
+    <nz-textarea-count [nzMaxCharacterCount]="50">
+      <textarea rows="4" nz-input [formField]="form.bio"></textarea>
+    </nz-textarea-count>
+  `
+})
+export class NzTestInputTextareaCountWithSignalFormComponent {
+  readonly model = signal({ bio: '' });
+  readonly form = form(this.model);
 }

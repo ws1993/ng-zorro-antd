@@ -1,52 +1,42 @@
-import { BidiModule, Dir } from '@angular/cdk/bidi';
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
 import { registerLocaleData } from '@angular/common';
 import zh from '@angular/common/locales/zh';
-import { Component, ViewChild } from '@angular/core';
-import { ComponentFixture, fakeAsync, flush, TestBed, waitForAsync } from '@angular/core/testing';
+import { Component, signal } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormsModule, NgModel } from '@angular/forms';
 import { By } from '@angular/platform-browser';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
-import { CandyDate } from 'ng-zorro-antd/core/time';
+import { vi } from 'vitest';
 
-import { NZ_DATE_CONFIG } from '../i18n/date-config';
+import { provideNzNoAnimation } from 'ng-zorro-antd/core/animation';
+import { testDirectionality } from 'ng-zorro-antd/core/testing';
+import { CandyDate, provideNzDateFnsAdapter } from 'ng-zorro-antd/core/time';
+
 import { NzCalendarHeaderComponent as CalendarHeader } from './calendar-header.component';
-import { NzCalendarComponent as Calendar } from './calendar.component';
+import { NzCalendarComponent as Calendar, NzCalendarMode } from './calendar.component';
 import { NzCalendarModule } from './calendar.module';
 
 registerLocaleData(zh);
 
-describe('Calendar', () => {
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        imports: [BidiModule, FormsModule, NzCalendarModule, NoopAnimationsModule],
-        declarations: [
-          NzTestCalendarModeComponent,
-          NzTestCalendarValueComponent,
-          NzTestCalendarFullscreenComponent,
-          NzTestCalendarDateCellComponent,
-          NzTestCalendarDateFullCellComponent,
-          NzTestCalendarMonthCellComponent,
-          NzTestCalendarMonthFullCellComponent,
-          NzTestCalendarChangesComponent,
-          NzTestCalendarRtlComponent
-        ],
-        providers: [{ provide: NZ_DATE_CONFIG, useValue: { firstDayOfWeek: 0 } }]
-      }).compileComponents();
-    })
-  );
+describe('calendar', () => {
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideNzNoAnimation(), provideNzDateFnsAdapter({ firstDayOfWeek: 0 })]
+    });
+  });
 
   describe('mode', () => {
     let fixture: ComponentFixture<NzTestCalendarModeComponent>;
     let component: NzTestCalendarModeComponent;
 
-    beforeEach(
-      waitForAsync(() => {
-        fixture = TestBed.createComponent(NzTestCalendarModeComponent);
-        component = fixture.componentInstance;
-      })
-    );
+    beforeEach(() => {
+      fixture = TestBed.createComponent(NzTestCalendarModeComponent);
+      component = fixture.componentInstance;
+    });
 
     it('should be month by default', () => {
       fixture.detectChanges();
@@ -59,7 +49,7 @@ describe('Calendar', () => {
     });
 
     it('should update mode passed in', () => {
-      component.mode = 'year';
+      component.mode.set('year');
 
       fixture.detectChanges();
 
@@ -79,7 +69,7 @@ describe('Calendar', () => {
 
       fixture.detectChanges();
 
-      expect(component.mode).toBe('year');
+      expect(component.mode()).toBe('year');
     });
 
     it('should display date grid in month mode', () => {
@@ -92,7 +82,7 @@ describe('Calendar', () => {
     });
 
     it('should display date grid in year mode', () => {
-      component.mode = 'year';
+      component.mode.set('year');
       fixture.detectChanges();
 
       const host = fixture.debugElement.queryAll(By.directive(Calendar))[1];
@@ -106,17 +96,14 @@ describe('Calendar', () => {
     let fixture: ComponentFixture<NzTestCalendarValueComponent>;
     let component: NzTestCalendarValueComponent;
 
-    beforeEach(
-      waitForAsync(() => {
-        fixture = TestBed.createComponent(NzTestCalendarValueComponent);
-        component = fixture.componentInstance;
-      })
-    );
+    beforeEach(() => {
+      fixture = TestBed.createComponent(NzTestCalendarValueComponent);
+      component = fixture.componentInstance;
+    });
 
     it('should be now by default', () => {
-      const now = new Date();
-
       fixture.detectChanges();
+      const now = new Date();
 
       const host = fixture.debugElement.queryAll(By.directive(Calendar))[0];
       const header = host.query(By.directive(CalendarHeader)).injector.get(CalendarHeader);
@@ -140,7 +127,7 @@ describe('Calendar', () => {
       expect(component.date0).toBe(now);
     });
 
-    it('should support model binding', fakeAsync(() => {
+    it('should support model binding', async () => {
       fixture.detectChanges();
       const now = new Date();
 
@@ -148,7 +135,7 @@ describe('Calendar', () => {
       const calendar = host.injector.get(Calendar);
       const model = host.injector.get(NgModel);
       fixture.detectChanges();
-      flush();
+      await fixture.whenStable();
       fixture.detectChanges();
 
       expect(calendar.activeDate.nativeDate).toBe(component.date1);
@@ -157,7 +144,7 @@ describe('Calendar', () => {
       fixture.detectChanges();
 
       expect(component.date1).toBe(now);
-    }));
+    });
 
     it('should update value when year changed', () => {
       fixture.detectChanges();
@@ -239,12 +226,10 @@ describe('Calendar', () => {
     let fixture: ComponentFixture<NzTestCalendarFullscreenComponent>;
     let component: NzTestCalendarFullscreenComponent;
 
-    beforeEach(
-      waitForAsync(() => {
-        fixture = TestBed.createComponent(NzTestCalendarFullscreenComponent);
-        component = fixture.componentInstance;
-      })
-    );
+    beforeEach(() => {
+      fixture = TestBed.createComponent(NzTestCalendarFullscreenComponent);
+      component = fixture.componentInstance;
+    });
 
     it('should be true by default', () => {
       fixture.detectChanges();
@@ -256,7 +241,7 @@ describe('Calendar', () => {
     });
 
     it('should update fullscreen by nzFullscreen', () => {
-      component.fullscreen = false;
+      component.fullscreen.set(false);
 
       fixture.detectChanges();
 
@@ -267,7 +252,7 @@ describe('Calendar', () => {
     });
 
     it('should support imperative access', () => {
-      component.fullscreen = false;
+      component.fullscreen.set(false);
 
       fixture.detectChanges();
 
@@ -280,11 +265,9 @@ describe('Calendar', () => {
   describe('dateCell', () => {
     let fixture: ComponentFixture<NzTestCalendarDateCellComponent>;
 
-    beforeEach(
-      waitForAsync(() => {
-        fixture = TestBed.createComponent(NzTestCalendarDateCellComponent);
-      })
-    );
+    beforeEach(() => {
+      fixture = TestBed.createComponent(NzTestCalendarDateCellComponent);
+    });
 
     it('should work when passed via property', () => {
       fixture.detectChanges();
@@ -308,11 +291,9 @@ describe('Calendar', () => {
   describe('dateFullCell', () => {
     let fixture: ComponentFixture<NzTestCalendarDateFullCellComponent>;
 
-    beforeEach(
-      waitForAsync(() => {
-        fixture = TestBed.createComponent(NzTestCalendarDateFullCellComponent);
-      })
-    );
+    beforeEach(() => {
+      fixture = TestBed.createComponent(NzTestCalendarDateFullCellComponent);
+    });
 
     it('should work when passed via property', () => {
       fixture.detectChanges();
@@ -335,11 +316,9 @@ describe('Calendar', () => {
   describe('monthCell', () => {
     let fixture: ComponentFixture<NzTestCalendarMonthCellComponent>;
 
-    beforeEach(
-      waitForAsync(() => {
-        fixture = TestBed.createComponent(NzTestCalendarMonthCellComponent);
-      })
-    );
+    beforeEach(() => {
+      fixture = TestBed.createComponent(NzTestCalendarMonthCellComponent);
+    });
 
     it('should work when passed via property', () => {
       fixture.detectChanges();
@@ -361,11 +340,9 @@ describe('Calendar', () => {
   describe('monthFullCell', () => {
     let fixture: ComponentFixture<NzTestCalendarMonthFullCellComponent>;
 
-    beforeEach(
-      waitForAsync(() => {
-        fixture = TestBed.createComponent(NzTestCalendarMonthFullCellComponent);
-      })
-    );
+    beforeEach(() => {
+      fixture = TestBed.createComponent(NzTestCalendarMonthFullCellComponent);
+    });
 
     it('should work when passed via property', () => {
       fixture.detectChanges();
@@ -388,14 +365,12 @@ describe('Calendar', () => {
     let fixture: ComponentFixture<NzTestCalendarChangesComponent>;
     let component: NzTestCalendarChangesComponent;
 
-    beforeEach(
-      waitForAsync(() => {
-        fixture = TestBed.createComponent(NzTestCalendarChangesComponent);
-        component = fixture.componentInstance;
-      })
-    );
+    beforeEach(() => {
+      fixture = TestBed.createComponent(NzTestCalendarChangesComponent);
+      component = fixture.componentInstance;
+    });
 
-    it('should panelChange work', fakeAsync(() => {
+    it('should panelChange work', () => {
       fixture.detectChanges();
 
       expect(component.panelChange).toHaveBeenCalledTimes(0);
@@ -405,7 +380,7 @@ describe('Calendar', () => {
       fixture.detectChanges();
 
       expect(component.panelChange).toHaveBeenCalledTimes(1);
-    }));
+    });
 
     it('should selectChange work', () => {
       fixture.detectChanges();
@@ -425,66 +400,51 @@ describe('Calendar', () => {
     });
   });
 
-  describe('RTL', () => {
-    let fixture: ComponentFixture<NzTestCalendarRtlComponent>;
-    let componentElement: HTMLElement;
-
-    beforeEach(
-      waitForAsync(() => {
-        fixture = TestBed.createComponent(NzTestCalendarRtlComponent);
-        componentElement = fixture.debugElement.query(By.directive(Calendar)).nativeElement;
-        fixture.detectChanges();
-      })
-    );
-
-    it('should className correct on dir change', fakeAsync(() => {
-      expect(componentElement.classList).toContain('ant-picker-calendar-rtl');
-      fixture.componentInstance.direction = 'ltr';
-      fixture.detectChanges();
-      expect(componentElement.classList).not.toContain('ant-picker-calendar-rtl');
-    }));
-  });
+  testDirectionality(() => NzTestCalendarModeComponent, By.directive(Calendar), 'ant-picker-calendar');
 });
 
 @Component({
+  imports: [NzCalendarModule],
   template: `
-    <nz-calendar></nz-calendar>
-    <nz-calendar [(nzMode)]="mode"></nz-calendar>
+    <nz-calendar />
+    <nz-calendar [(nzMode)]="mode" />
   `
 })
 class NzTestCalendarModeComponent {
-  mode: 'month' | 'year' = 'month';
+  readonly mode = signal<'month' | 'year'>('month');
 }
 
 @Component({
+  imports: [FormsModule, NzCalendarModule],
   template: `
-    <nz-calendar></nz-calendar>
-    <nz-calendar [(nzValue)]="date0"></nz-calendar>
-    <nz-calendar [(ngModel)]="date1"></nz-calendar>
-    <nz-calendar [(nzValue)]="date2" [(nzMode)]="mode"></nz-calendar>
+    <nz-calendar />
+    <nz-calendar [(nzValue)]="date0" />
+    <nz-calendar [(ngModel)]="date1" />
+    <nz-calendar [(nzValue)]="date2" [(nzMode)]="mode" />
   `
 })
 class NzTestCalendarValueComponent {
   date0 = new Date(2001, 1, 3);
   date1 = new Date(2001, 1, 3);
   date2 = new Date();
-  mode = 'year';
+  mode: NzCalendarMode = 'year';
 }
 
 @Component({
+  imports: [NzCalendarModule],
   template: `
-    <nz-calendar></nz-calendar>
-    <nz-calendar [nzFullscreen]="fullscreen"></nz-calendar>
+    <nz-calendar />
+    <nz-calendar [nzFullscreen]="fullscreen()" />
   `
 })
 class NzTestCalendarFullscreenComponent {
-  fullscreen = true;
-  card = false;
+  readonly fullscreen = signal(true);
 }
 
 @Component({
+  imports: [NzCalendarModule],
   template: `
-    <nz-calendar [nzDateCell]="tpl"></nz-calendar>
+    <nz-calendar [nzDateCell]="tpl" />
     <ng-template #tpl>Foo</ng-template>
     <nz-calendar>
       <ng-container *nzDateCell>Bar</ng-container>
@@ -494,8 +454,9 @@ class NzTestCalendarFullscreenComponent {
 class NzTestCalendarDateCellComponent {}
 
 @Component({
+  imports: [NzCalendarModule],
   template: `
-    <nz-calendar [nzDateFullCell]="tpl"></nz-calendar>
+    <nz-calendar [nzDateFullCell]="tpl" />
     <ng-template #tpl>Foo</ng-template>
     <nz-calendar>
       <ng-container *nzDateFullCell>Bar</ng-container>
@@ -505,8 +466,9 @@ class NzTestCalendarDateCellComponent {}
 class NzTestCalendarDateFullCellComponent {}
 
 @Component({
+  imports: [NzCalendarModule],
   template: `
-    <nz-calendar nzMode="year" [nzMonthCell]="tpl"></nz-calendar>
+    <nz-calendar nzMode="year" [nzMonthCell]="tpl" />
     <ng-template #tpl>Foo</ng-template>
     <nz-calendar nzMode="year">
       <ng-container *nzMonthCell>Bar</ng-container>
@@ -516,8 +478,9 @@ class NzTestCalendarDateFullCellComponent {}
 class NzTestCalendarMonthCellComponent {}
 
 @Component({
+  imports: [NzCalendarModule],
   template: `
-    <nz-calendar nzMode="year" [nzMonthFullCell]="tpl"></nz-calendar>
+    <nz-calendar nzMode="year" [nzMonthFullCell]="tpl" />
     <ng-template #tpl>Foo</ng-template>
     <nz-calendar nzMode="year">
       <ng-container *nzMonthFullCell>Bar</ng-container>
@@ -527,30 +490,19 @@ class NzTestCalendarMonthCellComponent {}
 class NzTestCalendarMonthFullCellComponent {}
 
 @Component({
+  imports: [FormsModule, NzCalendarModule],
   template: `
     <nz-calendar
       [(nzMode)]="mode"
       [(ngModel)]="date0"
       (nzPanelChange)="panelChange($event)"
       (nzSelectChange)="selectChange($event)"
-    ></nz-calendar>
+    />
   `
 })
 class NzTestCalendarChangesComponent {
   mode: 'month' | 'year' = 'month';
   date0 = new Date(2014, 3, 14);
-  panelChange = jasmine.createSpy('panelChange callback');
-  selectChange = jasmine.createSpy('selectChange callback');
-}
-
-@Component({
-  template: `
-    <div [dir]="direction">
-      <nz-calendar></nz-calendar>
-    </div>
-  `
-})
-export class NzTestCalendarRtlComponent {
-  @ViewChild(Dir) dir!: Dir;
-  direction = 'rtl';
+  panelChange = vi.fn();
+  selectChange = vi.fn();
 }

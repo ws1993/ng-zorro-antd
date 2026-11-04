@@ -1,92 +1,103 @@
-import { Component, DebugElement, ViewChild } from '@angular/core';
-import { ComponentFixture, fakeAsync, TestBed } from '@angular/core/testing';
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
+import { ApplicationRef, Component, DebugElement, signal, ViewChild } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
+import { vi } from 'vitest';
+
+import { provideNzNoAnimation } from 'ng-zorro-antd/core/animation';
 import { NzSafeAny } from 'ng-zorro-antd/core/types';
-import { NzIconTestModule } from 'ng-zorro-antd/icon/testing';
-
-import { NzThAddOnComponent } from '../cell/th-addon.component';
-import { NzTableModule } from '../table.module';
+import { provideNzIconsTesting } from 'ng-zorro-antd/icon/testing';
+import { NzThAddOnComponent, NzTableModule } from 'ng-zorro-antd/table';
 
 describe('nz-th', () => {
-  beforeEach(fakeAsync(() => {
+  beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [NzTableModule, NzIconTestModule, NoopAnimationsModule],
-      declarations: [NzThTestNzTableComponent, NzThTestTableDefaultFilterComponent]
+      providers: [provideNzIconsTesting(), provideNzNoAnimation()]
     });
-    TestBed.compileComponents();
-  }));
+  });
+
   describe('nz-th addon in nz-table', () => {
     let fixture: ComponentFixture<NzThTestNzTableComponent>;
     let testComponent: NzThTestNzTableComponent;
     let th: DebugElement;
+
     beforeEach(() => {
       fixture = TestBed.createComponent(NzThTestNzTableComponent);
       fixture.detectChanges();
       testComponent = fixture.debugElement.componentInstance;
       th = fixture.debugElement.query(By.directive(NzThAddOnComponent));
     });
+
     it('should showSort work', () => {
       fixture.detectChanges();
       expect(th.nativeElement.classList).toContain('ant-table-column-has-sorters');
       expect(th.nativeElement.querySelector('.ant-table-column-sorter')).toBeDefined();
     });
+
     it('should sort change work', () => {
       fixture.detectChanges();
       expect(th.nativeElement.querySelector('.ant-table-column-sorter-up').classList).not.toContain('active');
       expect(th.nativeElement.querySelector('.ant-table-column-sorter-down').classList).not.toContain('active');
       expect(th.nativeElement.classList).not.toContain('ant-table-column-sort');
-      testComponent.sort = 'ascend';
+      testComponent.sort.set('ascend');
       fixture.detectChanges();
       expect(th.nativeElement.querySelector('.ant-table-column-sorter-up').classList).toContain('active');
       expect(th.nativeElement.querySelector('.ant-table-column-sorter-down').classList).not.toContain('active');
       expect(th.nativeElement.classList).toContain('ant-table-column-sort');
-      testComponent.sort = 'descend';
+      testComponent.sort.set('descend');
       fixture.detectChanges();
       expect(th.nativeElement.querySelector('.ant-table-column-sorter-up').classList).not.toContain('active');
       expect(th.nativeElement.querySelector('.ant-table-column-sorter-down').classList).toContain('active');
       expect(th.nativeElement.classList).toContain('ant-table-column-sort');
-      testComponent.sort = null;
+      testComponent.sort.set(null);
       fixture.detectChanges();
       expect(th.nativeElement.querySelector('.ant-table-column-sorter-up').classList).not.toContain('active');
       expect(th.nativeElement.querySelector('.ant-table-column-sorter-down').classList).not.toContain('active');
       expect(th.nativeElement.classList).not.toContain('ant-table-column-sort');
       expect(testComponent.sortChange).toHaveBeenCalledTimes(0);
     });
+
     it('should sort click work', () => {
       fixture.detectChanges();
       expect(th.nativeElement.querySelector('.ant-table-column-sorter-up').classList).not.toContain('active');
       expect(th.nativeElement.querySelector('.ant-table-column-sorter-down').classList).not.toContain('active');
       th.nativeElement.querySelector('.ant-table-column-sorters').firstElementChild.click();
       fixture.detectChanges();
-      expect(testComponent.sort).toBe('ascend');
+      expect(testComponent.sort()).toBe('ascend');
       expect(testComponent.sortChange).toHaveBeenCalledTimes(1);
       expect(th.nativeElement.querySelector('.ant-table-column-sorter-up').classList).toContain('active');
       expect(th.nativeElement.querySelector('.ant-table-column-sorter-down').classList).not.toContain('active');
       th.nativeElement.querySelector('.ant-table-column-sorters').firstElementChild.click();
       fixture.detectChanges();
       expect(testComponent.sortChange).toHaveBeenCalledTimes(2);
-      expect(testComponent.sort).toBe('descend');
+      expect(testComponent.sort()).toBe('descend');
       expect(th.nativeElement.querySelector('.ant-table-column-sorter-up').classList).not.toContain('active');
       expect(th.nativeElement.querySelector('.ant-table-column-sorter-down').classList).toContain('active');
       th.nativeElement.querySelector('.ant-table-column-sorters').firstElementChild.click();
       fixture.detectChanges();
       expect(testComponent.sortChange).toHaveBeenCalledTimes(3);
-      expect(testComponent.sort).toBe(null);
+      expect(testComponent.sort()).toBe(null);
     });
+
     it('should left work', () => {
-      testComponent.left = '20px';
+      testComponent.left.set('20px');
       fixture.detectChanges();
       expect(th.nativeElement.classList).toContain('ant-table-cell-fix-left');
       expect(th.nativeElement.style.left).toBe('20px');
     });
+
     it('should right work', () => {
-      testComponent.right = '20px';
+      testComponent.right.set('20px');
       fixture.detectChanges();
       expect(th.nativeElement.classList).toContain('ant-table-cell-fix-right');
       expect(th.nativeElement.style.right).toBe('20px');
     });
+
     it('should be throw error when use specific class name', () => {
       expect(() => {
         TestBed.configureTestingModule({
@@ -94,51 +105,70 @@ describe('nz-th', () => {
         }).createComponent(NzTestDisableThComponent);
       }).toThrow();
     });
+
+    it('should not run change detection on click events for the `nz-filter-trigger`', () => {
+      const appRef = TestBed.inject(ApplicationRef);
+      const event = new MouseEvent('click');
+
+      vi.spyOn(appRef, 'tick');
+      vi.spyOn(event, 'stopPropagation');
+
+      fixture.debugElement.nativeElement
+        .querySelector('nz-filter-trigger .ant-table-filter-trigger')
+        .dispatchEvent(event);
+
+      expect(appRef.tick).not.toHaveBeenCalled();
+      expect(event.stopPropagation).toHaveBeenCalled();
+    });
   });
 });
 
 @Component({
+  imports: [NzTableModule],
   template: `
-    <nz-table *ngIf="!destroy">
-      <th
-        [nzLeft]="left"
-        [nzRight]="right"
-        [nzWidth]="width"
-        [(nzSortOrder)]="sort"
-        (nzSortOrderChange)="sortChange($event)"
-        [nzFilters]="filters"
-        (nzFilterChange)="filterChange($event)"
-        [nzFilterMultiple]="filterMultiple"
-      ></th>
-    </nz-table>
+    @if (!destroy()) {
+      <nz-table>
+        <th
+          [nzLeft]="left()"
+          [nzRight]="right()"
+          [nzWidth]="width()"
+          [(nzSortOrder)]="sort"
+          (nzSortOrderChange)="sortChange($event)"
+          [nzFilters]="filters"
+          (nzFilterChange)="filterChange($event)"
+          [nzFilterMultiple]="filterMultiple"
+        ></th>
+      </nz-table>
+    }
   `
 })
 export class NzThTestNzTableComponent {
   @ViewChild(NzThAddOnComponent, { static: false }) nzThComponent!: NzThAddOnComponent<NzSafeAny>;
-  destroy = false;
-  left?: string | number;
-  right?: string | number;
-  width?: string | number;
-  sort: string | null = null;
-  sortChange = jasmine.createSpy('sort change');
+  readonly destroy = signal(false);
+  readonly left = signal<string | boolean>(false);
+  readonly right = signal<string | boolean>(false);
+  readonly width = signal<string | null>(null);
+  readonly sort = signal<string | null>(null);
+  sortChange = vi.fn();
   filters = [
     { text: 'filter1', value: '1' },
     { text: 'filter2', value: '2' }
   ];
-  filterChange = jasmine.createSpy('filter change');
+  filterChange = vi.fn();
   filterMultiple = true;
 }
 
-interface DataItem {
+interface ItemData {
   name: string;
   age: number;
   address: string;
 }
 
 @Component({
+  imports: [NzTableModule],
   template: `
     <nz-table #filterTable [nzData]="displayData">
-      <thead (nzSortOrderChange)="sort($event)">
+      <thead (nzSortOrderChange)="sort($any($event))">
         <tr>
           <th nzColumnKey="name" [nzFilters]="nameList" (nzFilterChange)="filter($event, searchAddress)">Name</th>
           <th nzColumnKey="age">Age</th>
@@ -153,11 +183,13 @@ interface DataItem {
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let data of filterTable.data">
-          <td>{{ data.name }}</td>
-          <td>{{ data.age }}</td>
-          <td>{{ data.address }}</td>
-        </tr>
+        @for (data of filterTable.data; track data) {
+          <tr>
+            <td>{{ data.name }}</td>
+            <td>{{ data.age }}</td>
+            <td>{{ data.address }}</td>
+          </tr>
+        }
       </tbody>
     </nz-table>
   `
@@ -171,11 +203,11 @@ export class NzThTestTableDefaultFilterComponent {
     { text: 'London', value: 'London', byDefault: true },
     { text: 'Sidney', value: 'Sidney' }
   ];
-  sortName: keyof DataItem | null = null;
+  sortName: keyof ItemData | null = null;
   sortValue: string | null = null;
   listOfSearchName = ['Joe', 'London'];
   searchAddress!: string;
-  data: DataItem[] = [
+  data: ItemData[] = [
     {
       name: 'John Brown',
       age: 32,
@@ -197,11 +229,11 @@ export class NzThTestTableDefaultFilterComponent {
       address: 'London No. 2 Lake Park'
     }
   ];
-  displayData: DataItem[] = [];
+  displayData: ItemData[] = [];
 
-  @ViewChild(NzThAddOnComponent, { static: false }) nzThComponent!: NzThAddOnComponent<DataItem>;
+  @ViewChild(NzThAddOnComponent, { static: false }) nzThComponent!: NzThAddOnComponent<ItemData>;
 
-  sort(sort: { key: keyof DataItem; value: string }): void {
+  sort(sort: { key: keyof ItemData; value: string }): void {
     this.sortName = sort.key;
     this.sortValue = sort.value;
     this.search();
@@ -221,14 +253,14 @@ export class NzThTestTableDefaultFilterComponent {
     const data = this.data.filter(item => filterFunc(item));
     /** sort data **/
     if (this.sortName && this.sortValue) {
-      this.displayData = data.sort((a: DataItem, b: DataItem) =>
+      this.displayData = data.sort((a: ItemData, b: ItemData) =>
         this.sortValue === 'ascend'
           ? a[this.sortName!] > b[this.sortName!]
             ? 1
             : -1
           : b[this.sortName!] > a[this.sortName!]
-          ? 1
-          : -1
+            ? 1
+            : -1
       );
     } else {
       this.displayData = data;
@@ -237,6 +269,7 @@ export class NzThTestTableDefaultFilterComponent {
 }
 
 @Component({
-  template: ` <th class="nz-disable-th"></th> `
+  imports: [NzTableModule],
+  template: `<th class="nz-disable-th"></th>`
 })
 export class NzTestDisableThComponent {}

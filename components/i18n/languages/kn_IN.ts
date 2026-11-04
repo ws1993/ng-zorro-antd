@@ -15,7 +15,8 @@ export default {
     prev_5: 'ಹಿಂದಿನ 5 ಪುಟಗಳು',
     next_5: 'ಮುಂದಿನ 5 ಪುಟಗಳು',
     prev_3: 'ಹಿಂದಿನ 3 ಪುಟಗಳು',
-    next_3: 'ಮುಂದಿನ 3 ಪುಟಗಳು'
+    next_3: 'ಮುಂದಿನ 3 ಪುಟಗಳು',
+    page_size: 'Page Size'
   },
   DatePicker: {
     lang: {
@@ -129,5 +130,8 @@ export default {
     uploadError: 'ಏರಿಸುವ ದೋಷ',
     previewFile: 'ಫೈಲ್ ಮುನ್ನೋಟ',
     downloadFile: 'ಫೈಲ್ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ'
+  },
+  Form: {
+    optional: '(ಅಗತ್ಯ)'
   }
 };

@@ -1,105 +1,123 @@
-import { registerLocaleData } from '@angular/common';
-import zh from '@angular/common/locales/zh';
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
 
-import { fakeAsync, inject, TestBed } from '@angular/core/testing';
+import { Injectable } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { CandyDate } from 'ng-zorro-antd/core/time';
-import { DateHelperService } from '../../i18n/date-helper.service';
-import { NzI18nService } from '../../i18n/nz-i18n.service';
+import { vi } from 'vitest';
+
+import { CandyDate, NativeDateAdapter, NzDateAdapter, provideNzDateAdapter } from 'ng-zorro-antd/core/time';
+import { NzSafeAny } from 'ng-zorro-antd/core/types';
+import { en_US, NzI18nModule } from 'ng-zorro-antd/i18n';
+
+import { DateHeaderComponent } from './date-header.component';
 import { DateTableComponent } from './date-table.component';
 import { LibPackerModule } from './lib-packer.module';
-import { MonthTableComponent } from './month-table.component';
 
-registerLocaleData(zh);
+@Injectable()
+class TuesdayStartDateAdapter extends NativeDateAdapter {
+  override getFirstDayOfWeek(): number {
+    return 2;
+  }
 
+  override format(date: Date, displayFormat: NzSafeAny): string {
+    if (displayFormat === 'E') {
+      return `weekday-${date.getDay()}`;
+    }
+    return super.format(date, displayFormat);
+  }
+}
+
+// TODO: Add unit test of date-table and month-table
 describe('Coverage supplements', () => {
-  let componentInstance: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-  let dateHelper: DateHelperService;
-  let i18n: NzI18nService;
-
-  beforeEach(fakeAsync(() => {
+  beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [LibPackerModule]
+      imports: [LibPackerModule, NzI18nModule],
+      providers: [provideNzDateAdapter(TuesdayStartDateAdapter)]
     });
+  });
 
-    TestBed.compileComponents();
-  }));
-
-  beforeEach(inject([NzI18nService, DateHelperService], (i18nService: NzI18nService, dateHelperService: DateHelperService) => {
-    dateHelper = dateHelperService;
-    i18n = i18nService;
-  }));
-
-  // describe('CalendarHeader', () => {
-  //   beforeEach(() => {
-  //     componentInstance = new CalendarHeaderComponent(dateHelper);
-  //   });
-  //
-  //   it('should not render if no relative changes', () => {
-  //     // Currently: value/showTimePicker/panelMode will trigger render()
-  //     spyOn(componentInstance, 'render');
-  //     componentInstance.ngOnChanges({});
-  //     expect(componentInstance.render).not.toHaveBeenCalled();
-  //   });
-  //
-  //   it('should step into yearToMonth branch', () => {
-  //     const testDate = new CandyDate();
-  //     componentInstance.yearToMonth = true;
-  //     spyOn(componentInstance, 'changePanel');
-  //     componentInstance.onChooseYear(testDate);
-  //     expect(componentInstance.changePanel).toHaveBeenCalledWith('month', testDate);
-  //   });
-  //
-  //   it('cover branches of createYearMonthDaySelectors', () => {
-  //     componentInstance.value = new CandyDate();
-  //     componentInstance.locale = {
-  //       monthBeforeYear: true,
-  //       monthFormat: 'yyyy-MM'
-  //     };
-  //     componentInstance.showTimePicker = true;
-  //     spyOn(componentInstance, 'changePanel');
-  //     spyOn(componentInstance, 'changeToMonthPanel');
-  //     spyOn(componentInstance, 'formatDateTime');
-  //     const result = componentInstance.createYearMonthDaySelectors();
-  //
-  //     // should support locale.monthBeforeYear
-  //     expect(result[0].className).toContain('month-select'); // "month" tobe the first place
-  //
-  //     // should not fire onClick of year/month selector when showTimePicker=true
-  //     result[0].onClick(); // month
-  //     result[2].onClick(); // year
-  //     expect(componentInstance.changePanel).not.toHaveBeenCalled();
-  //     expect(componentInstance.changeToMonthPanel).not.toHaveBeenCalled();
-  //
-  //     // should support locale.monthFormat
-  //     expect(componentInstance.formatDateTime).toHaveBeenCalledWith(componentInstance.locale.monthFormat);
-  //   });
-  // }); // /CalendarHeader
-
-  // TODO: Unit test of date-table and month-table
   describe('DateTable', () => {
+    let componentInstance: DateTableComponent;
+
     beforeEach(() => {
-      componentInstance = new DateTableComponent(i18n, dateHelper);
+      componentInstance = TestBed.createComponent(DateTableComponent).componentInstance;
     });
 
     it('should cover untouched branches', () => {
-      componentInstance.value = new CandyDate('2018-11-11');
+      componentInstance.value = new CandyDate(new Date(2018, 10, 11));
       componentInstance.showWeek = true;
       const weekRows = componentInstance.makeBodyRows();
       expect(weekRows.length > 0).toBeTruthy();
     });
-  }); // /DateTable
 
-  describe('MonthTable', () => {
+    it('should use the configured adapter for week start and formatting', () => {
+      componentInstance.activeDate = new CandyDate(new Date(2024, 5, 15));
+      const headRow = componentInstance.makeHeadRow();
+
+      expect(headRow[0].value.getDay()).toBe(2);
+      expect(headRow[0].title).toBe('weekday-2');
+    });
+
+    it('should configure custom adapter provider', () => {
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        imports: [LibPackerModule, NzI18nModule],
+        providers: [provideNzDateAdapter(NativeDateAdapter, { firstDayOfWeek: 4, locale: 'zh-CN' })]
+      });
+      componentInstance = TestBed.createComponent(DateTableComponent).componentInstance;
+      componentInstance.activeDate = new CandyDate(new Date(2024, 5, 15));
+      const dateAdapter = TestBed.inject(NzDateAdapter);
+
+      expect(componentInstance.makeHeadRow()[0].value.getDay()).toBe(4);
+      expect(dateAdapter.format(new Date(2024, 10, 1), 'MMM')).toBe('11月');
+    });
+  });
+
+  // Tests for issue #9650
+  describe('DateHeader', () => {
+    let fixture: ComponentFixture<DateHeaderComponent>;
+    let componentInstance: DateHeaderComponent;
+
     beforeEach(() => {
-      componentInstance = new MonthTableComponent(dateHelper);
+      fixture = TestBed.createComponent(DateHeaderComponent);
+      componentInstance = fixture.componentInstance;
+      componentInstance.value = new CandyDate(new Date(2020, 1, 25));
+      componentInstance.locale = en_US.DatePicker.lang;
     });
 
-    it('should cover untouched branches', () => {
-      componentInstance.value = new CandyDate();
-      spyOn(componentInstance, 'render');
-      componentInstance.ngOnChanges({ disabledDate: true }); // Fake
-      expect(componentInstance.render).toHaveBeenCalled();
+    it('should accept mode as an input and use default value of "date"', () => {
+      expect(componentInstance.mode).toBe('date');
     });
-  }); // /MonthTable
+
+    it('should accept mode input and maintain it as "week"', () => {
+      fixture.componentRef.setInput('mode', 'week');
+      fixture.detectChanges();
+      expect(componentInstance.mode).toBe('week');
+    });
+
+    it('should preserve mode when calling changeValue', () => {
+      fixture.componentRef.setInput('mode', 'week');
+      fixture.detectChanges();
+      const initialMode = componentInstance.mode;
+      const newValue = new CandyDate(new Date(2020, 2, 15));
+      componentInstance.changeValue(newValue);
+      expect(componentInstance.mode).toBe(initialMode);
+      expect(componentInstance.mode).toBe('week');
+    });
+
+    it('should emit panelChange with correct mode when value changes', () => {
+      fixture.componentRef.setInput('mode', 'week');
+      fixture.detectChanges();
+      vi.spyOn(componentInstance.panelChange, 'emit').mockImplementation(() => {});
+      const newValue = new CandyDate(new Date(2020, 2, 15));
+      componentInstance.changeValue(newValue);
+      expect(componentInstance.panelChange.emit).toHaveBeenCalledWith({
+        mode: 'week',
+        date: newValue.nativeDate
+      });
+    });
+  });
 });

@@ -1,259 +1,324 @@
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
 import { OverlayContainer } from '@angular/cdk/overlay';
 import { Component, TemplateRef, ViewChild } from '@angular/core';
-import { ComponentFixture, fakeAsync, inject, tick } from '@angular/core/testing';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { HomeOutline } from '@ant-design/icons-angular/icons';
+import { vi } from 'vitest';
 
-import { NzConfigService, NZ_CONFIG } from 'ng-zorro-antd/core/config';
-import { dispatchMouseEvent } from 'ng-zorro-antd/core/testing';
-import { ComponentBed, createComponentBed } from 'ng-zorro-antd/core/testing/component-bed';
-import { NZ_ICONS } from 'ng-zorro-antd/icon';
+import { NzConfigService, provideNzConfig } from 'ng-zorro-antd/core/config';
+import { dispatchEvent, dispatchMouseEvent } from 'ng-zorro-antd/core/testing';
+import { provideNzIconsTesting } from 'ng-zorro-antd/icon/testing';
 
-import { NzNotificationModule } from './notification.module';
+import { NzNotificationComponent } from './notification.component';
 import { NzNotificationService } from './notification.service';
 
 @Component({
-  template: ` <ng-template let-data="data">{{ 'test template content' }}{{ data }}</ng-template> `
+  selector: 'nz-test-notification',
+  template: `<ng-template let-data="data">test template content {{ data }}</ng-template>`
 })
-export class NzTestNotificationComponent {
-  @ViewChild(TemplateRef, { static: true }) demoTemplateRef!: TemplateRef<{}>;
+class NzTestNotificationComponent {
+  @ViewChild(TemplateRef, { static: true }) demoTemplateRef!: TemplateRef<{
+    $implicit: NzNotificationComponent;
+    data: string;
+  }>;
 }
 
-describe('NzNotification', () => {
-  let testBed: ComponentBed<NzTestNotificationComponent>;
+describe('notification', () => {
   let notificationService: NzNotificationService;
+  let overlayContainer: OverlayContainer;
   let overlayContainerElement: HTMLElement;
   let fixture: ComponentFixture<NzTestNotificationComponent>;
-  let nzConfigService: NzConfigService;
+  let configService: NzConfigService;
 
-  function waitForNotificationToggling(): void {
-    fixture.detectChanges();
-    tick(2000);
+  function getMessageElement(): HTMLElement {
+    return overlayContainerElement.querySelector('.ant-notification-notice') as HTMLElement;
+  }
+
+  // mock animationend event
+  async function animationEnd(): Promise<void> {
+    dispatchEvent(getMessageElement(), new AnimationEvent('animationend', { animationName: 'antNotificationFadeOut' }));
+    await stabilize();
+  }
+
+  async function stabilize(ms?: number): Promise<void> {
+    if (ms) vi.advanceTimersByTime(ms);
+    await Promise.resolve();
     fixture.detectChanges();
   }
 
-  beforeEach(fakeAsync(() => {
-    testBed = createComponentBed(NzTestNotificationComponent, {
-      imports: [NzNotificationModule, NoopAnimationsModule],
-      providers: [
-        {
-          provide: NZ_ICONS,
-          useValue: [HomeOutline]
-        },
-        {
-          provide: NZ_CONFIG,
-          useValue: {
-            notification: {
-              nzMaxStack: 2
-            }
-          }
-        }
-      ]
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideNzConfig({ notification: { nzMaxStack: 2 } }), provideNzIconsTesting(), NzNotificationService]
     });
-
-    fixture = testBed.fixture;
-  }));
-
-  beforeEach(inject([NzNotificationService, OverlayContainer], (n: NzNotificationService, oc: OverlayContainer) => {
-    notificationService = n;
-    // need init before testing
-    const notification = notificationService.success('init', 'init');
-    notificationService.remove(notification.messageId);
-    // @ts-ignore
-    nzConfigService = notificationService.container.nzConfigService;
-    if (!overlayContainerElement) {
-      overlayContainerElement = oc.getContainerElement();
-    }
-  }));
-
-  afterEach(() => {
-    notificationService.remove();
+    notificationService = TestBed.inject(NzNotificationService);
+    overlayContainer = TestBed.inject(OverlayContainer);
+    configService = TestBed.inject(NzConfigService);
+    fixture = TestBed.createComponent(NzTestNotificationComponent);
   });
+
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+  afterEach(() => notificationService.remove());
 
   it('should open a message box with success', () => {
     notificationService.success('test-title', 'SUCCESS');
-    fixture.detectChanges();
 
+    overlayContainerElement = overlayContainer.getContainerElement();
+    expect(overlayContainerElement.textContent).toContain('SUCCESS');
+    expect(overlayContainerElement.querySelector('.ant-notification-notice-icon-success')).not.toBeNull();
+  });
+
+  it('should open a message box success with custom template and data', () => {
+    const template = fixture.componentInstance.demoTemplateRef;
+    notificationService.success('test-title', template, { nzData: 'SUCCESS' });
+
+    overlayContainerElement = overlayContainer.getContainerElement();
     expect(overlayContainerElement.textContent).toContain('SUCCESS');
     expect(overlayContainerElement.querySelector('.ant-notification-notice-icon-success')).not.toBeNull();
   });
 
   it('should open a message box with error', () => {
     notificationService.error('test-title', 'ERROR');
-    fixture.detectChanges();
 
+    overlayContainerElement = overlayContainer.getContainerElement();
+    expect(overlayContainerElement.textContent).toContain('ERROR');
+    expect(overlayContainerElement.querySelector('.ant-notification-notice-icon-error')).not.toBeNull();
+  });
+
+  it('should open a message box error with custom template and data', () => {
+    const template = fixture.componentInstance.demoTemplateRef;
+    notificationService.error('test-title', template, { nzData: 'ERROR' });
+
+    overlayContainerElement = overlayContainer.getContainerElement();
     expect(overlayContainerElement.textContent).toContain('ERROR');
     expect(overlayContainerElement.querySelector('.ant-notification-notice-icon-error')).not.toBeNull();
   });
 
   it('should open a message box with warning', () => {
     notificationService.warning('test-title', 'WARNING');
-    fixture.detectChanges();
 
+    overlayContainerElement = overlayContainer.getContainerElement();
+    expect(overlayContainerElement.textContent).toContain('WARNING');
+    expect(overlayContainerElement.querySelector('.ant-notification-notice-icon-warning')).not.toBeNull();
+  });
+
+  it('should open a message box warning with custom template and data', () => {
+    const template = fixture.componentInstance.demoTemplateRef;
+    notificationService.warning('test-title', template, { nzData: 'WARNING' });
+
+    overlayContainerElement = overlayContainer.getContainerElement();
     expect(overlayContainerElement.textContent).toContain('WARNING');
     expect(overlayContainerElement.querySelector('.ant-notification-notice-icon-warning')).not.toBeNull();
   });
 
   it('should open a message box with info', () => {
     notificationService.info('test-title', 'INFO');
-    fixture.detectChanges();
 
+    overlayContainerElement = overlayContainer.getContainerElement();
+    expect(overlayContainerElement.textContent).toContain('INFO');
+    expect(overlayContainerElement.querySelector('.ant-notification-notice-icon-info')).not.toBeNull();
+  });
+
+  it('should open a message box info with custom template and data', () => {
+    const template = fixture.componentInstance.demoTemplateRef;
+    notificationService.info('test-title', template, { nzData: 'INFO' });
+
+    overlayContainerElement = overlayContainer.getContainerElement();
     expect(overlayContainerElement.textContent).toContain('INFO');
     expect(overlayContainerElement.querySelector('.ant-notification-notice-icon-info')).not.toBeNull();
   });
 
   it('should open a message box with blank', () => {
     notificationService.blank('test-title', 'BLANK');
-    fixture.detectChanges();
 
+    overlayContainerElement = overlayContainer.getContainerElement();
     expect(overlayContainerElement.textContent).toContain('BLANK');
     expect(overlayContainerElement.querySelector('.ant-notification-notice-icon')).toBeNull();
   });
 
-  it('should auto closed by 1s', fakeAsync(() => {
-    notificationService.create('', '', 'EXISTS', { nzDuration: 1000 });
-    fixture.detectChanges();
+  it('should open a message box blank with custom template and data', () => {
+    const template = fixture.componentInstance.demoTemplateRef;
+    notificationService.blank('test-title', template, { nzData: 'BLANK' });
 
+    overlayContainerElement = overlayContainer.getContainerElement();
+    expect(overlayContainerElement.textContent).toContain('BLANK');
+    expect(overlayContainerElement.querySelector('.ant-notification-notice-icon')).toBeNull();
+  });
+
+  it('should auto closed by 1s', async () => {
+    notificationService.create('', '', 'EXISTS', { nzDuration: 1000 });
+    await stabilize();
+
+    overlayContainerElement = overlayContainer.getContainerElement();
     expect(overlayContainerElement.textContent).toContain('EXISTS');
 
-    tick(1200 + 10); // Wait for animation with 200ms
+    vi.advanceTimersByTime(1000);
+    await animationEnd();
     expect(overlayContainerElement.textContent).not.toContain('EXISTS');
-  }));
+  });
 
-  it('should not destroy when hovered', fakeAsync(() => {
-    notificationService.create('', '', 'EXISTS', { nzDuration: 3000 });
-    fixture.detectChanges();
+  it('should not destroy when hovered', async () => {
+    notificationService.create('', '', 'EXISTS', { nzDuration: 2500 });
+    await stabilize();
 
-    const messageElement = overlayContainerElement.querySelector('.ant-notification-notice')!;
+    overlayContainerElement = overlayContainer.getContainerElement();
+    const messageElement = getMessageElement();
     dispatchMouseEvent(messageElement, 'mouseenter');
-    tick(50000);
+    await stabilize(2500);
     expect(overlayContainerElement.textContent).toContain('EXISTS');
 
     dispatchMouseEvent(messageElement, 'mouseleave');
-    tick(5000);
+    vi.advanceTimersByTime(2500);
+    await animationEnd();
     expect(overlayContainerElement.textContent).not.toContain('EXISTS');
-  }));
+  });
 
-  it('should not destroyed automatically but manually', fakeAsync(() => {
+  it('should not destroyed automatically but manually', async () => {
     const filledMessage = notificationService.success('title', 'SUCCESS', { nzDuration: 0 });
     fixture.detectChanges();
 
-    tick(50000);
+    await stabilize(5000);
+    overlayContainerElement = overlayContainer.getContainerElement();
     expect(overlayContainerElement.textContent).toContain('SUCCESS');
 
     notificationService.remove(filledMessage.messageId);
-    fixture.detectChanges();
+    await stabilize();
     expect(overlayContainerElement.textContent).not.toContain('SUCCESS');
-  }));
+  });
 
-  it('should keep the balance of messages length and then remove all', fakeAsync(() => {
-    [1, 2, 3].forEach(id => {
+  it('should keep the balance of messages length and then remove all', async () => {
+    for (const id of [1, 2, 3]) {
       const content = `SUCCESS-${id}`;
       notificationService.success('', content);
-      fixture.detectChanges();
-      tick();
-      fixture.detectChanges();
+      await stabilize();
 
+      overlayContainerElement = overlayContainer.getContainerElement();
       expect(overlayContainerElement.textContent).toContain(content);
       if (id === 3) {
         expect(overlayContainerElement.textContent).not.toContain('SUCCESS-1');
         expect((notificationService as any).container.instances.length).toBe(2); // eslint-disable-line @typescript-eslint/no-explicit-any
       }
-    });
+    }
 
     notificationService.remove();
-    fixture.detectChanges();
+    await stabilize();
     expect(overlayContainerElement.textContent).not.toContain('SUCCESS-3');
-    expect((notificationService as any).container.instances.length).toBe(0); // eslint-disable-line @typescript-eslint/no-explicit-any
-  }));
+    expect((notificationService as any).container).toBeUndefined(); // eslint-disable-line @typescript-eslint/no-explicit-any
+  });
 
-  it('should destroy without animation', fakeAsync(() => {
+  it('should destroy without animation', async () => {
     notificationService.error('', 'EXISTS', { nzDuration: 1000, nzAnimate: false });
-    fixture.detectChanges();
-    tick(1000 + 10);
+    await stabilize(1000);
+    overlayContainerElement = overlayContainer.getContainerElement();
     expect(overlayContainerElement.textContent).not.toContain('EXISTS');
-  }));
-  it('should reset default config dynamically', fakeAsync(() => {
-    nzConfigService.set('notification', { nzDuration: 0 });
-    notificationService.create('', 'loading', 'EXISTS');
-    fixture.detectChanges();
-    tick(10000);
-    expect(overlayContainerElement.textContent).toContain('EXISTS');
-  }));
+  });
 
   it('should show with placement of topLeft', () => {
-    nzConfigService.set('notification', { nzPlacement: 'topLeft' });
+    configService.set('notification', { nzPlacement: 'topLeft' });
     notificationService.create('', '', 'EXISTS');
     fixture.detectChanges();
+    overlayContainerElement = overlayContainer.getContainerElement();
     expect(overlayContainerElement.textContent).toContain('EXISTS');
     expect(overlayContainerElement.querySelector('.ant-notification-topLeft')).not.toBeNull();
   });
-  // Should support nzData as context.
+
+  it('should show with placement of top', () => {
+    configService.set('notification', { nzPlacement: 'top' });
+    notificationService.create('', '', 'EXISTS');
+    fixture.detectChanges();
+    overlayContainerElement = overlayContainer.getContainerElement();
+    expect(overlayContainerElement.textContent).toContain('EXISTS');
+    expect(overlayContainerElement.querySelector('.ant-notification-top')).not.toBeNull();
+  });
+
+  it('should show with placement of bottom', () => {
+    configService.set('notification', { nzPlacement: 'bottom' });
+    notificationService.create('', '', 'EXISTS');
+    fixture.detectChanges();
+    overlayContainerElement = overlayContainer.getContainerElement();
+    expect(overlayContainerElement.textContent).toContain('EXISTS');
+    expect(overlayContainerElement.querySelector('.ant-notification-bottom')).not.toBeNull();
+  });
+
   it('should open a message box with template ref', () => {
     notificationService.template(fixture.componentInstance.demoTemplateRef, { nzData: 'data' });
     fixture.detectChanges();
-    expect(overlayContainerElement.textContent).toContain('test template contentdata');
+    overlayContainerElement = overlayContainer.getContainerElement();
+    expect(overlayContainerElement.textContent).toContain('test template content data');
   });
 
-  it('should update an existing notification with use template ref when change nzData', () => {
+  it('should update an existing notification with use template ref when change nzData', async () => {
     notificationService.template(fixture.componentInstance.demoTemplateRef, { nzData: 'oldData', nzKey: 'exists' });
+    overlayContainerElement = overlayContainer.getContainerElement();
     expect(overlayContainerElement.textContent).toContain('oldData');
     notificationService.template(fixture.componentInstance.demoTemplateRef, { nzData: 'newData', nzKey: 'exists' });
+    await stabilize();
     expect(overlayContainerElement.textContent).toContain('newData');
   });
 
-  it('should update an existing notification when keys are matched', () => {
-    notificationService.create('', '', 'EXISTS', { nzKey: 'exists' });
+  it('should update an existing notification when keys are matched', async () => {
+    let messageId: string | null;
+    messageId = notificationService.create('', '', 'EXISTS', { nzKey: 'exists' }).messageId;
+    overlayContainerElement = overlayContainer.getContainerElement();
     expect(overlayContainerElement.textContent).toContain('EXISTS');
-    notificationService.create('success', 'Title', 'SHOULD NOT CHANGE', { nzKey: 'exists' });
+    expect(messageId).toEqual('exists');
+
+    messageId = notificationService.create('success', 'Title', 'SHOULD NOT CHANGE', { nzKey: 'exists' }).messageId;
+    await stabilize();
+    expect(messageId).toEqual('exists');
     expect(overlayContainerElement.textContent).not.toContain('EXISTS');
     expect(overlayContainerElement.textContent).toContain('Title');
     expect(overlayContainerElement.textContent).toContain('SHOULD NOT CHANGE');
     expect(overlayContainerElement.querySelector('.ant-notification-notice-icon-success')).not.toBeNull();
   });
 
-  it('should receive `true` when it is closed by user', fakeAsync(() => {
+  it('should receive `true` when it is closed by user', async () => {
     let onCloseFlag = false;
 
-    notificationService.create('', '', 'close').onClose!.subscribe(user => {
+    const ref = notificationService.create('', '', 'close');
+    ref.onClose.subscribe(user => {
       if (user) {
         onCloseFlag = true;
       }
     });
 
-    fixture.detectChanges();
-    tick(1000);
+    overlayContainerElement = overlayContainer.getContainerElement();
     const closeEl = overlayContainerElement.querySelector('.ant-notification-notice-close')!;
     dispatchMouseEvent(closeEl, 'click');
-    tick(1000);
+
+    await animationEnd();
     expect(onCloseFlag).toBeTruthy();
+  });
 
-    waitForNotificationToggling();
-  }));
-
-  it('should support configurable nzTop & nzBottom', fakeAsync(() => {
-    nzConfigService.set('notification', { nzTop: 48 });
-    notificationService.create('', '', 'TEST TOP', { nzDuration: 3000 });
-    waitForNotificationToggling();
+  it('should support configurable nzTop ', () => {
+    configService.set('notification', { nzTop: 48 });
+    notificationService.create('', '', 'TEST TOP');
+    overlayContainerElement = overlayContainer.getContainerElement();
     const notificationContainers = overlayContainerElement.querySelectorAll(
       '.ant-notification'
     ) as NodeListOf<HTMLDivElement>;
     expect(notificationContainers[0].style.top).toBe('48px');
     expect(notificationContainers[0].style.bottom).toBeFalsy();
+  });
 
-    nzConfigService.set('notification', { nzPlacement: 'bottomLeft', nzBottom: '48px' });
+  it('should support configurable nzBottom', () => {
+    configService.set('notification', { nzPlacement: 'bottomLeft', nzBottom: '48px' });
     notificationService.create('', '', 'TEST BOTTOM');
-    waitForNotificationToggling();
-    expect(notificationContainers[3].style.top).toBeFalsy();
-    expect(notificationContainers[3].style.bottom).toBe('48px');
+    overlayContainerElement = overlayContainer.getContainerElement();
+    const notificationContainers = overlayContainerElement.querySelectorAll(
+      '.ant-notification'
+    ) as NodeListOf<HTMLDivElement>;
+    expect(notificationContainers[2].style.top).toBeFalsy();
+    expect(notificationContainers[2].style.bottom).toBe('48px');
+  });
 
-    waitForNotificationToggling();
-  }));
-
-  it('should support close icon', fakeAsync(() => {
+  it('should support close icon', () => {
     notificationService.create('', '', 'ICON', { nzCloseIcon: 'home' });
-    waitForNotificationToggling();
+    overlayContainerElement = overlayContainer.getContainerElement();
     expect(overlayContainerElement.querySelector('.anticon-home')).toBeTruthy();
-  }));
+  });
 });

@@ -3,101 +3,47 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Direction, Directionality } from '@angular/cdk/bidi';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  ElementRef,
-  Input,
-  OnChanges,
-  OnDestroy,
-  OnInit,
-  Optional,
-  Renderer2,
-  SimpleChanges,
-  TemplateRef,
-  ViewEncapsulation
-} from '@angular/core';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { Directionality } from '@angular/cdk/bidi';
+import { Component, computed, inject, input, ViewEncapsulation } from '@angular/core';
 
-import { collapseMotion } from 'ng-zorro-antd/core/animation';
-import { NzSafeAny } from 'ng-zorro-antd/core/types';
+import { NzAnimationCollapseDirective } from 'ng-zorro-antd/core/animation';
+import { generateClassName, getClassListFromValue } from 'ng-zorro-antd/core/util';
 
-import { NzMenuModeType } from './menu.types';
+const MENU_PREFIX = 'ant-menu';
 
 @Component({
   selector: '[nz-submenu-inline-child]',
-  animations: [collapseMotion],
   exportAs: 'nzSubmenuInlineChild',
   encapsulation: ViewEncapsulation.None,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: ` <ng-template [ngTemplateOutlet]="templateOutlet"></ng-template> `,
+  template: `<ng-content />`,
+  hostDirectives: [
+    {
+      directive: NzAnimationCollapseDirective,
+      inputs: ['open', 'leavedClassName']
+    }
+  ],
   host: {
-    '[class.ant-menu-rtl]': `dir === 'rtl'`,
-    '[@collapseMotion]': 'expandState'
+    '[class]': 'mergedClass()'
   }
 })
-export class NzSubmenuInlineChildComponent implements OnDestroy, OnInit, OnChanges {
-  @Input() templateOutlet: TemplateRef<NzSafeAny> | null = null;
-  @Input() menuClass: string = '';
-  @Input() mode: NzMenuModeType = 'vertical';
-  @Input() nzOpen = false;
-  listOfCacheClassName: string[] = [];
-  expandState = 'collapsed';
-  dir: Direction = 'ltr';
-  private destroy$ = new Subject<void>();
+export class NzSubmenuInlineChildComponent {
+  protected readonly dir = inject(Directionality).valueSignal;
 
-  constructor(
-    private elementRef: ElementRef,
-    private renderer: Renderer2,
-    @Optional() private directionality: Directionality
-  ) {
-    // TODO: move to host after View Engine deprecation
-    this.elementRef.nativeElement.classList.add('ant-menu', 'ant-menu-inline', 'ant-menu-sub');
-  }
+  readonly menuClass = input<string>('');
+  readonly open = input(false);
+  readonly leavedClassName = input(generateClassName(MENU_PREFIX, 'submenu-hidden'));
 
-  calcMotionState(): void {
-    if (this.nzOpen) {
-      this.expandState = 'expanded';
-    } else {
-      this.expandState = 'collapsed';
+  protected readonly mergedClass = computed(() => {
+    const customCls = getClassListFromValue(this.menuClass()) || [];
+    const cls = [
+      MENU_PREFIX,
+      generateClassName(MENU_PREFIX, 'inline'),
+      generateClassName(MENU_PREFIX, 'sub'),
+      ...customCls
+    ];
+    if (this.dir() === 'rtl') {
+      cls.push(generateClassName(MENU_PREFIX, 'rtl'));
     }
-  }
-  ngOnInit(): void {
-    this.calcMotionState();
-
-    this.dir = this.directionality.value;
-    this.directionality.change?.pipe(takeUntil(this.destroy$)).subscribe((direction: Direction) => {
-      this.dir = direction;
-    });
-  }
-  ngOnChanges(changes: SimpleChanges): void {
-    const { mode, nzOpen, menuClass } = changes;
-    if (mode || nzOpen) {
-      this.calcMotionState();
-    }
-    if (menuClass) {
-      if (this.listOfCacheClassName.length) {
-        this.listOfCacheClassName
-          .filter(item => !!item)
-          .forEach(className => {
-            this.renderer.removeClass(this.elementRef.nativeElement, className);
-          });
-      }
-      if (this.menuClass) {
-        this.listOfCacheClassName = this.menuClass.split(' ');
-        this.listOfCacheClassName
-          .filter(item => !!item)
-          .forEach(className => {
-            this.renderer.addClass(this.elementRef.nativeElement, className);
-          });
-      }
-    }
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
+    return cls;
+  });
 }

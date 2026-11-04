@@ -1,0 +1,61 @@
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+import { NzFlexModule } from 'ng-zorro-antd/flex';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+
+@Component({
+  selector: 'nz-demo-select-prefix-and-suffix',
+  imports: [FormsModule, NzSelectModule, NzFlexModule],
+  template: `
+    <nz-flex nzWrap="wrap" nzGap="small">
+      <nz-select [(ngModel)]="value" nzAllowClear [style.width.px]="200" nzPrefix="User" [nzOptions]="options" />
+      <nz-select [(ngModel)]="value" nzAllowClear [style.width.px]="120" nzSuffixIcon="smile" [nzOptions]="options" />
+      <nz-select
+        [(ngModel)]="value"
+        nzAllowClear
+        [style.width.px]="120"
+        nzSuffixIcon="meh"
+        nzDisabled
+        [nzOptions]="options"
+      />
+      <br />
+      <nz-select
+        [(ngModel)]="multipleValue"
+        nzAllowClear
+        [style.width.px]="200"
+        nzMode="tags"
+        nzPrefix="User"
+        [nzOptions]="options"
+      />
+      <nz-select
+        [(ngModel)]="multipleValue"
+        nzAllowClear
+        [style.width.px]="120"
+        nzMode="tags"
+        nzSuffixIcon="smile"
+        [nzOptions]="options"
+      />
+      <nz-select
+        [(ngModel)]="multipleValue"
+        nzAllowClear
+        [style.width.px]="120"
+        nzMode="tags"
+        nzSuffixIcon="meh"
+        nzDisabled
+        [nzOptions]="options"
+      />
+    </nz-flex>
+  `
+})
+export class NzDemoSelectPrefixAndSuffixComponent {
+  readonly options = [
+    { value: 'jack', label: 'Jack' },
+    { value: 'lucy', label: 'Lucy' },
+    { value: 'Yiminghe', label: 'yiminghe' },
+    { value: 'disabled', label: 'Disabled', disabled: true }
+  ];
+
+  readonly value = signal('lucy');
+  readonly multipleValue = signal(['lucy']);
+}

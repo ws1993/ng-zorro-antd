@@ -1,9 +1,13 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
-import { NzDrawerPlacement } from 'ng-zorro-antd/drawer';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzDrawerModule, NzDrawerPlacement } from 'ng-zorro-antd/drawer';
+import { NzRadioModule } from 'ng-zorro-antd/radio';
 
 @Component({
   selector: 'nz-demo-drawer-placement',
+  imports: [FormsModule, NzButtonModule, NzDrawerModule, NzRadioModule],
   template: `
     <nz-radio-group [(ngModel)]="placement">
       <label nz-radio nzValue="top">top</label>
@@ -14,8 +18,8 @@ import { NzDrawerPlacement } from 'ng-zorro-antd/drawer';
     <button nz-button nzType="primary" (click)="open()">Open</button>
     <nz-drawer
       [nzClosable]="false"
-      [nzVisible]="visible"
-      [nzPlacement]="placement"
+      [nzVisible]="visible()"
+      [nzPlacement]="placement()"
       nzTitle="Basic Drawer"
       (nzOnClose)="close()"
     >
@@ -28,13 +32,14 @@ import { NzDrawerPlacement } from 'ng-zorro-antd/drawer';
   `
 })
 export class NzDemoDrawerPlacementComponent {
-  visible = false;
-  placement: NzDrawerPlacement = 'left';
+  readonly visible = signal(false);
+  readonly placement = signal<NzDrawerPlacement>('left');
+
   open(): void {
-    this.visible = true;
+    this.visible.set(true);
   }
 
   close(): void {
-    this.visible = false;
+    this.visible.set(false);
   }
 }

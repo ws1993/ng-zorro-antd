@@ -1,48 +1,40 @@
 import { HttpClient } from '@angular/common/http';
-import { Component } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
+
+import { NzSelectModule } from 'ng-zorro-antd/select';
 
 @Component({
   selector: 'nz-demo-select-search-box',
+  imports: [NzSelectModule],
   template: `
     <nz-select
+      [nzOptions]="options()"
       nzShowSearch
       nzServerSearch
       nzPlaceHolder="input search text"
-      [(ngModel)]="selectedValue"
       [nzShowArrow]="false"
-      [nzFilterOption]="nzFilterOption"
+      [nzFilterOption]="filterFn"
       (nzOnSearch)="search($event)"
-    >
-      <nz-option *ngFor="let o of listOfOption" [nzLabel]="o.text" [nzValue]="o.value"></nz-option>
-    </nz-select>
+    />
   `,
-  styles: [
-    `
-      nz-select {
-        width: 200px;
-      }
-    `
-  ]
+  styles: `
+    nz-select {
+      width: 200px;
+    }
+  `
 })
 export class NzDemoSelectSearchBoxComponent {
-  selectedValue = null;
-  listOfOption: Array<{ value: string; text: string }> = [];
-  nzFilterOption = (): boolean => true;
+  private readonly http = inject(HttpClient);
 
-  constructor(private httpClient: HttpClient) {}
+  readonly options = signal<Array<{ label: string; value: string }>>([]);
+  readonly filterFn = (): boolean => true;
 
   search(value: string): void {
-    this.httpClient
+    this.http
       .jsonp<{ result: Array<[string, string]> }>(`https://suggest.taobao.com/sug?code=utf-8&q=${value}`, 'callback')
       .subscribe(data => {
-        const listOfOption: Array<{ value: string; text: string }> = [];
-        data.result.forEach(item => {
-          listOfOption.push({
-            value: item[0],
-            text: item[0]
-          });
-        });
-        this.listOfOption = listOfOption;
+        const options = data.result.map(([item]) => ({ label: item, value: item }));
+        this.options.set(options);
       });
   }
 }

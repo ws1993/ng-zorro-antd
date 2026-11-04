@@ -3,18 +3,20 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { ChangeDetectionStrategy, Component, ViewEncapsulation } from '@angular/core';
+import { Component, ViewEncapsulation } from '@angular/core';
+
+import { NzDateMode } from '../standard-types';
 import { AbstractPanelHeader } from './abstract-panel-header';
 import { PanelSelector } from './interface';
 
 @Component({
-  encapsulation: ViewEncapsulation.None,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'year-header', // eslint-disable-line @angular-eslint/component-selector
-  exportAs: 'yearHeader',
-  templateUrl: './abstract-panel-header.html'
+  templateUrl: './abstract-panel-header.html',
+  encapsulation: ViewEncapsulation.None
 })
 export class YearHeaderComponent extends AbstractPanelHeader {
+  override mode: NzDateMode = 'year';
+
   get startYear(): number {
     return parseInt(`${this.value.getYear() / 10}`, 10) * 10;
   }
@@ -23,11 +25,11 @@ export class YearHeaderComponent extends AbstractPanelHeader {
     return this.startYear + 9;
   }
 
-  superPrevious(): void {
+  override superPrevious(): void {
     this.changeValue(this.value.addYears(-10));
   }
 
-  superNext(): void {
+  override superNext(): void {
     this.changeValue(this.value.addYears(10));
   }
 
@@ -36,7 +38,10 @@ export class YearHeaderComponent extends AbstractPanelHeader {
       {
         className: `${this.prefixCls}-year-btn`,
         title: '',
-        onClick: () => this.changeMode('decade'),
+        onClick: () => {
+          this.mode = 'decade';
+          this.changeMode('decade');
+        },
         label: `${this.startYear}-${this.endYear}`
       }
     ];

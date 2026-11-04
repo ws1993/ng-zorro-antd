@@ -1,7 +1,11 @@
 import { Component } from '@angular/core';
 
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzPopoverModule } from 'ng-zorro-antd/popover';
+
 @Component({
   selector: 'nz-demo-popover-placement',
+  imports: [NzButtonModule, NzPopoverModule],
   template: `
     <div style="margin-left: 60px">
       <button
@@ -120,16 +124,14 @@ import { Component } from '@angular/core';
       </div>
     </ng-template>
   `,
-  styles: [
-    `
-      button {
-        margin-right: 8px;
-        margin-bottom: 8px;
-        width: 70px;
-        text-align: center;
-        padding: 0;
-      }
-    `
-  ]
+  styles: `
+    button {
+      margin-right: 8px;
+      margin-bottom: 8px;
+      width: 70px;
+      text-align: center;
+      padding: 0;
+    }
+  `
 })
 export class NzDemoPopoverPlacementComponent {}

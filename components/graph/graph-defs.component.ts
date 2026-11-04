@@ -18,10 +18,8 @@ import { Component } from '@angular/core';
       markerHeight="10"
       orient="auto"
     >
-      <svg:polygon points="0 0, 10 3.5, 0 7"></svg:polygon>
+      <svg:polygon points="0 0, 10 3.5, 0 7" />
     </svg:marker>
   `
 })
-export class NzGraphDefsComponent {
-  constructor() {}
-}
+export class NzGraphDefsComponent {}

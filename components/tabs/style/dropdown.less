@@ -1,6 +1,7 @@
 @import '../../style/themes/index';
 @import '../../style/mixins/index';
-@import './index';
+
+@tab-prefix-cls: ~'@{ant-prefix}-tabs';
 
 .@{tab-prefix-cls}-dropdown {
   .reset-component();
@@ -10,6 +11,10 @@
   left: -9999px;
   z-index: @zindex-dropdown;
   display: block;
+
+  &-rtl {
+    direction: rtl;
+  }
 
   &-hidden {
     display: none;
@@ -21,7 +26,7 @@
     padding: @dropdown-edge-child-vertical-padding 0;
     overflow-x: hidden;
     overflow-y: auto;
-    text-align: left;
+    text-align: start;
     list-style-type: none;
     background-color: @dropdown-menu-bg;
     background-clip: padding-box;
@@ -30,6 +35,8 @@
     box-shadow: @box-shadow-base;
 
     &-item {
+      display: flex;
+      align-items: center;
       min-width: 120px;
       margin: 0;
       padding: @dropdown-vertical-padding @control-padding-horizontal;
@@ -42,6 +49,25 @@
       text-overflow: ellipsis;
       cursor: pointer;
       transition: all 0.3s;
+
+      > span {
+        flex: 1;
+        white-space: nowrap;
+      }
+
+      &-remove {
+        flex: none;
+        margin-inline-start: @margin-sm;
+        color: @text-color-secondary;
+        font-size: @font-size-sm;
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+
+        &:hover {
+          color: @tabs-hover-color;
+        }
+      }
 
       &:hover {
         background: @item-hover-bg;

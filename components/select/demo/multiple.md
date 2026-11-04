@@ -2,7 +2,7 @@
 order: 2
 title:
   zh-CN: 多选
-  en-US: multiple selection
+  en-US: Multiple selection
 ---
 
 ## zh-CN
@@ -12,5 +12,3 @@ title:
 ## en-US
 
 Multiple selection, selecting from existing items, max 3 option will display at the same time by `nzMaxTagCount`.
-
-

@@ -10,8 +10,10 @@ import { NzSafeAny } from 'ng-zorro-antd/core/types';
 export type NzSelectModeType = 'default' | 'multiple' | 'tags';
 export interface NzSelectItemInterface {
   template?: TemplateRef<NzSafeAny> | null;
+  templateContext?: NzSafeAny | null;
   nzLabel: string | number | null;
   nzValue: NzSafeAny | null;
+  nzTitle?: string | number | null;
   nzDisabled?: boolean;
   nzHide?: boolean;
   nzCustomContent?: boolean;
@@ -23,9 +25,11 @@ export interface NzSelectItemInterface {
 export interface NzSelectOptionInterface {
   label: string | number | null | TemplateRef<NzSafeAny>;
   value: NzSafeAny | null;
+  title?: string | number | null;
   disabled?: boolean;
   hide?: boolean;
   groupLabel?: string | number | TemplateRef<NzSafeAny> | null;
+  key?: string | number;
 }
 
 export type NzSelectTopControlItemType = Partial<NzSelectItemInterface> & {
@@ -34,3 +38,5 @@ export type NzSelectTopControlItemType = Partial<NzSelectItemInterface> & {
 };
 
 export type NzFilterOptionType = (input: string, option: NzSelectItemInterface) => boolean;
+
+export type NzSelectPlacementType = 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';

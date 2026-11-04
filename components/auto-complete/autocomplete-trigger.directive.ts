@@ -6,66 +6,73 @@
 import { DOWN_ARROW, ENTER, ESCAPE, TAB, UP_ARROW } from '@angular/cdk/keycodes';
 import {
   ConnectionPositionPair,
+  createFlexibleConnectedPositionStrategy,
+  createOverlayRef,
+  createRepositionScrollStrategy,
   FlexibleConnectedPositionStrategy,
-  Overlay,
-  OverlayConfig,
   OverlayRef,
   PositionStrategy
 } from '@angular/cdk/overlay';
 import { TemplatePortal } from '@angular/cdk/portal';
-import { DOCUMENT } from '@angular/common';
 import {
   AfterViewInit,
+  DestroyRef,
   Directive,
+  DOCUMENT,
   ElementRef,
-  ExistingProvider,
   forwardRef,
-  Inject,
+  inject,
+  Injector,
   Input,
-  OnDestroy,
-  Optional,
+  NgZone,
   ViewContainerRef
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { Subject, Subscription } from 'rxjs';
-import { delay, filter, takeUntil, tap } from 'rxjs/operators';
+import { Subscription } from 'rxjs';
+import { delay, filter, tap } from 'rxjs/operators';
 
 import { NzSafeAny, OnChangeType, OnTouchedType } from 'ng-zorro-antd/core/types';
-import { NzInputGroupWhitSuffixOrPrefixDirective } from 'ng-zorro-antd/input';
+import { NZ_INPUT_WRAPPER } from 'ng-zorro-antd/input';
 
 import { NzAutocompleteOptionComponent } from './autocomplete-option.component';
+import { NzAutocompleteOriginDirective } from './autocomplete-origin.directive';
 import { NzAutocompleteComponent } from './autocomplete.component';
-
-export const NZ_AUTOCOMPLETE_VALUE_ACCESSOR: ExistingProvider = {
-  provide: NG_VALUE_ACCESSOR,
-  useExisting: forwardRef(() => NzAutocompleteTriggerDirective),
-  multi: true
-};
-
-export function getNzAutocompleteMissingPanelError(): Error {
-  return Error(
-    'Attempting to open an undefined instance of `nz-autocomplete`. ' +
-      'Make sure that the id passed to the `nzAutocomplete` is correct and that ' +
-      "you're attempting to open it after the ngAfterContentInit hook."
-  );
-}
+import { getNzAutocompleteMissingPanelError } from './error';
 
 @Directive({
   selector: `input[nzAutocomplete], textarea[nzAutocomplete]`,
   exportAs: 'nzAutocompleteTrigger',
-  providers: [NZ_AUTOCOMPLETE_VALUE_ACCESSOR],
+  providers: [
+    {
+      provide: NG_VALUE_ACCESSOR,
+      useExisting: forwardRef(() => NzAutocompleteTriggerDirective),
+      multi: true
+    }
+  ],
   host: {
     autocomplete: 'off',
     'aria-autocomplete': 'list',
     '(focusin)': 'handleFocus()',
     '(blur)': 'handleBlur()',
-    '(input)': 'handleInput($event)',
-    '(keydown)': 'handleKeydown($event)'
+    '(input)': 'handleInput($any($event))',
+    '(keydown)': 'handleKeydown($any($event))',
+    '(click)': 'handleClick()'
   }
 })
-export class NzAutocompleteTriggerDirective implements AfterViewInit, ControlValueAccessor, OnDestroy {
+export class NzAutocompleteTriggerDirective implements AfterViewInit, ControlValueAccessor {
+  private readonly injector = inject(Injector);
+  private readonly ngZone = inject(NgZone);
+  private readonly elementRef = inject(ElementRef<HTMLElement>);
+  private readonly viewContainerRef = inject(ViewContainerRef);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly document = inject(DOCUMENT);
+  private readonly inputWrapper = inject(NZ_INPUT_WRAPPER, { host: true, optional: true });
+
   /** Bind nzAutocomplete component */
   @Input() nzAutocomplete!: NzAutocompleteComponent;
+  /** Element that the autocomplete panel should be positioned relative to. */
+  @Input() nzAutocompleteConnectedTo?: NzAutocompleteOriginDirective;
 
   onChange: OnChangeType = () => {};
   onTouched: OnTouchedType = () => {};
@@ -80,7 +87,6 @@ export class NzAutocompleteTriggerDirective implements AfterViewInit, ControlVal
     }
   }
 
-  private destroy$ = new Subject<void>();
   private overlayRef: OverlayRef | null = null;
   private portal: TemplatePortal<{}> | null = null;
   private positionStrategy!: FlexibleConnectedPositionStrategy;
@@ -89,33 +95,30 @@ export class NzAutocompleteTriggerDirective implements AfterViewInit, ControlVal
   private optionsChangeSubscription!: Subscription;
   private overlayOutsideClickSubscription!: Subscription;
 
-  constructor(
-    private elementRef: ElementRef,
-    private overlay: Overlay,
-    private viewContainerRef: ViewContainerRef,
-    @Optional() private nzInputGroupWhitSuffixOrPrefixDirective: NzInputGroupWhitSuffixOrPrefixDirective,
-    @Optional() @Inject(DOCUMENT) private document: NzSafeAny
-  ) {}
+  constructor() {
+    this.destroyRef.onDestroy(() => {
+      this.destroyPanel();
+    });
+  }
 
   ngAfterViewInit(): void {
     if (this.nzAutocomplete) {
-      this.nzAutocomplete.animationStateChange.pipe(takeUntil(this.destroy$)).subscribe(event => {
-        if (event.toState === 'void') {
-          if (this.overlayRef) {
-            this.overlayRef.dispose();
-            this.overlayRef = null;
-          }
+      this.nzAutocomplete.animationStateChange.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(event => {
+        // A leave animation can finish after a subsequent input makes the panel visible again.
+        // In that case, disposing the current overlay races with its next attachment.
+        if (this.overlayRef && !this.panelOpen) {
+          this.overlayRef.dispose();
+          this.overlayRef = null;
+          event.animationComplete();
         }
       });
     }
   }
 
-  ngOnDestroy(): void {
-    this.destroyPanel();
-  }
-
   writeValue(value: NzSafeAny): void {
-    Promise.resolve(null).then(() => this.setTriggerValue(value));
+    this.ngZone.runOutsideAngular(() => {
+      Promise.resolve(null).then(() => this.setTriggerValue(value));
+    });
   }
 
   registerOnChange(fn: (value: {}) => {}): void {
@@ -214,6 +217,12 @@ export class NzAutocompleteTriggerDirective implements AfterViewInit, ControlVal
     }
   }
 
+  handleClick(): void {
+    if (this.canOpen() && !this.panelOpen) {
+      this.openPanel();
+    }
+  }
+
   handleBlur(): void {
     this.onTouched();
   }
@@ -245,7 +254,15 @@ export class NzAutocompleteTriggerDirective implements AfterViewInit, ControlVal
 
   private subscribeOverlayOutsideClick(): Subscription {
     return this.overlayRef!.outsidePointerEvents()
-      .pipe(filter((e: MouseEvent) => !this.elementRef.nativeElement.contains(e.target)))
+      .pipe(
+        filter((e: MouseEvent) => {
+          const target = e.target as Node;
+          return (
+            !this.elementRef.nativeElement.contains(target) &&
+            !this.getConnectedElement().nativeElement.contains(target)
+          );
+        })
+      )
       .subscribe(() => {
         this.closePanel();
       });
@@ -261,7 +278,15 @@ export class NzAutocompleteTriggerDirective implements AfterViewInit, ControlVal
     }
 
     if (!this.overlayRef) {
-      this.overlayRef = this.overlay.create(this.getOverlayConfig());
+      const width = this.nzAutocomplete.nzWidth || this.getHostWidth();
+      const dropdownMatchSelectWidth = this.nzAutocomplete.nzDropdownMatchSelectWidth;
+      this.overlayRef = createOverlayRef(this.injector, {
+        positionStrategy: this.getOverlayPosition(),
+        disposeOnNavigation: true,
+        scrollStrategy: createRepositionScrollStrategy(this.injector),
+        minWidth: dropdownMatchSelectWidth ? undefined : width,
+        width: dropdownMatchSelectWidth ? width : undefined
+      });
     }
 
     if (this.overlayRef && !this.overlayRef.hasAttached()) {
@@ -271,7 +296,7 @@ export class NzAutocompleteTriggerDirective implements AfterViewInit, ControlVal
       this.overlayOutsideClickSubscription = this.subscribeOverlayOutsideClick();
       this.overlayRef
         .detachments()
-        .pipe(takeUntil(this.destroy$))
+        .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe(() => {
           this.closePanel();
         });
@@ -281,7 +306,10 @@ export class NzAutocompleteTriggerDirective implements AfterViewInit, ControlVal
 
   private updateStatus(): void {
     if (this.overlayRef) {
-      this.overlayRef.updateSize({ width: this.nzAutocomplete.nzWidth || this.getHostWidth() });
+      const dropdownMatchSelectWidth = this.nzAutocomplete.nzDropdownMatchSelectWidth;
+      const width = this.nzAutocomplete.nzWidth || this.getHostWidth();
+      this.positionStrategy.setOrigin(this.getConnectedElement());
+      this.overlayRef.updateSize({ width: dropdownMatchSelectWidth ? width : undefined });
     }
     this.nzAutocomplete.setVisibility();
     this.resetActiveItem();
@@ -296,39 +324,23 @@ export class NzAutocompleteTriggerDirective implements AfterViewInit, ControlVal
     }
   }
 
-  private getOverlayConfig(): OverlayConfig {
-    return new OverlayConfig({
-      positionStrategy: this.getOverlayPosition(),
-      disposeOnNavigation: true,
-      scrollStrategy: this.overlay.scrollStrategies.reposition(),
-      // default host element width
-      width: this.nzAutocomplete.nzWidth || this.getHostWidth()
-    });
-  }
-
-  private getConnectedElement(): ElementRef {
-    return this.nzInputGroupWhitSuffixOrPrefixDirective
-      ? this.nzInputGroupWhitSuffixOrPrefixDirective.elementRef
-      : this.elementRef;
+  private getOverlayPosition(): PositionStrategy {
+    return (this.positionStrategy = createFlexibleConnectedPositionStrategy(this.injector, this.getConnectedElement())
+      .withFlexibleDimensions(false)
+      .withPush(false)
+      .withPositions([
+        new ConnectionPositionPair({ originX: 'start', originY: 'bottom' }, { overlayX: 'start', overlayY: 'top' }),
+        new ConnectionPositionPair({ originX: 'start', originY: 'top' }, { overlayX: 'start', overlayY: 'bottom' })
+      ])
+      .withTransformOriginOn('.ant-select-dropdown'));
   }
 
   private getHostWidth(): number {
     return this.getConnectedElement().nativeElement.getBoundingClientRect().width;
   }
 
-  private getOverlayPosition(): PositionStrategy {
-    const positions = [
-      new ConnectionPositionPair({ originX: 'start', originY: 'bottom' }, { overlayX: 'start', overlayY: 'top' }),
-      new ConnectionPositionPair({ originX: 'start', originY: 'top' }, { overlayX: 'start', overlayY: 'bottom' })
-    ];
-    this.positionStrategy = this.overlay
-      .position()
-      .flexibleConnectedTo(this.getConnectedElement())
-      .withFlexibleDimensions(false)
-      .withPush(false)
-      .withPositions(positions)
-      .withTransformOriginOn('.ant-select-dropdown');
-    return this.positionStrategy;
+  private getConnectedElement(): ElementRef<HTMLElement> {
+    return this.nzAutocompleteConnectedTo?.elementRef ?? this.inputWrapper?.elementRef ?? this.elementRef;
   }
 
   private resetActiveItem(): void {

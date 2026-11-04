@@ -3,24 +3,16 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Directive, ElementRef, Input } from '@angular/core';
-
-import { BooleanInput } from 'ng-zorro-antd/core/types';
-import { InputBoolean } from 'ng-zorro-antd/core/util';
+import { Directive, Input, booleanAttribute } from '@angular/core';
 
 @Directive({
   selector: '[nz-card-grid]',
   exportAs: 'nzCardGrid',
   host: {
+    class: 'ant-card-grid',
     '[class.ant-card-hoverable]': 'nzHoverable'
   }
 })
 export class NzCardGridDirective {
-  static ngAcceptInputType_nzHoverable: BooleanInput;
-  @Input() @InputBoolean() nzHoverable = true;
-
-  constructor(private elementRef: ElementRef) {
-    // TODO: move to host after View Engine deprecation
-    this.elementRef.nativeElement.classList.add('ant-card-grid');
-  }
+  @Input({ transform: booleanAttribute }) nzHoverable = true;
 }

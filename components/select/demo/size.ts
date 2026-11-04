@@ -1,56 +1,62 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
-import { NzSelectSizeType } from 'ng-zorro-antd/select';
+import { NzRadioModule } from 'ng-zorro-antd/radio';
+import { NzSelectModule, NzSelectSizeType } from 'ng-zorro-antd/select';
+
+function alphabet(): string[] {
+  const children: string[] = [];
+  for (let i = 10; i < 36; i++) {
+    children.push(i.toString(36) + i);
+  }
+  return children;
+}
 
 @Component({
   selector: 'nz-demo-select-size',
+  imports: [FormsModule, NzSelectModule, NzRadioModule],
   template: `
     <nz-radio-group [(ngModel)]="size">
-      <label nz-radio-button nzValue="large"><span>Large</span></label>
-      <label nz-radio-button nzValue="default"><span>Default</span></label>
-      <label nz-radio-button nzValue="small"><span>Small</span></label>
+      <label nz-radio-button nzValue="large">Large</label>
+      <label nz-radio-button nzValue="default">Default</label>
+      <label nz-radio-button nzValue="small">Small</label>
     </nz-radio-group>
     <br />
     <br />
-    <nz-select [(ngModel)]="singleValue" [nzSize]="size">
-      <nz-option *ngFor="let option of listOfOption" [nzLabel]="option.label" [nzValue]="option.value"></nz-option>
-    </nz-select>
+    <nz-select [nzOptions]="options" [(ngModel)]="singleValue" [nzSize]="size()" />
     <br />
     <br />
-    <nz-select [(ngModel)]="singleValue" [nzSize]="size" nzShowSearch>
-      <nz-option *ngFor="let option of listOfOption" [nzLabel]="option.label" [nzValue]="option.value"></nz-option>
-    </nz-select>
+    <nz-select [nzOptions]="options" [(ngModel)]="singleValue" [nzSize]="size()" nzShowSearch />
     <br />
     <br />
-    <nz-select [(ngModel)]="multipleValue" [nzSize]="size" nzMode="multiple" nzPlaceHolder="Please select">
-      <nz-option *ngFor="let option of listOfOption" [nzLabel]="option.label" [nzValue]="option.value"></nz-option>
-    </nz-select>
+    <nz-select
+      [nzOptions]="options"
+      [(ngModel)]="multipleValue"
+      [nzSize]="size()"
+      nzMode="multiple"
+      nzPlaceHolder="Please select"
+    />
     <br />
     <br />
-    <nz-select [(ngModel)]="tagValue" [nzSize]="size" nzMode="tags" nzPlaceHolder="Please select">
-      <nz-option *ngFor="let option of listOfOption" [nzLabel]="option.label" [nzValue]="option.value"></nz-option>
-    </nz-select>
+    <nz-select
+      [nzOptions]="options"
+      [(ngModel)]="tagValue"
+      [nzSize]="size()"
+      nzMode="tags"
+      nzPlaceHolder="Please select"
+    />
   `,
-  styles: [
-    `
-      nz-select {
-        width: 100%;
-      }
-    `
-  ]
-})
-export class NzDemoSelectSizeComponent implements OnInit {
-  listOfOption: Array<{ label: string; value: string }> = [];
-  size: NzSelectSizeType = 'default';
-  singleValue = 'a10';
-  multipleValue = ['a10', 'c12'];
-  tagValue = ['a10', 'c12', 'tag'];
-
-  ngOnInit(): void {
-    const children: Array<{ label: string; value: string }> = [];
-    for (let i = 10; i < 36; i++) {
-      children.push({ label: i.toString(36) + i, value: i.toString(36) + i });
+  styles: `
+    nz-select {
+      width: 100%;
     }
-    this.listOfOption = children;
-  }
+  `
+})
+export class NzDemoSelectSizeComponent {
+  readonly options = alphabet().map(item => ({ label: item, value: item }));
+
+  readonly size = signal<NzSelectSizeType>('default');
+  readonly singleValue = signal('a10');
+  readonly multipleValue = signal(['a10', 'c12']);
+  readonly tagValue = signal(['a10', 'c12', 'tag']);
 }

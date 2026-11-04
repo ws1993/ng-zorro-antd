@@ -1,5 +1,5 @@
 ---
-order: 12
+order: 11
 title:
   zh-CN: 表单布局
   en-US: Form Layout
@@ -12,4 +12,3 @@ title:
 ## en-US
 
 There are three layout for form: `horizontal`, `vertical`, `inline`.
-

@@ -1,51 +1,39 @@
-import { Component, DebugElement } from '@angular/core';
-import { ComponentFixture, fakeAsync, TestBed } from '@angular/core/testing';
+/**
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
+ */
+
+import { Component } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 
-import { NzTableModule } from '../table.module';
-import { NzTbodyComponent } from '../table/tbody.component';
+import { NzTableModule, NzTbodyComponent } from 'ng-zorro-antd/table';
 
 describe('nz-tbody', () => {
-  beforeEach(fakeAsync(() => {
-    TestBed.configureTestingModule({
-      imports: [NzTableModule],
-      declarations: [NzTbodyTestTableComponent, NzTbodyTestNzTableComponent]
-    });
-    TestBed.compileComponents();
-  }));
-  describe('nz-tbody in table', () => {
-    let fixture: ComponentFixture<NzTbodyTestTableComponent>;
-    let tbody: DebugElement;
-
-    beforeEach(() => {
-      fixture = TestBed.createComponent(NzTbodyTestTableComponent);
+  [
+    {
+      component: NzTbodyTestTableComponent,
+      case: 'should not add class to tbody in table',
+      expected: false
+    },
+    {
+      component: NzTbodyTestNzTableComponent,
+      case: 'should add class to tbody in nz-table',
+      expected: true
+    }
+  ].forEach(({ component, case: testCase, expected }) => {
+    it(testCase, () => {
+      const fixture = TestBed.createComponent(component);
       fixture.detectChanges();
-      tbody = fixture.debugElement.query(By.directive(NzTbodyComponent));
-    });
-
-    it('should not add class', () => {
-      fixture.detectChanges();
-      expect(tbody.nativeElement.classList).not.toContain('ant-table-tbody');
-    });
-  });
-
-  describe('nz-tbody in nz-table', () => {
-    let fixture: ComponentFixture<NzTbodyTestNzTableComponent>;
-    let tbody: DebugElement;
-
-    beforeEach(() => {
-      fixture = TestBed.createComponent(NzTbodyTestNzTableComponent);
-      fixture.detectChanges();
-      tbody = fixture.debugElement.query(By.directive(NzTbodyComponent));
-    });
-    it('should not add class', () => {
-      fixture.detectChanges();
-      expect(tbody.nativeElement.classList).toContain('ant-table-tbody');
+      const tbody = fixture.debugElement.query(By.directive(NzTbodyComponent));
+      expect(tbody.nativeElement.classList.contains('ant-table-tbody')).toBe(expected);
     });
   });
 });
 
 @Component({
+  selector: 'nz-test-tbody-in-table',
+  imports: [NzTableModule],
   template: `
     <table>
       <tbody></tbody>
@@ -55,12 +43,12 @@ describe('nz-tbody', () => {
 export class NzTbodyTestTableComponent {}
 
 @Component({
+  selector: 'nz-test-tbody-in-nz-table',
+  imports: [NzTableModule],
   template: `
     <nz-table>
       <tbody></tbody>
     </nz-table>
   `
 })
-export class NzTbodyTestNzTableComponent {
-  expand = false;
-}
+export class NzTbodyTestNzTableComponent {}

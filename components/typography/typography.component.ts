@@ -3,23 +3,24 @@
  * found in the LICENSE file at https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/LICENSE
  */
 
-import { Direction, Directionality } from '@angular/cdk/bidi';
+import { Directionality } from '@angular/cdk/bidi';
 import { Platform } from '@angular/cdk/platform';
-import { DOCUMENT } from '@angular/common';
+import { NgTemplateOutlet } from '@angular/common';
 import {
   AfterViewInit,
-  ChangeDetectionStrategy,
+  booleanAttribute,
   ChangeDetectorRef,
   Component,
+  DestroyRef,
+  DOCUMENT,
   ElementRef,
   EmbeddedViewRef,
   EventEmitter,
-  Inject,
+  inject,
   Input,
+  numberAttribute,
   OnChanges,
-  OnDestroy,
   OnInit,
-  Optional,
   Output,
   Renderer2,
   SimpleChanges,
@@ -28,14 +29,14 @@ import {
   ViewContainerRef,
   ViewEncapsulation
 } from '@angular/core';
-import { Subject, Subscription } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subscription } from 'rxjs';
 
 import { NzConfigKey, NzConfigService, WithConfig } from 'ng-zorro-antd/core/config';
-import { cancelRequestAnimationFrame, reqAnimFrame } from 'ng-zorro-antd/core/polyfill';
+import { cancelAnimationFrame, requestAnimationFrame } from 'ng-zorro-antd/core/polyfill';
 import { NzResizeService } from 'ng-zorro-antd/core/services';
-import { BooleanInput, NumberInput, NzSafeAny, NzTSType } from 'ng-zorro-antd/core/types';
-import { InputBoolean, InputNumber, isStyleSupport, measure } from 'ng-zorro-antd/core/util';
+import { NzTSType } from 'ng-zorro-antd/core/types';
+import { isStyleSupport, measure } from 'ng-zorro-antd/core/util';
 import { NzI18nService, NzTextI18nInterface } from 'ng-zorro-antd/i18n';
 
 import { NzTextCopyComponent } from './text-copy.component';
@@ -55,58 +56,61 @@ const EXPAND_ELEMENT_CLASSNAME = 'ant-typography-expand';
   exportAs: 'nzTypography',
   template: `
     <ng-template #contentTemplate let-content="content">
-      <ng-content *ngIf="!content"></ng-content>
+      @if (!content) {
+        <ng-content />
+      }
       {{ content }}
     </ng-template>
-    <ng-container *ngIf="!editing">
-      <ng-container
-        *ngIf="
-          expanded ||
-            (!hasOperationsWithEllipsis && nzEllipsisRows === 1 && !hasEllipsisObservers) ||
-            canCssEllipsis ||
-            (nzSuffix && expanded);
-          else jsEllipsis
-        "
-      >
-        <ng-template
-          [ngTemplateOutlet]="contentTemplate"
-          [ngTemplateOutletContext]="{ content: nzContent }"
-        ></ng-template>
-        <ng-container *ngIf="nzSuffix">{{ nzSuffix }}</ng-container>
-      </ng-container>
-      <ng-template #jsEllipsis>
+    @if (!editing) {
+      @if (
+        expanded ||
+        (!hasOperationsWithEllipsis && nzEllipsisRows === 1 && !hasEllipsisObservers) ||
+        canCssEllipsis ||
+        (nzSuffix && expanded)
+      ) {
+        <ng-template [ngTemplateOutlet]="contentTemplate" [ngTemplateOutletContext]="{ content: nzContent }" />
+        @if (nzSuffix) {
+          {{ nzSuffix }}
+        }
+      } @else {
         <span #ellipsisContainer></span>
-        <ng-container *ngIf="isEllipsis">{{ ellipsisStr }}</ng-container>
-        <ng-container *ngIf="nzSuffix">{{ nzSuffix }}</ng-container>
-        <a #expandable *ngIf="nzExpandable && isEllipsis" class="ant-typography-expand" (click)="onExpand()">
-          {{ locale?.expand }}
-        </a>
-      </ng-template>
-    </ng-container>
+        @if (isEllipsis) {
+          {{ ellipsisStr }}
+        }
+        @if (nzSuffix) {
+          {{ nzSuffix }}
+        }
+        @if (nzExpandable && isEllipsis) {
+          <a #expandable class="ant-typography-expand" (click)="onExpand()">
+            {{ locale?.expand }}
+          </a>
+        }
+      }
+    }
 
-    <nz-text-edit
-      *ngIf="nzEditable"
-      [text]="nzContent"
-      [icon]="nzEditIcon"
-      [tooltip]="nzEditTooltip"
-      (endEditing)="onEndEditing($event)"
-      (startEditing)="onStartEditing()"
-    ></nz-text-edit>
+    @if (nzEditable) {
+      <nz-text-edit
+        [text]="nzContent"
+        [icon]="nzEditIcon"
+        [tooltip]="nzEditTooltip"
+        (endEditing)="onEndEditing($event)"
+        (startEditing)="onStartEditing()"
+      />
+    }
 
-    <nz-text-copy
-      *ngIf="nzCopyable && !editing"
-      [text]="copyText"
-      [tooltips]="nzCopyTooltips"
-      [icons]="nzCopyIcons"
-      (textCopy)="onTextCopy($event)"
-    ></nz-text-copy>
+    @if (nzCopyable && !editing) {
+      <nz-text-copy
+        [text]="copyText"
+        [tooltips]="nzCopyTooltips"
+        [icons]="nzCopyIcons"
+        (textCopy)="onTextCopy($event)"
+      />
+    }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
-  preserveWhitespaces: false,
   host: {
     '[class.ant-typography]': '!editing',
-    '[class.ant-typography-rtl]': 'dir === "rtl"',
+    '[class.ant-typography-rtl]': 'dir() === "rtl"',
     '[class.ant-typography-edit-content]': 'editing',
     '[class.ant-typography-secondary]': 'nzType === "secondary"',
     '[class.ant-typography-warning]': 'nzType === "warning"',
@@ -118,29 +122,35 @@ const EXPAND_ELEMENT_CLASSNAME = 'ant-typography-expand';
     '[class.ant-typography-ellipsis-single-line]': 'canCssEllipsis && nzEllipsisRows === 1',
     '[class.ant-typography-ellipsis-multiple-line]': 'canCssEllipsis && nzEllipsisRows > 1',
     '[style.-webkit-line-clamp]': '(canCssEllipsis && nzEllipsisRows > 1) ? nzEllipsisRows : null'
-  }
+  },
+  imports: [NgTemplateOutlet, NzTextEditComponent, NzTextCopyComponent]
 })
-export class NzTypographyComponent implements OnInit, AfterViewInit, OnDestroy, OnChanges {
+export class NzTypographyComponent implements OnInit, AfterViewInit, OnChanges {
   readonly _nzModuleName: NzConfigKey = NZ_CONFIG_MODULE_NAME;
 
-  static ngAcceptInputType_nzCopyable: BooleanInput;
-  static ngAcceptInputType_nzEditable: BooleanInput;
-  static ngAcceptInputType_nzDisabled: BooleanInput;
-  static ngAcceptInputType_nzExpandable: BooleanInput;
-  static ngAcceptInputType_nzEllipsis: BooleanInput;
-  static ngAcceptInputType_nzEllipsisRows: NumberInput;
+  nzConfigService = inject(NzConfigService);
+  private el: HTMLElement = inject(ElementRef<HTMLElement>).nativeElement;
+  private cdr = inject(ChangeDetectorRef);
+  private viewContainerRef = inject(ViewContainerRef);
+  private renderer = inject(Renderer2);
+  private platform = inject(Platform);
+  private i18n = inject(NzI18nService);
+  private resizeService = inject(NzResizeService);
+  protected readonly dir = inject(Directionality).valueSignal;
+  private document: Document = inject(DOCUMENT);
+  private destroyRef = inject(DestroyRef);
 
-  @Input() @InputBoolean() nzCopyable = false;
-  @Input() @InputBoolean() nzEditable = false;
-  @Input() @InputBoolean() nzDisabled = false;
-  @Input() @InputBoolean() nzExpandable = false;
-  @Input() @InputBoolean() nzEllipsis = false;
+  @Input({ transform: booleanAttribute }) nzCopyable = false;
+  @Input({ transform: booleanAttribute }) nzEditable = false;
+  @Input({ transform: booleanAttribute }) nzDisabled = false;
+  @Input({ transform: booleanAttribute }) nzExpandable = false;
+  @Input({ transform: booleanAttribute }) nzEllipsis = false;
   @Input() @WithConfig() nzCopyTooltips?: [NzTSType, NzTSType] | null = undefined;
   @Input() @WithConfig() nzCopyIcons: [NzTSType, NzTSType] = ['copy', 'check'];
   @Input() @WithConfig() nzEditTooltip?: null | NzTSType = undefined;
   @Input() @WithConfig() nzEditIcon: NzTSType = 'edit';
   @Input() nzContent?: string;
-  @Input() @WithConfig() @InputNumber() nzEllipsisRows: number = 1;
+  @Input({ transform: numberAttribute }) @WithConfig() nzEllipsisRows: number = 1;
   @Input() nzType: 'secondary' | 'warning' | 'danger' | 'success' | undefined;
   @Input() nzCopyText: string | undefined;
   @Input() nzSuffix: string | undefined;
@@ -157,7 +167,6 @@ export class NzTypographyComponent implements OnInit, AfterViewInit, OnDestroy, 
   @ViewChild('contentTemplate', { static: false }) contentTemplate?: TemplateRef<{ content: string }>;
 
   locale!: NzTextI18nInterface;
-  document: Document;
   expandableBtnElementCache: HTMLElement | null = null;
   editing = false;
   ellipsisText: string | undefined;
@@ -165,7 +174,6 @@ export class NzTypographyComponent implements OnInit, AfterViewInit, OnDestroy, 
   isEllipsis: boolean = true;
   expanded: boolean = false;
   ellipsisStr = '...';
-  dir: Direction = 'ltr';
 
   get hasEllipsisObservers(): boolean {
     return this.nzOnEllipsis.observers.length > 0;
@@ -180,26 +188,18 @@ export class NzTypographyComponent implements OnInit, AfterViewInit, OnDestroy, 
   }
 
   private viewInit = false;
-  private rfaId: number = -1;
-  private destroy$ = new Subject();
+  private requestId: number = -1;
   private windowResizeSubscription = Subscription.EMPTY;
+
   get copyText(): string {
     return (typeof this.nzCopyText === 'string' ? this.nzCopyText : this.nzContent)!;
   }
 
-  constructor(
-    public nzConfigService: NzConfigService,
-    private host: ElementRef<HTMLElement>,
-    private cdr: ChangeDetectorRef,
-    private viewContainerRef: ViewContainerRef,
-    private renderer: Renderer2,
-    private platform: Platform,
-    private i18n: NzI18nService,
-    @Inject(DOCUMENT) document: NzSafeAny,
-    private resizeService: NzResizeService,
-    @Optional() private directionality: Directionality
-  ) {
-    this.document = document;
+  constructor() {
+    this.destroyRef.onDestroy(() => {
+      this.expandableBtnElementCache = null;
+      this.windowResizeSubscription.unsubscribe();
+    });
   }
 
   onTextCopy(text: string): void {
@@ -242,13 +242,11 @@ export class NzTypographyComponent implements OnInit, AfterViewInit, OnDestroy, 
   }
 
   renderOnNextFrame(): void {
-    cancelRequestAnimationFrame(this.rfaId);
+    cancelAnimationFrame(this.requestId);
     if (!this.viewInit || !this.nzEllipsis || this.nzEllipsisRows < 0 || this.expanded || !this.platform.isBrowser) {
       return;
     }
-    this.rfaId = reqAnimFrame(() => {
-      this.syncEllipsis();
-    });
+    this.requestId = requestAnimationFrame(() => this.syncEllipsis());
   }
 
   getOriginContentViewRef(): { viewRef: EmbeddedViewRef<{ content: string }>; removeView(): void } {
@@ -258,9 +256,7 @@ export class NzTypographyComponent implements OnInit, AfterViewInit, OnDestroy, 
     viewRef.detectChanges();
     return {
       viewRef,
-      removeView: () => {
-        this.viewContainerRef.remove(this.viewContainerRef.indexOf(viewRef));
-      }
+      removeView: () => this.viewContainerRef.remove(this.viewContainerRef.indexOf(viewRef))
     };
   }
 
@@ -277,7 +273,7 @@ export class NzTypographyComponent implements OnInit, AfterViewInit, OnDestroy, 
       fixedNodes.push(expandableBtnElement);
     }
     const { contentNodes, text, ellipsis } = measure(
-      this.host.nativeElement,
+      this.el,
       this.nzEllipsisRows,
       viewRef.rootNodes,
       fixedNodes,
@@ -326,24 +322,17 @@ export class NzTypographyComponent implements OnInit, AfterViewInit, OnDestroy, 
       this.cssEllipsis = this.canUseCSSEllipsis();
       this.renderOnNextFrame();
       this.windowResizeSubscription = this.resizeService
-        .subscribe()
-        .pipe(takeUntil(this.destroy$))
+        .connect()
+        .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe(() => this.renderOnNextFrame());
     }
   }
 
   ngOnInit(): void {
-    this.i18n.localeChange.pipe(takeUntil(this.destroy$)).subscribe(() => {
+    this.i18n.localeChange.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.locale = this.i18n.getLocaleData('Text');
       this.cdr.markForCheck();
     });
-
-    this.directionality.change?.pipe(takeUntil(this.destroy$)).subscribe((direction: Direction) => {
-      this.dir = direction;
-      this.cdr.detectChanges();
-    });
-
-    this.dir = this.directionality.value;
   }
 
   ngAfterViewInit(): void {
@@ -362,12 +351,5 @@ export class NzTypographyComponent implements OnInit, AfterViewInit, OnDestroy, 
         }
       }
     }
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.expandableBtnElementCache = null;
-    this.windowResizeSubscription.unsubscribe();
   }
 }

@@ -1,7 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
+
+import { NzTableModule } from 'ng-zorro-antd/table';
 
 @Component({
   selector: 'nz-demo-table-break-word',
+  imports: [NzTableModule],
   template: `
     <nz-table #fixedTable [nzData]="listOfData" [nzScroll]="{ x: '1000px', y: '240px' }">
       <thead>
@@ -20,35 +23,31 @@ import { Component, OnInit } from '@angular/core';
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let data of fixedTable.data">
-          <td nzLeft>{{ data.name }}</td>
-          <td nzLeft>{{ data.age }}</td>
-          <td nzBreakWord>{{ data.address }}</td>
-          <td nzBreakWord>{{ data.address }}</td>
-          <td nzBreakWord>{{ data.address }}</td>
-          <td nzBreakWord>{{ data.address }}</td>
-          <td nzBreakWord>{{ data.address }}</td>
-          <td nzBreakWord>{{ data.address }}</td>
-          <td nzBreakWord>{{ data.address }}</td>
-          <td nzBreakWord>{{ data.address }}</td>
-          <td nzRight>
-            <a>action</a>
-          </td>
-        </tr>
+        @for (data of fixedTable.data; track data) {
+          <tr>
+            <td nzLeft>{{ data.name }}</td>
+            <td nzLeft>{{ data.age }}</td>
+            <td nzBreakWord>{{ data.address }}</td>
+            <td nzBreakWord>{{ data.address }}</td>
+            <td nzBreakWord>{{ data.address }}</td>
+            <td nzBreakWord>{{ data.address }}</td>
+            <td nzBreakWord>{{ data.address }}</td>
+            <td nzBreakWord>{{ data.address }}</td>
+            <td nzBreakWord>{{ data.address }}</td>
+            <td nzBreakWord>{{ data.address }}</td>
+            <td nzRight>
+              <a>action</a>
+            </td>
+          </tr>
+        }
       </tbody>
     </nz-table>
   `
 })
-export class NzDemoTableBreakWordComponent implements OnInit {
-  listOfData: Array<{ name: string; age: number; address: string }> = [];
-
-  ngOnInit(): void {
-    for (let i = 0; i < 100; i++) {
-      this.listOfData.push({
-        name: `Edward King`,
-        age: 32,
-        address: `LondonLondonLondonLondonLondon`
-      });
-    }
-  }
+export class NzDemoTableBreakWordComponent {
+  readonly listOfData: Array<{ name: string; age: number; address: string }> = Array.from({ length: 100 }).map(() => ({
+    name: `Edward King`,
+    age: 32,
+    address: `LondonLondonLondonLondonLondon`
+  }));
 }

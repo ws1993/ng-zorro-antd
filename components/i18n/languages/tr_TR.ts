@@ -9,13 +9,14 @@ export default {
     items_per_page: '/ sayfa',
     jump_to: 'Git',
     jump_to_confirm: 'onayla',
-    page: '',
+    page: 'Sayfa',
     prev_page: 'Önceki Sayfa',
     next_page: 'Sonraki Sayfa',
     prev_5: 'Önceki 5 Sayfa',
     next_5: 'Sonraki 5 Sayfa',
     prev_3: 'Önceki 3 Sayfa',
-    next_3: 'Sonraki 3 Sayfa'
+    next_3: 'Sonraki 3 Sayfa',
+    page_size: 'sayfa boyutu'
   },
   DatePicker: {
     lang: {
@@ -26,25 +27,27 @@ export default {
       weekPlaceholder: 'Hafta seç',
       rangePlaceholder: ['Başlangıç tarihi', 'Bitiş tarihi'],
       rangeYearPlaceholder: ['Başlangıç yılı', 'Bitiş yılı'],
+      rangeQuarterPlaceholder: ['Başlangıç çeyreği', 'Bitiş çeyreği'],
       rangeMonthPlaceholder: ['Başlangıç ayı', 'Bitiş ayı'],
       rangeWeekPlaceholder: ['Başlangıç haftası', 'Bitiş haftası'],
       locale: 'tr_TR',
       today: 'Bugün',
       now: 'Şimdi',
       backToToday: 'Bugüne Geri Dön',
-      ok: 'tamam',
+      ok: 'Tamam',
       clear: 'Temizle',
       month: 'Ay',
       year: 'Yıl',
       timeSelect: 'Zaman Seç',
       dateSelect: 'Tarih Seç',
+      weekSelect: 'Hafta Seç',
       monthSelect: 'Ay Seç',
       yearSelect: 'Yıl Seç',
       decadeSelect: 'On Yıl Seç',
       yearFormat: 'YYYY',
-      dateFormat: 'M/D/YYYY',
+      dateFormat: 'DD.MM.YYYY',
       dayFormat: 'D',
-      dateTimeFormat: 'M/D/YYYY HH:mm:ss',
+      dateTimeFormat: 'DD.MM.YYYY HH:mm:ss',
       monthBeforeYear: true,
       previousMonth: 'Önceki Ay (PageUp)',
       nextMonth: 'Sonraki Ay (PageDown)',
@@ -79,19 +82,20 @@ export default {
       today: 'Bugün',
       now: 'Şimdi',
       backToToday: 'Bugüne Geri Dön',
-      ok: 'tamam',
+      ok: 'Tamam',
       clear: 'Temizle',
       month: 'Ay',
       year: 'Yıl',
       timeSelect: 'Zaman Seç',
       dateSelect: 'Tarih Seç',
+      weekSelect: 'Hafta Seç',
       monthSelect: 'Ay Seç',
       yearSelect: 'Yıl Seç',
       decadeSelect: 'On Yıl Seç',
       yearFormat: 'YYYY',
-      dateFormat: 'M/D/YYYY',
+      dateFormat: 'DD.MM.YYYY',
       dayFormat: 'D',
-      dateTimeFormat: 'M/D/YYYY HH:mm:ss',
+      dateTimeFormat: 'DD.MM.YYYY HH:mm:ss',
       monthBeforeYear: true,
       previousMonth: 'Önceki Ay (PageUp)',
       nextMonth: 'Sonraki Ay (PageDown)',
@@ -115,6 +119,7 @@ export default {
     filterConfirm: 'Tamam',
     filterReset: 'Sıfırla',
     filterEmptyText: 'Filtre yok',
+    emptyText: 'Veri yok',
     selectAll: 'Tüm sayfayı seç',
     selectInvert: 'Tersini seç',
     selectionAll: 'Tümünü seç',
@@ -123,7 +128,10 @@ export default {
     collapse: 'Satırı daralt',
     triggerDesc: 'Azalan düzende sırala',
     triggerAsc: 'Artan düzende sırala',
-    cancelSort: 'Sıralamayı kaldır'
+    cancelSort: 'Sıralamayı kaldır',
+    filterCheckall: 'Tüm öğeleri seç',
+    filterSearchPlaceholder: 'Filtrelerde ara',
+    selectNone: 'Tüm seçimleri kaldır'
   },
   Modal: {
     okText: 'Tamam',
@@ -167,5 +175,35 @@ export default {
   },
   PageHeader: {
     back: 'Geri'
+  },
+  Image: {
+    preview: 'Önizleme'
+  },
+  Form: {
+    optional: '(isteğe bağlı)'
+  },
+  CronExpression: {
+    cronError: 'Geçersiz cron ifadesi',
+    second: 'saniye',
+    minute: 'dakika',
+    hour: 'saat',
+    day: 'gün',
+    month: 'ay',
+    week: 'hafta'
+  },
+  QRCode: {
+    expired: 'QR kodunun süresi doldu',
+    refresh: 'Yenile',
+    scanned: 'Tarandı'
+  },
+  CheckList: {
+    checkList: 'Kontrol Listesi',
+    checkListFinish: 'Listeyi başarıyla tamamladınız!',
+    checkListClose: 'Kapat',
+    checkListFooter: 'Kontrol listesine artık gerek yok',
+    checkListCheck: 'Listeyi kapatmak istiyor musunuz?',
+    ok: 'Tamam',
+    cancel: 'İptal',
+    checkListCheckOther: 'Bir daha gösterme'
   }
 };

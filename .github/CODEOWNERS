@@ -1,7 +1,6 @@
 # The components owners
 components/affix/**                       @cipchk
 components/anchor/**                      @cipchk
-components/back-top/**                    @cipchk
 components/list/**                        @cipchk
 components/upload/**                      @cipchk
 components/auto-complete/**               @hsuanxyz
@@ -19,24 +18,25 @@ components/typography/**                  @hsuanxyz
 components/space/**                       @hsuanxyz
 components/resizable/**                   @hsuanxyz
 components/tabs/**                        @hsuanxyz
-components/breadcrumb/**                  @wendellhu95
-components/empty/**                       @wendellhu95
-components/carousel/**                    @wendellhu95
-components/cascader/**                    @wendellhu95
-components/descriptions/**                @wendellhu95
-components/icon/**                        @wendellhu95
-components/message/**                     @wendellhu95
-components/notification/**                @wendellhu95
-components/popconfirm/**                  @wendellhu95
-components/popover/**                     @wendellhu95
-components/progress/**                    @wendellhu95
-components/rate/**                        @wendellhu95
-components/result/**                      @wendellhu95
-components/slider/**                      @wendellhu95
-components/statistic/**                   @wendellhu95
-components/timeline/**                    @wendellhu95
-components/tooltip/**                     @wendellhu95
-components/code-editor/**                 @wendellhu95
+components/breadcrumb/**                  @simplejason
+components/empty/**                       @simplejason
+components/carousel/**                    @simplejason
+components/cascader/**                    @laffery
+components/descriptions/**                @simplejason
+components/icon/**                        @simplejason
+components/message/**                     @simplejason
+components/notification/**                @simplejason
+components/popconfirm/**                  @simplejason
+components/popover/**                     @simplejason
+components/progress/**                    @simplejason
+components/rate/**                        @simplejason
+components/result/**                      @simplejason
+components/slider/**                      @simplejason
+components/statistic/**                   @simplejason
+components/timeline/**                    @simplejason
+components/tooltip/**                     @simplejason
+components/code-editor/**                 @simplejason
+components/segmented/**                   @simplejason
 components/calendar/**                    @wenqi73
 components/date-picker/**                 @wenqi73
 components/skeleton/**                    @wenqi73
@@ -57,6 +57,7 @@ components/pagination/**                  @vthinkxie
 components/radio/**                       @vthinkxie
 components/select/**                      @vthinkxie
 components/spin/**                        @vthinkxie
+components/splitter/**                    @laffery
 components/switch/**                      @vthinkxie
 components/table/**                       @vthinkxie
 components/tree/**                        @simplejason
@@ -66,19 +67,27 @@ components/transfer/**                    @Ricbet
 components/i18n/**                        @wenqi73
 components/pipes/**                       @chensimeng
 components/image/**                       @stygian-desolator
+components/qr-code/**                     @OriginRing
+components/cron-expression/**             @OriginRing
+components/watermark/**                   @OriginRing
+components/color-picker/**                @OriginRing
+components/hash-code/**                   @OriginRing
+components/flex/**                        @ParsaArvanehPA
+components/float-button/**                @OriginRing
+components/check-list/**                  @OriginRing
 
 # The `components/core/*` owners
-components/core/config/**                 @wendellhu95
-components/core/element-patch/**          @wendellhu95
+components/core/config/**                 @simplejason
+components/core/element-patch/**          @simplejason
 components/core/highlight/**              @hsuanxyz
-components/core/resize-observers/**       @wendellhu95
-components/core/logger/**                 @wendellhu95
+components/core/resize-observers/**       @simplejason
+components/core/logger/**                 @simplejason
 components/core/no-animation/**           @hsuanxyz
 components/core/outlet/**                 @vthinkxie
 components/core/time/**                   @wenqi73
 components/core/trans-button/**           @hsuanxyz
 components/core/transition-patch/**       @vthinkxie
-components/core/tree/**                   @simplejason @hsuanxyz
+components/core/tree/**                   @simplejason @laffery
 components/core/wave/**                   @hsuanxyz
 
 # Misc

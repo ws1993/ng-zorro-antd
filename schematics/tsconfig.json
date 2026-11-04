@@ -1,9 +1,17 @@
 {
   "compilerOptions": {
-    "lib": ["es2017", "dom"],
+    "lib": [
+      "es2017",
+      "dom"
+    ],
     "module": "commonjs",
-    "moduleResolution": "node",
-    "outDir": "../publish/schematics",
+    "moduleResolution": "bundler",
+    "outDir": "../dist/schematics",
+    "strict": false,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "noImplicitReturns": false,
+    "useUnknownInCatchVariables": false,
     "noEmitOnError": false,
     "resolveJsonModule": true,
     "skipDefaultLibCheck": true,
@@ -11,7 +19,7 @@
     "sourceMap": true,
     "target": "es6",
     "types": [
-      "jasmine",
+      "vitest/globals",
       "node"
     ]
   },
